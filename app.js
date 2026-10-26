@@ -563,6 +563,7 @@ async function viewSituation(id) {
     <div class="grid two">
       <div class="card conclusion">
         <div class="card-head"><h3>${t("conclusion")}</h3>${s.status === "draft" ? `<span class="tag warn">${t("draft")}</span>` : ""}</div>
+        ${s.status === "draft" && s.review_note ? `<p class="notice">${t("toReviewLib")} : ${esc(s.review_note)}</p>` : ""}
         <div class="spot-box">${[["Positions", `${s.hero_pos || "?"} vs ${s.villain_pos || "?"}`], ["Stacks", s.stacks_bb ? s.stacks_bb + " bb" : null], ["Board", s.board], ["Line", s.line], ["vs", s.villain_type]].filter(([, v]) => v).map(([k, v]) => `<span><small>${k}</small>${esc(v)}</span>`).join("")}</div>
         <div class="answer big"><b>${esc(s.action || "")}</b>${s.sizing ? `<span>${esc(s.sizing)}</span>` : ""}${s.frequency ? `<span>${esc(s.frequency)}</span>` : ""}</div>
         <p>${esc(s.conclusion)}</p>
