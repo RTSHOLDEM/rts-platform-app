@@ -1,0 +1,125 @@
+/* All interface text, English (default) and French. t("key") returns the text in the user's language. */
+const STRINGS = {
+  en: {
+    home: "Home", journal: "Journal", mypage: "My page", coaching: "Coaching", library: "Library", calendar: "Calendar",
+    money: "Money", contract: "Contract", team: "Team", admin: "Admin", ceo: "CEO", inbox: "Inbox",
+    hi: "Hi", camera: "Camera mode", logout: "Log out", demo: "Demo", loading: "Loading…", error: "Error",
+    streak: "Journal streak", days: "days", day: "day", handsMonth: "Hands this month", hoursMonth: "Hours this month",
+    play: "Play", study: "Study", hands: "Hands", target: "target", pace: "on pace", behind: "behind pace",
+    fillToday: "Fill today's journal", filledToday: "Today's journal is done", edit: "Edit",
+    toReview: "questions to review", review: "Review", noReview: "Nothing to review today",
+    // journal
+    jTitle: "Daily journal", jSub: "Under 2 minutes. Dictate or type.", mood: "Mood", tags: "Tags (one tap)",
+    played: "How I played", learned: "What I learned", didWell: "What I did well", mistakes: "Mistakes",
+    save: "Save", saved: "Saved ✓", timers: "Timers", start: "Start", stop: "Stop", running: "running",
+    monthView: "Month by month", month: "Month", objective: "Objective", dictate: "Dictate",
+    // objectives + report
+    objectives: "Monthly objectives", proposed: "Proposed", confirmed: "Confirmed by mentor", propose: "Propose",
+    confirm: "Confirm", teamDefault: "Team default", other: "Other objectives (one per line)",
+    report: "Private monthly report", rating: "Rate the month (1 to 10)", wins: "Wins", struggles: "Struggles",
+    nextFocus: "Focus next month", mentorNote: "Mentor note", copyDiscord: "Copy summary for my Discord channel",
+    copied: "Copied. Paste it in your Discord channel.", reportPrivate: "Private: you, your mentor, your coaches and RTS. Your team report stays on Discord.",
+    habit: "Habit tracker",
+    // player page
+    overview: "Overview", mentoring: "Mentoring", feedback: "Feedback", nextSteps: "Next steps", transcript: "Transcript",
+    draftClaude: "Claude draft", validated: "Approved", approve: "Approve and share with the player",
+    noMentoring: "No mentoring yet. Zoom sessions land here automatically every night.",
+    mentor: "Mentor", away: "Holidays", awaySub: "Your streak is frozen and your staff gets no alert.", from: "From", to: "To",
+    cancel: "Cancel", onHoliday: "on holiday",
+    // coaching
+    program: "Program so far", exercises: "Exercises", quiz: "Quiz", quizzes: "Quizzes", startQuiz: "Start the quiz",
+    score: "Score", correct: "Right", wrong: "Wrong", why: "Why", watchReplay: "Watch the replay", next: "Next",
+    finish: "Finish", backToDeck: "Missed questions come back in a few days until you get them right.",
+    notes: "Notes", replay: "Replay", slides: "Slides", attended: "Attended", noCoaching: "No coaching yet.",
+    pendingApproval: "Waiting for coach approval", approveQuiz: "Approve for players", results: "Results",
+    // library
+    libSub: "Every strategy the team agreed on, by situation.", search: "Search a situation…",
+    allPots: "All pots", allPos: "All positions", allStreets: "All streets", allVs: "vs anyone",
+    situations: "Situations", map: "Map", conclusion: "Conclusion", source: "Source", practice: "Practice",
+    submit: "Submit my research", submitSub: "The coach in charge reviews it before it goes live.",
+    toReviewLib: "To review", publish: "Publish", pastCoachings: "Past coachings", onboarding: "Onboarding pack", tools: "Tools",
+    noSituation: "No situation matches.", draft: "Draft", live: "Live",
+    // calendar
+    calSub: "Your team's sessions. Subscribe once, it updates on its own.", subscribe: "Add to my calendar",
+    noCal: "Your team calendar is being set up.",
+    // money + contract
+    sample: "Sample data for the demo. Real numbers come from your compta sheet.", openSheet: "Open my compta sheet",
+    profit: "Monthly profit", cutOwed: "RTS cut owed", paid: "Already paid", makeup: "Makeup",
+    contractSub: "Your signed contract. Read and download only. Signing stays in Odoo.", openContract: "Open my contract (PDF)",
+    noContract: "Your signed contract will be added here.",
+    // staff
+    teamSub: "Who is behind, in 5 seconds. Click a player to open his page.", player: "Player",
+    lastJournal: "Last journal", today: "today", never: "never", quizDue: "Quiz to review",
+    // admin
+    adminSub: "Add, change or remove people. Same as Discord access.", add: "Add a person", name: "Name", email: "Email",
+    teamCol: "Team", roles: "Roles", active: "Active", remove: "Remove access", restore: "Give access back",
+    // ceo
+    ceoSub: "All teams at a glance.", cutTotal: "Cut owed / paid", behindList: "Behind this month", players: "players",
+    // login
+    loginTitle: "Player space", loginSub: "Enter your email: you get a login link. No password.", sendLink: "Send my link",
+    linkSent: "Sent. Open the link from your email on this device.", notRegistered: "This email isn't on the platform yet. Ask RTS to add you.",
+    notFound: "Not found or not accessible.",
+  },
+  fr: {
+    home: "Accueil", journal: "Journal", mypage: "Ma page", coaching: "Coaching", library: "Bibliothèque", calendar: "Calendrier",
+    money: "Finances", contract: "Contrat", team: "Équipe", admin: "Admin", ceo: "CEO", inbox: "Boîte",
+    hi: "Salut", camera: "Mode caméra", logout: "Déconnexion", demo: "Démo", loading: "Chargement…", error: "Erreur",
+    streak: "Série journal", days: "jours", day: "jour", handsMonth: "Mains ce mois", hoursMonth: "Heures ce mois",
+    play: "Jeu", study: "Étude", hands: "Mains", target: "objectif", pace: "dans le rythme", behind: "en retard",
+    fillToday: "Remplir le journal du jour", filledToday: "Journal du jour rempli", edit: "Modifier",
+    toReview: "questions à revoir", review: "Revoir", noReview: "Rien à revoir aujourd'hui",
+    jTitle: "Journal de bord", jSub: "Moins de 2 minutes. Dicte ou tape.", mood: "Humeur", tags: "Tags (un clic)",
+    played: "Comment j'ai joué", learned: "Ce que j'ai appris", didWell: "Ce que j'ai bien fait", mistakes: "Erreurs",
+    save: "Enregistrer", saved: "Enregistré ✓", timers: "Chronos", start: "Démarrer", stop: "Arrêter", running: "en cours",
+    monthView: "Mois par mois", month: "Mois", objective: "Objectif", dictate: "Dicter",
+    objectives: "Objectifs du mois", proposed: "Proposé", confirmed: "Validé par le mentor", propose: "Proposer",
+    confirm: "Valider", teamDefault: "Défaut équipe", other: "Autres objectifs (un par ligne)",
+    report: "Bilan mensuel privé", rating: "Note du mois (1 à 10)", wins: "Réussites", struggles: "Difficultés",
+    nextFocus: "Focus du mois prochain", mentorNote: "Note du mentor", copyDiscord: "Copier le résumé pour mon salon Discord",
+    copied: "Copié. Colle-le dans ton salon Discord.", reportPrivate: "Privé : toi, ton mentor, tes coachs et RTS. Ton bilan d'équipe reste sur Discord.",
+    habit: "Suivi des habitudes",
+    overview: "Aperçu", mentoring: "Mentoring", feedback: "Feedback", nextSteps: "Prochaines étapes", transcript: "Transcription",
+    draftClaude: "Brouillon Claude", validated: "Validé", approve: "Valider et partager au joueur",
+    noMentoring: "Pas encore de mentoring. Les sessions Zoom arrivent ici automatiquement chaque nuit.",
+    mentor: "Mentor", away: "Vacances", awaySub: "Ta série est gelée et ton staff ne reçoit pas d'alerte.", from: "Du", to: "Au",
+    cancel: "Annuler", onHoliday: "en vacances",
+    program: "Programme suivi", exercises: "Exercices", quiz: "Quiz", quizzes: "Quiz", startQuiz: "Lancer le quiz",
+    score: "Score", correct: "Juste", wrong: "Faux", why: "Pourquoi", watchReplay: "Voir le replay", next: "Suivante",
+    finish: "Terminer", backToDeck: "Les questions ratées reviennent dans quelques jours jusqu'à ce que tu les réussisses.",
+    notes: "Notes", replay: "Replay", slides: "Slides", attended: "Présent", noCoaching: "Pas encore de coaching.",
+    pendingApproval: "En attente de validation du coach", approveQuiz: "Valider pour les joueurs", results: "Résultats",
+    libSub: "Toutes les stratégies validées par l'équipe, par situation.", search: "Chercher une situation…",
+    allPots: "Tous les pots", allPos: "Toutes positions", allStreets: "Toutes les streets", allVs: "vs tout le monde",
+    situations: "Situations", map: "Carte", conclusion: "Conclusion", source: "Source", practice: "S'entraîner",
+    submit: "Proposer ma recherche", submitSub: "Le coach responsable la relit avant publication.",
+    toReviewLib: "À relire", publish: "Publier", pastCoachings: "Coachings passés", onboarding: "Pack d'arrivée", tools: "Outils",
+    noSituation: "Aucune situation trouvée.", draft: "Brouillon", live: "Publié",
+    calSub: "Les sessions de ton équipe. Abonne-toi une fois, ça se met à jour tout seul.", subscribe: "Ajouter à mon agenda",
+    noCal: "Le calendrier de ton équipe est en cours de création.",
+    sample: "Données d'exemple pour la démo. Les vrais chiffres viennent de ta compta.", openSheet: "Ouvrir ma compta",
+    profit: "Profit du mois", cutOwed: "Cut RTS dû", paid: "Déjà payé", makeup: "Makeup",
+    contractSub: "Ton contrat signé. Lecture et téléchargement seulement. La signature reste dans Odoo.", openContract: "Ouvrir mon contrat (PDF)",
+    noContract: "Ton contrat signé sera ajouté ici.",
+    teamSub: "Qui est en retard, en 5 secondes. Clique sur un joueur pour ouvrir sa page.", player: "Joueur",
+    lastJournal: "Dernier journal", today: "aujourd'hui", never: "jamais", quizDue: "Quiz à revoir",
+    adminSub: "Ajouter, modifier ou retirer quelqu'un. Comme les accès Discord.", add: "Ajouter une personne", name: "Nom", email: "Email",
+    teamCol: "Équipe", roles: "Rôles", active: "Actif", remove: "Retirer l'accès", restore: "Redonner l'accès",
+    ceoSub: "Toutes les équipes d'un coup d'œil.", cutTotal: "Cut dû / payé", behindList: "En retard ce mois", players: "joueurs",
+    loginTitle: "Espace joueurs", loginSub: "Entre ton email : tu reçois un lien de connexion. Pas de mot de passe.", sendLink: "Recevoir mon lien",
+    linkSent: "C'est envoyé. Ouvre le lien reçu par email sur cet appareil.", notRegistered: "Cet email n'est pas encore inscrit. Demande à RTS de t'ajouter.",
+    notFound: "Introuvable ou non accessible.",
+  },
+};
+
+/* One-tap journal tags (max 10). Their effect on results shows later. */
+const TAGS = {
+  tilt: { en: "Tilt", fr: "Tilt" }, tired: { en: "Tired", fr: "Fatigué" }, sleep: { en: "Bad sleep", fr: "Mal dormi" },
+  alcohol: { en: "Alcohol", fr: "Alcool" }, focused: { en: "Focused", fr: "Concentré" }, sport: { en: "Sport", fr: "Sport" },
+  warmup: { en: "Warm-up done", fr: "Échauffement fait" }, stressed: { en: "Stressed", fr: "Stressé" },
+  distracted: { en: "Distracted", fr: "Distrait" }, sick: { en: "Sick", fr: "Malade" },
+};
+
+let LANG = (() => { try { return localStorage.getItem("rts-lang") || "en"; } catch { return "en"; } })();
+const t = (k) => STRINGS[LANG][k] ?? STRINGS.en[k] ?? k;
+const tag = (k) => TAGS[k]?.[LANG] || k;
+function setLang(l) { LANG = l; try { localStorage.setItem("rts-lang", l); } catch {} document.documentElement.lang = l; }
