@@ -108,25 +108,31 @@ function liveDb() {
     async handImage(path) { const { data, error } = await sb.storage.from("hands").createSignedUrl(path, 600); return error ? null : data.signedUrl; },
     async cards() { return rows(sb.from("study_cards").select("*").order("created_at", { ascending: false })); },
     async addCard(c) { const me = await db.me(); return rows(sb.from("study_cards").insert({ ...c, player_id: me.id }).select()); },
+    async addCards(l) { const me = await db.me(); return rows(sb.from("study_cards").insert(l.map((c) => ({ ...c, player_id: me.id }))).select()); },
     async saveCard(c) { return rows(sb.from("study_cards").update(c).eq("id", c.id)); },
     async directory() { const { data, error } = await sb.rpc("player_directory"); if (error) throw error; return data || []; },
     async events(from, to) { return rows(sb.from("events").select("*").gte("starts_at", from).lte("starts_at", to).order("starts_at")); },
-    async saveEvent(e) { const me = await db.me(); return rows(e.id ? sb.from("events").update(e).eq("id", e.id).select() : sb.from("events").insert({ ...e, created_by: me.id }).select()); },
+    async saveEvent(e) { const me = await db.me(); return rows(e.id ? sb.from("events").update(e).eq("id", e.id).select() : sb.from("events").insert({ created_by: me.id, ...e }).select()); },
     async dropEvent(id) { return rows(sb.from("events").delete().eq("id", id)); },
     async joins(ids) { return ids.length ? rows(sb.from("event_joins").select("*").in("event_id", ids)) : []; },
     async join(id, on) { const me = await db.me(); return on ? rows(sb.from("event_joins").upsert({ event_id: id, player_id: me.id })) : rows(sb.from("event_joins").delete().eq("event_id", id).eq("player_id", me.id)); },
     // game layer (005)
     async myJoins() { const me = await db.me(); return rows(sb.from("event_joins").select("*").eq("player_id", me.id)); },
     async setPrefs(accent, skin) { const { error } = await sb.rpc("set_prefs", { p_accent: accent ?? null, p_skin: skin ?? null }); if (error) throw error; meCache = null; },
+    async setLook(nick, avatar) { const { error } = await sb.rpc("set_look", { p_nick: nick ?? null, p_avatar: avatar ?? null }); if (error) throw error; meCache = null; },
     async notes() { const me = await db.me(); return rows(sb.from("opp_notes").select("*").eq("player_id", me.id).order("updated_at", { ascending: false })); },
     async saveNote(n) { const me = await db.me(); return rows(sb.from("opp_notes").upsert({ ...n, player_id: me.id, updated_at: new Date().toISOString() }, { onConflict: "player_id,nick" }).select()); },
     /* RTS HQ: live presence (who is where) + chat bubbles. Realtime only, nothing stored. */
-    hq(me, onSync, onChat) {
-      const ch = sb.channel("rts-hq", { config: { presence: { key: me.id }, broadcast: { self: true } } });
-      ch.on("presence", { event: "sync" }, () => onSync(Object.values(ch.presenceState()).map((l) => l[l.length - 1])))
-        .on("broadcast", { event: "chat" }, ({ payload }) => onChat(payload))
-        .subscribe((s) => { if (s === "SUBSCRIBED") ch.track(me); });
-      return { track: (st) => ch.track(st), say: (text) => ch.send({ type: "broadcast", event: "chat", payload: { id: me.id, text, at: Date.now() } }), leave: () => sb.removeChannel(ch) };
+    /* Public HQ channel for everyone. Secret accounts (Supreme only) live on the private "hq-sup" channel,
+       which only Supreme and admin can join (Realtime policies, supabase/007). */
+    hq(me, onSync, onChat, { secret = false, sees = false } = {}) {
+      const opt = (priv) => ({ config: { private: priv, presence: { key: me.id }, broadcast: { self: true } } });
+      const pub = sb.channel("rts-hq", opt(false)), sup = sees || secret ? sb.channel("hq-sup", opt(true)) : null, home = secret ? sup : pub;
+      const sync = () => { const seen = {}; [pub, sup].filter(Boolean).forEach((ch) => Object.values(ch.presenceState()).forEach((l) => { const p = l[l.length - 1]; seen[p.id] = p; })); onSync(Object.values(seen)); };
+      [pub, sup].filter(Boolean).forEach((ch) => ch.on("presence", { event: "sync" }, sync).on("broadcast", { event: "chat" }, ({ payload }) => onChat(payload))
+        .subscribe((s) => { if (s === "SUBSCRIBED" && ch === home) ch.track(me); }));
+      return { track: (st) => home.track(st), say: (text) => home.send({ type: "broadcast", event: "chat", payload: { id: me.id, text, at: Date.now() } }),
+        leave: () => [pub, sup].filter(Boolean).forEach((ch) => sb.removeChannel(ch)) };
     },
   };
   return db;
@@ -149,10 +155,12 @@ function demoDb() {
     mentorings: D_MENTORINGS, situations: D_SITUATIONS, quizzes: D_QUIZZES,
     exdone: D_EXDONE, answers: [], deck: [],
   };
+  if (typeof demoCoachings === "function" && !(S.events || []).some((e) => e.kind === "coaching")) (S.events ||= []).push(...demoCoachings());
   const save = () => store("rts-demo-v2", S);
   const meId = () => load("rts-demo-user", "lucas");
   const me = () => S.people.find((p) => p.id === meId());
   const byId = (id) => S.people.find((p) => p.id === id);
+  const hid = (x) => !!x?.secret && x.id !== meId() && !(me().team_id === "supreme" || me().roles.includes("admin"));
   const canSee = (m, x) => !!x && (m.id === x.id || m.roles.includes("admin") || x.mentor_id === m.id || m.coaches.includes(x.team) || m.manages.includes(x.team));
   const canCoach = (m, x) => canSee(m, x) && (m.id !== x.id || m.roles.includes("admin"));
   const isOps = (m) => m.roles.includes("ops") || m.roles.includes("admin");
@@ -165,12 +173,12 @@ function demoDb() {
     async session() { return { user: { id: meId() } }; },
     async signIn() {}, async signOut() {}, onAuth() {}, refresh() {},
     async me() { return me(); },
-    async people() { const m = me(); return S.people.filter((p) => canSee(m, p) || p.id === m.mentor_id || isOps(m)); },
+    async people() { const m = me(); return S.people.filter((p) => !hid(p) && (canSee(m, p) || p.id === m.mentor_id || isOps(m))); },
     async teams() { return D_TEAMS; },
     async setLang(l) { me().lang = l; save(); },
     async setAway(from, to) { Object.assign(me(), { away_from: from || null, away_to: to || null }); save(); },
     async journal(pid, from) { return canSee(me(), byId(pid)) ? S.journal.filter((e) => e.player_id === pid && e.day >= from).sort((a, b) => (a.day < b.day ? 1 : -1)) : []; },
-    async journalAll(from) { const m = me(); return S.journal.filter((e) => e.day >= from && canSee(m, byId(e.player_id))); },
+    async journalAll(from) { const m = me(); return S.journal.filter((e) => e.day >= from && canSee(m, byId(e.player_id)) && !hid(byId(e.player_id))); },
     async saveJournal(e) { const i = S.journal.findIndex((x) => x.player_id === e.player_id && x.day === e.day); i >= 0 ? (S.journal[i] = e) : S.journal.push(e); save(); return [e]; },
     async goals(pid) { return canSee(me(), byId(pid)) ? S.goals.filter((g) => g.player_id === pid).sort((a, b) => (a.label < b.label ? 1 : -1)) : []; },
     async saveGoal(g) { const i = S.goals.findIndex((x) => x.player_id === g.player_id && x.label === g.label); i >= 0 ? (S.goals[i] = { ...S.goals[i], ...g }) : S.goals.push(g); save(); return [g]; },
@@ -228,27 +236,29 @@ function demoDb() {
     async setHand(id, v) { Object.assign(S.hands.find((h) => h.id === id), v); save(); },
     async handImage() { return null; },
     async cards() { const m = me(); return (S.cards ||= []).filter((c) => canSee(m, byId(c.player_id)) || (c.shared && byId(c.player_id)?.team === m.team)); },
-    async addCard(c) { (S.cards ||= []).push({ ...c, id: "k" + Date.now(), player_id: meId(), shared: !!c.shared, due: addDays(1), interval_days: 1, created_at: new Date().toISOString() }); save(); },
+    async addCard(c) { (S.cards ||= []).push({ due: addDays(1), interval_days: 1, hits: 0, ...c, id: "k" + Date.now() + Math.random().toString(36).slice(2, 6), player_id: meId(), shared: !!c.shared, created_at: new Date().toISOString() }); save(); return [S.cards.at(-1)]; },
+    async addCards(l) { for (const c of l) await db.addCard(c); },
     async saveCard(c) { Object.assign(S.cards.find((x) => x.id === c.id), c); save(); },
-    async directory() { return S.people.filter((p) => p.roles.includes("player") && p.active !== false).map((p) => ({ id: p.id, name: p.name, team_id: p.team_id || p.team })); },
+    async directory() { return S.people.filter((p) => p.roles.includes("player") && p.active !== false && !hid(p)).map((p) => ({ id: p.id, name: p.name, team_id: p.team_id || p.team, nick: p.nick, avatar: p.avatar, skin: p.skin })); },
     async events(from, to) {
       const m = me();
-      return (S.events ||= []).filter((e) => e.starts_at >= from && e.starts_at <= to && (e.created_by === m.id || e.invitees.includes(m.id) || (e.open && (!e.teams.length || e.teams.includes(m.team_id || m.team) || isStaffM(m)))))
+      return (S.events ||= []).filter((e) => e.starts_at >= from && e.starts_at <= to && !hid(byId(e.created_by)) && (e.created_by === m.id || e.invitees.includes(m.id) || (e.open && (!e.teams.length || e.teams.includes(m.team_id || m.team) || isStaffM(m)))))
         .sort((a, b) => (a.starts_at < b.starts_at ? -1 : 1));
     },
-    async saveEvent(e) { if (e.id) Object.assign(S.events.find((x) => x.id === e.id), e); else (S.events ||= []).push({ invitees: [], teams: [], open: false, minutes: 60, ...e, id: "e" + Date.now(), created_by: meId() }); save(); },
+    async saveEvent(e) { if (e.id) Object.assign(S.events.find((x) => x.id === e.id), e); else (S.events ||= []).push({ invitees: [], teams: [], open: false, minutes: 60, created_by: meId(), ...e, id: "e" + Date.now() }); save(); },
     async dropEvent(id) { S.events = S.events.filter((e) => e.id !== id); save(); },
     async joins(ids) { return (S.joins ||= []).filter((j) => ids.includes(j.event_id)); },
     async join(id, on) { S.joins = (S.joins || []).filter((j) => !(j.event_id === id && j.player_id === meId())); if (on) S.joins.push({ event_id: id, player_id: meId() }); save(); },
     async myJoins() { return (S.joins || []).filter((j) => j.player_id === meId()); },
     async setPrefs(accent, skin) { if (accent) me().accent = accent; if (skin) me().skin = skin; save(); },
+    async setLook(nick, avatar) { const m = me(); if (nick !== null) m.nick = (nick || "").trim().slice(0, 20) || null; if (avatar !== null) m.avatar = avatar; save(); },
     async notes() { return (S.notes ||= []).filter((n) => n.player_id === meId()).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)); },
     async saveNote(n) { const l = (S.notes ||= []); const i = l.findIndex((x) => x.player_id === meId() && x.nick === n.nick); const row = { ...(i >= 0 ? l[i] : { id: "n" + Date.now() }), ...n, player_id: meId(), updated_at: new Date().toISOString() }; i >= 0 ? (l[i] = row) : l.push(row); save(); },
     /* Demo HQ: teammates wander between rooms, so the map is alive without a server. */
     hq(meState, onSync, onChat) {
       let mine = meState;
       const rooms = ["lobby", "grind", "study", "review", "coaching", "lounge"];
-      const npcs = S.people.filter((p) => p.id !== meState.id && p.roles.includes("player")).slice(0, 5).map((p, i) => ({ id: p.id, name: p.name, skin: ["academy", "suit", "hoodie", "shark", "cap"][i], room: rooms[(i + 1) % rooms.length], lvl: 3 + i * 4 }));
+      const npcs = S.people.filter((p) => p.id !== meState.id && p.roles.includes("player") && !hid(p)).slice(0, 5).map((p, i) => ({ id: p.id, name: p.name, team: p.team_id, skin: ["academy", "suit", "hoodie", "shark", "cap"][i], room: rooms[(i + 1) % rooms.length], lvl: 3 + i * 4 }));
       const push = () => onSync([mine, ...npcs]);
       const lines = ["gl all", "anyone for a review at 20:00?", "running 6 tables tonight", "who has the SB vs BTN deck?", "gg"];
       const tick = setInterval(() => {

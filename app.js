@@ -140,54 +140,58 @@ const elapsed = (s) => (s.paused_at ? new Date(s.paused_at) : Date.now()) - new 
 const weekHours = (entries) => entries.filter((e) => e.day >= weekStart()).reduce((a, e) => a + Number(e.play_h || 0) + Number(e.study_h || 0), 0);
 const xpBar = (v, max) => `<div class="xpbar big"><i style="width:${Math.min(100, max ? (v / max) * 100 : 0)}%"></i></div>`;
 
+/* Events that concern me: mine, I'm tagged, or open to my team. A Challenger coaching never shows to an Academy player. */
+function forMe(e) {
+  if (e.created_by === ME.id || (e.invitees || []).includes(ME.id)) return true;
+  if (!e.open) return false;
+  const mine = [ME.team_id, ...(ME.coaches || []).flatMap((s) => TEAMS.filter((x) => x.side === s).map((x) => x.id))].filter(Boolean);
+  return e.teams?.length ? e.teams.some((x) => mine.includes(x)) : true; // no team = open to all (conferences)
+}
+
 async function viewHome() {
   if (!has(ME, "player")) return viewHomeStaff();
-  const [mine, goals, deck, events, open, hands, cards, g] = await Promise.all([db.journal(ME.id, daysAgo(400)), db.goals(ME.id), db.deck(ME.id),
-    db.events(new Date(Date.now() - 864e5).toISOString(), addDays(14) + "T23:59"), db.openSession(ME.id), db.hands(), db.cards(), gameStats(ME)]);
+  const [mine, goals, all, open, g] = await Promise.all([db.journal(ME.id, daysAgo(400)), db.goals(ME.id),
+    db.events(new Date(Date.now() - 864e5).toISOString(), addDays(14) + "T23:59"), db.openSession(ME.id), gameStats(ME)]);
   ME._goal = goals.find((x) => x.label === monthStart());
   const s = stats(mine, ME), target = teamOf(ME).week_hours || 35, wk = weekHours(mine) + (open ? elapsed(open) / 36e5 : 0);
-  const handsLeft = hands.filter((h) => !h.reviewed).length, recall = cards.filter((c) => c.player_id === ME.id && c.due <= today()).length;
-  const due = deck.filter((d) => d.due <= today()).length;
-  const now = new Date().toISOString(), coming = events.filter((e) => new Date(new Date(e.starts_at).getTime() + e.minutes * 6e4).toISOString() >= now);
-  const coach = coming.find((e) => e.kind === "coaching" && e.starts_at.slice(0, 10) === today());
-  const quest = (done, href, label, xp, attr = "") => `<a class="quest ${done ? "done" : ""}" ${href ? `href="${href}"` : ""} ${attr}><span>${done ? "✓" : "○"} ${label}</span><b>+${xp} XP</b></a>`;
-  const skin = mySkin(ME, g), first = cam.on ? esc(ME.name[0]) + "." : esc(ME.name.split(" ")[0]);
+  const wkHands = mine.filter((e) => e.day >= weekStart()).reduce((a, e) => a + Number(e.hands || 0), 0);
+  const now = new Date().toISOString(), coming = all.filter(forMe).filter((e) => new Date(new Date(e.starts_at).getTime() + e.minutes * 6e4).toISOString() >= now);
+  const skin = mySkin(ME, g), first = cam.on ? esc((ME.nick || ME.name)[0]) + "." : esc(ME.nick || ME.name.split(" ")[0]);
   const todayE = mine.find((e) => e.day === today()) || { player_id: ME.id, day: today() };
+  const when = (e) => `${e.starts_at.slice(0, 10) === today() ? t("today") : dayName(e.starts_at.slice(0, 10))} · ${hhmm(e.starts_at)}`;
   $("#main").innerHTML = `
     <section class="lobby-top">
-      <h1 class="hi">${t("hi")} ${first}</h1>
+      <h1 class="hi">${ME.team_id === "supreme" ? t("briefing") : t("hi")} ${first}</h1>
       ${open ? `<a class="go-pill on ${open.kind}" href="#/session">${KIND_ICON[open.kind]} ${t(open.kind === "grind" ? "grindOn" : "studyOn")} <b data-since>${clock(elapsed(open))}</b> <em>${t("backCockpit")} →</em></a>`
         : `<button class="go-pill grind" data-start="grind">♠ ${t("startPoker")}</button><button class="go-pill study" data-start="study">📚 ${t("startStudyS")}</button>`}
     </section>
     <div class="lobby">
       <aside class="card char">
-        <a class="char-stage" href="#/hero" title="${t("charLink")}">${sprite(skin, 112, "idle")}</a>
-        <h3 class="char-name">${nm(ME)}</h3><p class="rank">${rankLine(ME, g)}</p>
+        <a class="char-stage" href="#/hero" title="${t("charLink")}">${avatarSvg({ skin, av: ME.avatar }, 112, "idle")}</a>
+        <h3 class="char-name">${nm({ name: ME.nick || ME.name })}</h3><p class="rank">${rankLine(ME, g)}</p>
         <div class="lvl-line"><span class="lvl-badge">${g.level}</span><div class="xpbar"><i style="width:${(g.into / g.need) * 100}%"></i></div></div>
         <p class="muted tiny">${fmtNum(g.into)} / ${fmtNum(g.need)} XP · ${t("lvl")} ${g.level + 1}</p>
         <div class="ach-row">${ACH.filter((a) => g.unlocked.includes(a.id)).slice(-6).map((a) => `<span title="${esc(L2(a))}">${a.icon}</span>`).join("") || `<span class="muted tiny">${t("noAch")}</span>`}</div>
         <a class="btn btn-sm char-link" href="#/hero">${t("charLink")} · ${g.unlocked.length}/${ACH.length}</a>
       </aside>
       <section class="stack lobby-mid">
-        <div class="card weekxp"><div class="card-head"><h3>${t("weekHours")}</h3><b class="wk-num">${fmtH(wk)} <small>/ ${target} h</small></b></div>${xpBar(wk, target)}</div>
-        <div class="card"><div class="card-head"><h3>${t("quests")}</h3></div><div class="quests">
-          ${quest(s.filledToday, null, t("questJournal"), 20, 'data-eod role="button"')}
-          ${handsLeft ? quest(false, "#/hands", `${handsLeft} ${t("questHands")}`, 5 * handsLeft) : ""}
-          ${recall ? quest(false, "#/recall", `${recall} ${t("questRecall")}`, 5 * recall) : ""}
-          ${due ? quest(false, "#/review", `${due} ${t("questQuiz")}`, 5 * due) : ""}
-          ${coach ? quest(false, coach.link || "#/calendar", `${t("questCoaching")} ${esc(coach.title)} · ${hhmm(coach.starts_at)}`, 25) : ""}
-        </div></div>
-        <div class="card stats-strip">
-          <div><span>🔥 ${t("streak")}</span><b>${s.streak} <small>${s.streak === 1 ? t("day") : t("days")}</small></b></div>
-          <div><span>♠ ${t("handsMonth")}</span><b>${fmtNum(s.hands)} <small>/ ${fmtNum(s.handsTarget)}</small></b>${bar(s.hands, s.handsTarget, s.hands >= s.pace * 0.9 ? "" : "warn")}</div>
-          <div><span>⏱ ${t("hoursMonth")}</span><b>${fmtH(s.play + s.study)}</b></div>
-        </div>
-        <button class="btn btn-ghost-red eod-btn" data-eod>🌙 ${t("endOfDay")}</button>
+        <div class="card grindbox">
+          <div class="card-head"><h3>${t("yourGrind")}</h3><b class="wk-num">${fmtH(wk)} <small>/ ${target} h</small></b></div>${xpBar(wk, target)}
+          <div class="stats-strip">
+            <div><span>♠ ${t("handsWeek")}</span><b>${fmtNum(wkHands)}</b></div>
+            <div><span>🔥 ${t("streak")}</span><b>${s.streak} <small>${s.streak === 1 ? t("day") : t("days")}</small></b></div>
+            <div><span>${t("handsMonth")}</span><b>${fmtNum(s.hands)} <small>/ ${fmtNum(s.handsTarget)}</small></b>${bar(s.hands, s.handsTarget, s.hands >= s.pace * 0.9 ? "" : "warn")}</div>
+            <div><span>⏱ ${t("hoursMonth")}</span><b>${fmtH(s.play + s.study)}</b></div>
+          </div></div>
+        <button class="btn btn-ghost-red eod-btn ${s.filledToday ? "done" : ""}" data-eod>🌙 ${t("endOfDay")}${s.filledToday ? " ✓" : " · +20 XP"}</button>
+        ${hqPreview()}
       </section>
       <aside class="stack lobby-right">
-        ${nextUp(coming)}
-        <div class="card"><div class="card-head"><h3>${t("comingUp")}</h3><a class="small-link" href="#/calendar">${t("calendar")} →</a></div>
-          ${coming.slice(1, 4).map((e) => `<p class="hrow">${KIND_ICON[e.kind]} ${esc(e.title)}<small class="muted"> · ${e.starts_at.slice(0, 10) === today() ? t("today") : dayName(e.starts_at.slice(0, 10))} ${hhmm(e.starts_at)}</small></p>`).join("") || `<p class="muted small">${t("noEvents")}</p>`}</div>
+        <div class="card upcoming">
+          ${coming[0] ? `<a class="nextup-in ${coming[0].starts_at <= now ? "live" : ""} ${isOperation(coming[0]) ? "op" : ""}" href="${coming[0].link ? esc(coming[0].link) : "#/calendar"}" ${coming[0].link ? 'target="_blank" rel="noopener"' : ""}>
+            <span class="eyebrow">${coming[0].starts_at <= now ? t("liveNow") : t("nextUp")}</span><b>${KIND_ICON[coming[0].kind]} ${esc(opTitle(coming[0]))}</b><span class="muted small">${when(coming[0])}${coming[0].link ? " · " + t("join") + " →" : ""}</span></a>` : `<p class="muted small">${t("noEvents")}</p>`}
+          ${coming.slice(1, 5).map((e) => `<p class="hrow ${isOperation(e) ? "op" : ""}">${KIND_ICON[e.kind]} ${esc(opTitle(e))}<small class="muted"> · ${when(e)}</small></p>`).join("")}
+          <a class="small-link" href="#/calendar">${t("calendar")} →</a></div>
         <div class="dock">
           <a href="#/hq"><span>🏢</span>${t("hq")}</a>
           <a href="https://app.gtowizard.com" target="_blank" rel="noopener"><span>🧙</span>GTO Wizard</a>
@@ -196,17 +200,18 @@ async function viewHome() {
         </div>
       </aside>
     </div>
-    <dialog id="eod" class="card"><form method="dialog" id="eodf"><div class="card-head"><h3>🌙 ${t("endOfDay")}</h3><button class="x" value="cancel" formnovalidate>×</button></div>
-      <p class="muted small">${t("eodSub")}</p>
-      <label>${t("hands")}<input name="hands" type="number" min="0" step="50" inputmode="numeric" value="${todayE.hands ?? ""}" placeholder="0"></label>
-      <p class="lbl">${t("mood")}</p><div class="mood">${[1, 2, 3, 4, 5].map((n) => `<input type="radio" name="mood" id="em${n}" value="${n}" ${Number(todayE.mood) === n ? "checked" : ""}><label for="em${n}">${n}</label>`).join("")}</div>
-      <label class="ta">${t("eodHow")}<textarea name="played" rows="4" class="sensitive">${esc(todayE.played || "")}</textarea></label>
-      <button class="btn btn-red" value="save">${t("save")} · +20 XP</button> <a class="btn btn-sm" href="#/journal">${t("fullJournal")}</a></form></dialog>`;
-  $$("[data-start]").forEach((b) => b.onclick = async () => { b.disabled = true; await db.startSession(b.dataset.start); location.hash = "#/session"; });
+    <dialog id="eod" class="card journal-page"><form method="dialog" id="eodf"><div class="card-head"><h3>🌙 ${t("endOfDay")} · ${fmtDay(today())}</h3><button class="x" value="cancel" formnovalidate>×</button></div>
+      <div class="row2"><label>${t("hands")}<input name="hands" type="number" min="0" step="50" inputmode="numeric" value="${todayE.hands ?? ""}" placeholder="0"></label>
+        <div><p class="lbl" style="margin-top:0">${t("mood")}</p><div class="mood">${[1, 2, 3, 4, 5].map((n) => `<input type="radio" name="mood" id="em${n}" value="${n}" ${Number(todayE.mood) === n ? "checked" : ""}><label for="em${n}">${n}</label>`).join("")}</div></div></div>
+      <label class="ta">${t("eodHow")}<textarea name="played" rows="6" class="sensitive paper" placeholder="${t("journalPh")}">${esc(todayE.played || "")}</textarea></label>
+      <div class="prompts">${["pPlayed", "pLearned", "pWell", "pMistake", "pTomorrow"].map((k) => `<button type="button" class="chip" data-prompt="${k}">+ ${t(k)}</button>`).join("")}</div>
+      <button class="btn btn-red" value="save">${t("save")}${s.filledToday ? "" : " · +20 XP"}</button></form></dialog>`;
+  $$("[data-start]").forEach((b) => b.onclick = async () => { b.disabled = true; await db.startSession(b.dataset.start); hqMove(b.dataset.start === "grind" ? "grind" : "study"); location.hash = "#/session"; });
   const since = $("[data-since]");
   if (since && !open.paused_at) timerTick = setInterval(() => { since.textContent = clock(elapsed(open)); }, 1000);
-  const dlg = $("#eod");
-  dictateButton(dlg.querySelector("textarea"));
+  const dlg = $("#eod"), ta = dlg.querySelector("textarea");
+  dictateButton(ta);
+  $$("[data-prompt]").forEach((b) => b.onclick = () => { ta.value += (ta.value.trim() ? "\n\n" : "") + t(b.dataset.prompt) + " "; ta.focus(); });
   $$("[data-eod]").forEach((b) => b.onclick = (e) => { e.preventDefault(); dlg.showModal(); });
   $("#eodf").onsubmit = async (ev) => {
     if (ev.submitter?.value !== "save") return;
@@ -214,6 +219,7 @@ async function viewHome() {
     await db.saveJournal({ ...todayE, hands: +f.get("hands") || 0, mood: +f.get("mood") || todayE.mood || null, played: f.get("played").trim() });
     route();
   };
+  bindHqPreview();
   xpToast(g);
 }
 
@@ -347,6 +353,7 @@ async function viewSession() {
     const day = s.started_at.slice(0, 10), e = (await db.journal(ME.id, day)).find((x) => x.day === day) || { player_id: ME.id, day };
     const k = grind ? "play_h" : "study_h";
     await db.saveJournal({ ...e, [k]: Math.round((Number(e[k] || 0) + minutes / 60) * 100) / 100 });
+    hqMove("lobby");
     location.hash = grind ? (mineHere.length ? "#/hands" : "#/") : "#/study";
   };
 }
@@ -383,32 +390,147 @@ async function viewHands() {
 }
 
 /* ---------- study hub: sessions, conclusions, recall cards ---------- */
+/* Study hub (Alexis's option A): every card sits on the same tree as the Strategies (pot > matchup > street).
+   My conclusions, my imported notes, team cards and the RTS strategies are one deck; pick a situation, search, filter, study.
+   Review is Anki made simple: Again / Good / Easy. */
+const POS_RE = /\b(UTG|LJ|HJ|MP|CO|BTN|BU|SB|BB)\b/gi;
+function classify(text) {
+  const x = String(text || ""), pos = [...x.matchAll(POS_RE)].map((m) => m[1].toUpperCase().replace("BU", "BTN"));
+  const street = /\briver\b/i.test(x) ? "river" : /\bturn\b/i.test(x) ? "turn" : /\bflop\b|c-?bet|cbet/i.test(x) ? "flop" : /preflop|pré-?flop|\bopen\b|\brfi\b/i.test(x) ? "preflop" : null;
+  const pot = /4-?bet|4bp/i.test(x) ? "4BP" : /3-?bet|3bp/i.test(x) ? "3BP" : /\blimp/i.test(x) ? "limp" : street && street !== "preflop" ? "SRP" : null;
+  return { pot, street, hero_pos: pos[0] || null, villain_pos: pos.find((p) => p !== pos[0]) || null };
+}
+/* Any text export to cards: Anki / CSV / TSV (front, back), JSON, Markdown headings, Q:/A:, or one card per paragraph. */
+function parseStudy(raw, name = "") {
+  const clean = (s) => String(s || "").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim();
+  const out = [], push = (f, b) => { f = clean(f); b = clean(b); if (f || b) out.push({ situation: (f || b.split("\n")[0]).slice(0, 300), conclusion: b || f, ...classify(f + " " + b) }); };
+  const txt = String(raw || "").replace(/\r/g, "");
+  if (/\.json$/i.test(name) || /^\s*[[{]/.test(txt)) {
+    try { const j = JSON.parse(txt); (Array.isArray(j) ? j : j.cards || [j]).forEach((c) => push(c.front ?? c.question ?? c.situation ?? c.title, c.back ?? c.answer ?? c.conclusion ?? c.text)); return out; } catch {}
+  }
+  const lines = txt.split("\n").filter((l) => l.trim() && !l.startsWith("#separator") && !l.startsWith("#html"));
+  const sep = lines.filter((l) => l.includes("\t")).length > lines.length / 2 ? "\t" : /\.csv$/i.test(name) || lines.filter((l) => l.includes(";")).length > lines.length / 2 ? (lines.some((l) => l.includes(";")) ? ";" : ",") : null;
+  if (sep) { lines.forEach((l) => { const [f, ...b] = l.split(sep); push(f.replace(/^"|"$/g, ""), b.join(" ").replace(/^"|"$/g, "")); }); return out; }
+  if (/^#{1,4}\s/m.test(txt)) { txt.split(/^#{1,4}\s+/m).filter((b) => b.trim()).forEach((b) => { const [h, ...r] = b.split("\n"); push(h, r.join("\n")); }); return out; }
+  if (/^Q\s*[:：]/im.test(txt)) { txt.split(/^Q\s*[:：]/im).filter((b) => b.trim()).forEach((b) => { const [q, a = ""] = b.split(/^A\s*[:：]/im); push(q, a); }); return out; }
+  txt.split(/\n\s*\n/).forEach((b) => { const [h, ...r] = b.trim().split("\n"); push(h, r.join("\n")); });
+  return out;
+}
+
 async function viewStudy() {
-  const [sessions, cards] = await Promise.all([db.sessions(ME.id, daysAgo(120)), db.cards()]);
+  const q = Object.fromEntries(new URLSearchParams(location.hash.split("?")[1] || ""));
+  const href = (o) => { const p = new URLSearchParams(Object.entries({ ...q, ...o }).filter(([, v]) => v)); return "#/study" + (p.toString() ? "?" + p : ""); };
+  const [sessions, cards, sits] = await Promise.all([db.sessions(ME.id, daysAgo(120)), db.cards(), db.situations().catch(() => [])]);
   const mine = cards.filter((c) => c.player_id === ME.id), team = cards.filter((c) => c.player_id !== ME.id && c.shared);
+  const linked = new Set(mine.map((c) => c.sit_id).filter(Boolean));
+  const deck = [
+    ...mine.map((c) => ({ ...c, src: c.source === "rts" || c.sit_id ? "rts" : c.source && c.source !== "team" ? "import" : "mine", front: c.situation, back: c.conclusion })),
+    ...team.map((c) => ({ ...c, src: "team", front: c.situation, back: c.conclusion, due: null })),
+    ...sits.filter((s) => s.status === "live" && !linked.has(s.id)).map((s) => ({ id: "s:" + s.id, sit_id: s.id, src: "rts", pot: s.pot, street: s.street, hero_pos: s.hero_pos, villain_pos: s.villain_pos,
+      front: [s.title, s.board && `Board ${s.board}`, s.line].filter(Boolean).join(" · "), back: [s.conclusion, s.why].filter(Boolean).join("\n\n"), due: null })),
+  ];
+  const branch = (c) => (c.street === "preflop" ? "Preflop" : c.pot || "—"), match = (c) => `${c.hero_pos || "?"} vs ${c.villain_pos || "?"}`;
+  const isDue = (c) => c.due && c.due <= today();
+  const words = (q.q || "").toLowerCase();
+  const pass = (c) => (!q.src || c.src === q.src) && (!q.st || c.street === q.st) && (!q.pos || c.hero_pos === q.pos) && (!q.due || isDue(c))
+    && (!words || [c.front, c.back, c.pot, c.hero_pos, c.villain_pos].join(" ").toLowerCase().includes(words));
+  const pool = deck.filter(pass), tree = {};
+  pool.forEach((c) => ((tree[branch(c)] ||= {})[match(c)] ||= []).push(c));
+  const branches = POT_ORDER.filter((b) => tree[b]).concat(Object.keys(tree).filter((b) => !POT_ORDER.includes(b)));
+  const nOf = (o) => Object.values(o).reduce((a, l) => a + l.length, 0);
+  const list = pool.filter((c) => (!q.b || branch(c) === q.b) && (!q.m || match(c) === q.m)).sort((a, b) => (isDue(b) - isDue(a)) || (a.src === "rts") - (b.src === "rts"));
+  const dueN = mine.filter(isDue).length;
   const studies = sessions.filter((s) => s.kind === "study" && s.ended_at);
-  const dueN = mine.filter((c) => c.due <= today()).length;
   const hours = studies.filter((s) => s.started_at >= monthStart()).reduce((a, s) => a + (s.minutes || 0), 0) / 60;
-  $("#main").innerHTML = `${head(t("study"), t("studyHub"), t("studyHubSub"))}
+  const SRC = { mine: "✍", import: "📥", team: "🤝", rts: "♠" };
+  const sel = (k, opts, all) => `<select data-f="${k}"><option value="">${all}</option>${opts.map(([v, l]) => `<option value="${v}" ${q[k] === v ? "selected" : ""}>${l}</option>`).join("")}</select>`;
+  $("#main").innerHTML = `${head(t("study"), t("studyHub"), t("studyHubSub2"))}
     <div class="grid kpis">
       ${kpi(t("studyMonth"), fmtH(hours))}
-      ${kpi(t("conclusions"), mine.length)}
-      ${kpi(t("cardsToRecall"), dueN, dueN ? `<a class="btn btn-sm btn-red" href="#/recall">${t("recallNow")}</a>` : "")}
+      ${kpi(t("myCards"), mine.length)}
+      ${kpi(t("cardsToRecall"), dueN, dueN ? `<button class="btn btn-sm btn-red" data-run="due">${t("recallNow")}</button>` : "")}
     </div>
-    <div class="grid two">
-      <div class="stack"><h2 class="h-sec">${t("conclusions")}</h2>
-        ${mine.map((c) => `<article class="card"><div class="card-head"><h3>${esc(c.situation)}</h3><label class="check sm"><input type="checkbox" data-share="${c.id}" ${c.shared ? "checked" : ""}><span>${t("shared")}</span></label></div>
-          <p class="sensitive">${esc(c.conclusion)}</p><p class="muted small">${t("nextRecall")} ${fmtDay(c.due)}</p></article>`).join("") || empty(t("noCardsYet"))}
-        ${team.length ? `<h2 class="h-sec">${t("fromTeam")}</h2><div class="stack">${team.map((c) => `<article class="card"><h3>${esc(c.situation)}</h3><p class="muted small">${nm(person(c.player_id) || (DIR || []).find((d) => d.id === c.player_id))}</p></article>`).join("")}</div>
-          <a class="btn btn-ghost-red" href="#/recall?team=1">${t("practiceTeam")}</a>` : ""}
+    <div class="finder card">
+      <input type="search" id="sq" placeholder="${t("searchStudy")}" value="${esc(q.q || "")}">
+      <div class="filters">
+        ${sel("src", [["mine", "✍ " + t("srcMine")], ["import", "📥 " + t("srcImport")], ["team", "🤝 " + t("fromTeam")], ["rts", "♠ " + t("srcRts")]], t("allSources"))}
+        ${sel("st", STREETS.map((x) => [x, t("st_" + x)]), t("allStreets"))}
+        ${sel("pos", ["UTG", "HJ", "CO", "BTN", "SB", "BB"].map((x) => [x, x]), t("allPos"))}
+        <label class="check sm"><input type="checkbox" data-f="due" ${q.due ? "checked" : ""}><span>${t("dueOnly")}</span></label>
+        <button class="btn btn-sm" id="impbtn">📥 ${t("importNotes")}</button>
       </div>
-      <div class="stack"><h2 class="h-sec">${t("studySessions")}</h2>
-        ${studies.map((s) => `<article class="card"><div class="card-head"><h3>${fmtDay(s.started_at.slice(0, 10))}</h3><span class="tag">${fmtH((s.minutes || 0) / 60)}</span></div>
-          ${s.notes ? `<p class="sensitive pre">${esc(s.notes)}</p>` : `<p class="muted small">—</p>`}
-          ${cards.filter((c) => c.session_id === s.id).map((c) => `<p class="small">→ ${esc(c.situation)}</p>`).join("")}</article>`).join("") || empty(t("noStudy"))}
+    </div>
+    <div class="grid lib">
+      <nav class="card tree"><div class="card-head"><h3>${t("map")}</h3><span class="muted small">${pool.length}</span></div>
+        <a class="${q.b ? "" : "on"}" href="${href({ b: "", m: "" })}">${t("everything")} <small>${pool.length}</small></a>
+        ${branches.map((b) => `<details ${q.b === b ? "open" : ""}><summary><a href="${href({ b, m: "" })}">${esc(potLabel(b))}</a> <small>${nOf(tree[b])}</small></summary>
+          ${Object.keys(tree[b]).sort((x, y) => tree[b][y].length - tree[b][x].length).map((m) => `<a class="${q.b === b && q.m === m ? "on" : ""}" href="${href({ b, m })}">${esc(m)} <small>${tree[b][m].length}</small></a>`).join("")}</details>`).join("")}
+      </nav>
+      <div class="stack">
+        <div class="study-bar"><p class="crumbs"><a href="${href({ b: "", m: "" })}">${t("studyHub")}</a>${q.b ? ` › ${esc(potLabel(q.b))}` : ""}${q.m ? ` › ${esc(q.m)}` : ""} · ${list.length} ${t("cardsN")}</p>
+          ${list.length ? `<button class="btn btn-red" data-run="list">▶ ${t("studyThese")} (${Math.min(list.length, 30)})</button>` : ""}</div>
+        ${list.slice(0, 60).map((c) => `<article class="card scard ${isDue(c) ? "due" : ""}"><div class="card-head"><h3><span title="${c.src}">${SRC[c.src]}</span> ${esc(c.front)}</h3>
+          <span class="tag">${[c.street && t("st_" + c.street), isDue(c) && t("dueTag")].filter(Boolean).join(" · ")}</span></div>
+          <details><summary class="small-link">${t("showAnswer")}</summary><p class="sensitive pre">${esc(c.back)}</p></details>
+          ${c.src === "mine" || c.src === "import" ? `<label class="check sm"><input type="checkbox" data-share="${c.id}" ${c.shared ? "checked" : ""}><span>${t("shared")}</span></label>` : ""}</article>`).join("") || empty(t("noCardsYet"))}
+        ${list.length > 60 ? `<p class="muted small">+ ${list.length - 60}</p>` : ""}
       </div>
-    </div>`;
+    </div>
+    <details class="card"><summary><b>${t("studySessions")}</b> <small class="muted">${studies.length}</small></summary>
+      ${studies.map((s) => `<p class="small"><b>${fmtDay(s.started_at.slice(0, 10))}</b> · ${fmtH((s.minutes || 0) / 60)}${s.notes ? ` · <span class="sensitive">${esc(s.notes.slice(0, 120))}</span>` : ""}</p>`).join("") || `<p class="muted small">${t("noStudy")}</p>`}</details>
+    <dialog id="impd" class="card"><div class="card-head"><h3>📥 ${t("importNotes")}</h3><button class="x" data-close>×</button></div>
+      <p class="muted small">${t("importSub")}</p>
+      <label class="drop"><input type="file" id="impf" multiple accept=".txt,.md,.csv,.tsv,.json,text/*" hidden>📄 ${t("importDrop")}<small>.txt · .md · .csv · Anki .txt · .json</small></label>
+      <textarea id="impt" rows="6" placeholder="${t("importPaste")}"></textarea>
+      <p id="impprev" class="small"></p><button class="btn btn-red" id="impgo" disabled>${t("importGo")}</button></dialog>
+    <dialog id="flash" class="card flash"></dialog>`;
   $$("[data-share]").forEach((c) => c.onchange = () => db.saveCard({ id: c.dataset.share, shared: c.checked }));
+  $("#sq").onchange = (e) => (location.hash = href({ q: e.target.value.trim() }));
+  $$("select[data-f]").forEach((s) => s.onchange = () => (location.hash = href({ [s.dataset.f]: s.value })));
+  $("input[data-f=due]").onchange = (e) => (location.hash = href({ due: e.target.checked ? "1" : "" }));
+  $$("[data-close]").forEach((b) => b.onclick = () => b.closest("dialog").close());
+  // import
+  let parsed = [];
+  const preview = () => { const n = parsed.length, placed = parsed.filter((c) => c.pot || c.street).length;
+    $("#impprev").textContent = n ? `${n} ${t("cardsN")} · ${placed} ${t("placedOnTree")}` : ""; $("#impgo").disabled = !n; };
+  $("#impbtn").onclick = () => $("#impd").showModal();
+  $("#impt").oninput = (e) => { parsed = parseStudy(e.target.value); preview(); };
+  $("#impf").onchange = async (e) => { parsed = []; for (const f of e.target.files) parsed.push(...parseStudy(await f.text(), f.name).map((c) => ({ ...c, source: f.name.slice(0, 80) }))); preview(); };
+  $("#impgo").onclick = async () => {
+    $("#impgo").disabled = true;
+    try { await db.addCards(parsed.map((c) => ({ source: "paste", ...c, due: today(), interval_days: 1 }))); route(); }
+    catch (err) { $("#impprev").textContent = t("error") + " : " + err.message; }
+  };
+  // flashcards
+  $$("[data-run]").forEach((b) => b.onclick = () => runFlash(b.dataset.run === "due" ? mine.filter(isDue).map((c) => deck.find((d) => d.id === c.id)) : list.slice(0, 30)));
+}
+
+function runFlash(queue) {
+  const dl = $("#flash"); let i = 0, ok = 0;
+  const show = () => {
+    const c = queue[i];
+    if (!c) { dl.innerHTML = `<div class="card-head"><h3>✅ ${t("flashDone")}</h3><button class="x" data-x>×</button></div><p>${ok} / ${queue.length} · +${ok * 5} XP</p><button class="btn btn-red" data-x>${t("close")}</button>`;
+      $$("[data-x]", dl).forEach((b) => b.onclick = () => { dl.close(); route(); }); return; }
+    dl.innerHTML = `<div class="card-head"><span class="muted small">${i + 1} / ${queue.length}</span><button class="x" data-x>×</button></div>
+      <div class="flash-front"><p class="eyebrow">${[c.pot, c.hero_pos && match2(c), c.street && t("st_" + c.street)].filter(Boolean).join(" · ")}</p><h3>${esc(c.front)}</h3></div>
+      <div class="flash-back" hidden><p class="pre sensitive">${esc(c.back)}</p></div>
+      <p class="btns flip"><button class="btn btn-red" data-flip>${t("showAnswer")}</button></p>
+      <p class="btns grade" hidden><button class="btn" data-g="0">↺ ${t("gAgain")}</button><button class="btn btn-red" data-g="1">✓ ${t("gGood")}</button><button class="btn" data-g="2">⚡ ${t("gEasy")}</button></p>`;
+    $("[data-x]", dl).onclick = () => { dl.close(); route(); };
+    $("[data-flip]", dl).onclick = () => { $(".flash-back", dl).hidden = false; $(".flip", dl).hidden = true; $(".grade", dl).hidden = false; };
+    $$("[data-g]", dl).forEach((b) => b.onclick = async () => {
+      const g = +b.dataset.g, n = nextRecall(c, g > 0);
+      if (g === 2) { n.interval_days *= 2; n.due = addDays(n.interval_days); }
+      const hits = Number(c.hits || 0) + (g > 0 ? 1 : 0);
+      if (g > 0) ok++;
+      if (c.src === "mine" || c.src === "import" || (c.src === "rts" && !String(c.id).startsWith("s:"))) await db.saveCard({ id: c.id, ...n, hits }).catch(() => {});
+      else await db.addCard({ situation: c.front.slice(0, 300), conclusion: c.back, sit_id: c.sit_id || null, pot: c.pot || null, street: c.street || null,
+        hero_pos: c.hero_pos || null, villain_pos: c.villain_pos || null, source: c.src === "rts" ? "rts" : "team", ...n, hits }).catch(() => {});
+      i++; show();
+    });
+  };
+  const match2 = (c) => `${c.hero_pos || "?"} vs ${c.villain_pos || "?"}`;
+  show(); dl.showModal();
 }
 
 /* Recall: see the situation, answer in your head, reveal your own conclusion, say if you had it. */
@@ -447,35 +569,40 @@ const timer = {
 };
 let timerTick = null;
 
+/* Daily journal: one paper page per day, written at the end of the day. Free writing, prompts only help.
+   Hours come from the cockpit sessions (editable). The old 4 boxes are merged into the page text. */
 async function viewJournal() {
   const day = new URLSearchParams(location.hash.split("?")[1] || "").get("day") || today();
   const [mine, goals] = await Promise.all([db.journal(ME.id, daysAgo(400)), db.goals(ME.id)]);
   const e = mine.find((x) => x.day === day) || {};
   const tm = teamOf(ME);
-  const run = timer.get();
   const months = [...new Set(mine.map((x) => x.day.slice(0, 7)))].sort().reverse().slice(0, 6);
+  const text = [e.played, e.learned && `${t("pLearned")} ${e.learned}`, e.did_well && `${t("pWell")} ${e.did_well}`, e.mistakes && `${t("pMistake")} ${e.mistakes}`].filter((x) => (x || "").trim()).join("\n\n");
+  const shift = (n) => addDays(n, new Date(day + "T12:00:00"));
+  const MOODS = ["😫", "😕", "😐", "🙂", "🔥"];
   $("#main").innerHTML = `
-    ${head(fmtDay(day), t("jTitle"), t("jSub"))}
-    <div class="grid two">
-      <form class="card journal-form" id="jform">
-        <div class="timers">
-          ${["play", "study"].map((k) => `<button type="button" class="timer ${run?.kind === k ? "on" : ""}" data-timer="${k}">
-            <span>${t(k)}</span><b data-elapsed="${k}">${t("start")}</b></button>`).join("")}
-        </div>
+    ${head(fmtDay(day), t("jTitle"), t("jSub2"))}
+    <div class="grid two jgrid">
+      <form class="card journal-page jbook" id="jform">
+        <div class="jnav"><a class="small-link" href="#/journal?day=${shift(-1)}">← ${fmtDay(shift(-1))}</a>
+          <b class="jdate">${new Date(day + "T12:00").toLocaleDateString(LANG === "fr" ? "fr-FR" : "en-GB", { weekday: "long", day: "numeric", month: "long" })}</b>
+          ${day < today() ? `<a class="small-link" href="#/journal?day=${shift(1)}">${fmtDay(shift(1))} →</a>` : "<span></span>"}</div>
         <div class="row3">
-          <label>${t("play")} (h)<input name="play_h" type="number" step="0.25" min="0" max="16" inputmode="decimal" value="${e.play_h ?? ""}" placeholder="0"></label>
-          <label>${t("study")} (h)<input name="study_h" type="number" step="0.25" min="0" max="16" inputmode="decimal" value="${e.study_h ?? ""}" placeholder="0"></label>
+          <label>♠ ${t("play")} (h)<input name="play_h" type="number" step="0.25" min="0" max="16" inputmode="decimal" value="${e.play_h ?? ""}" placeholder="0"></label>
+          <label>📚 ${t("study")} (h)<input name="study_h" type="number" step="0.25" min="0" max="16" inputmode="decimal" value="${e.study_h ?? ""}" placeholder="0"></label>
           <label>${t("hands")}<input name="hands" type="number" step="50" min="0" inputmode="numeric" value="${e.hands ?? ""}" placeholder="0"></label>
         </div>
-        <p class="lbl">${t("mood")}</p>
-        <div class="mood">${[1, 2, 3, 4, 5].map((n) => `<input type="radio" name="mood" id="m${n}" value="${n}" ${Number(e.mood) === n ? "checked" : ""}><label for="m${n}">${n}</label>`).join("")}</div>
-        <p class="lbl">${t("tags")}</p>
-        <div class="chips">${Object.keys(TAGS).map((k) => `<button type="button" class="tagchip ${(e.tags || []).includes(k) ? "on" : ""}" data-tag="${k}">${tag(k)}</button>`).join("")}</div>
-        ${[["played", "played"], ["learned", "learned"], ["did_well", "didWell"], ["mistakes", "mistakes"]].map(([k, l]) => `<label class="ta">${t(l)}<textarea name="${k}" rows="2" class="sensitive">${esc(e[k])}</textarea></label>`).join("")}
-        <button class="btn btn-red" type="submit">${t("save")}</button>
+        <div class="jmood">${MOODS.map((m, i) => `<input type="radio" name="mood" id="m${i + 1}" value="${i + 1}" ${Number(e.mood) === i + 1 ? "checked" : ""}><label for="m${i + 1}" title="${i + 1}">${m}</label>`).join("")}</div>
+        <textarea name="text" class="paper sensitive" rows="12" placeholder="${t("journalPh")}">${esc(text)}</textarea>
+        <div class="prompts">${["pPlayed", "pLearned", "pWell", "pMistake", "pTomorrow"].map((k) => `<button type="button" class="chip" data-prompt="${k}">+ ${t(k)}</button>`).join("")}</div>
+        <div class="chips jtags">${Object.keys(TAGS).map((k) => `<button type="button" class="tagchip ${(e.tags || []).includes(k) ? "on" : ""}" data-tag="${k}">${tag(k)}</button>`).join("")}</div>
+        <button class="btn btn-red" type="submit">${t("save")}${e.day ? "" : " · +20 XP"}</button>
         <p class="saved" id="jsaved"></p>
       </form>
       <div class="stack">
+        <div class="card"><div class="card-head"><h3>${t("pastPages")}</h3></div>
+          ${mine.filter((x) => x.day !== day).slice(0, 8).map((x) => { const tx = [x.played, x.learned, x.did_well, x.mistakes].filter(Boolean).join(" ");
+            return `<a class="jpast" href="#/journal?day=${x.day}"><b>${fmtDay(x.day)}</b> <span>${x.mood ? MOODS[x.mood - 1] : ""}</span><small class="sensitive">${esc(tx.slice(0, 90)) || "—"}</small></a>`; }).join("") || `<p class="muted small">—</p>`}</div>
         <div class="card"><div class="card-head"><h3>${t("monthView")}</h3></div>
           <table class="mini"><thead><tr><th>${t("month")}</th><th>${t("play")}</th><th>${t("study")}</th><th>${t("hands")}</th></tr></thead><tbody>
           ${months.map((m) => {
@@ -487,38 +614,19 @@ async function viewJournal() {
         ${awayCard()}
       </div>
     </div>`;
-  $$("textarea", $("#jform")).forEach(dictateButton);
+  const ta = $("#jform textarea");
+  dictateButton(ta);
+  $$("[data-prompt]").forEach((b) => b.onclick = () => { ta.value += (ta.value.trim() ? "\n\n" : "") + t(b.dataset.prompt) + " "; ta.focus(); });
   $$(".tagchip").forEach((b) => b.onclick = () => {
     if (!b.classList.contains("on") && $$(".tagchip.on").length >= 10) return;
     b.classList.toggle("on");
-  });
-  // Timers: start when he sits down, stop adds the time to the hours box.
-  const paint = () => {
-    const r = timer.get();
-    $$("[data-elapsed]").forEach((el) => {
-      if (r?.kind !== el.dataset.elapsed) { el.textContent = t("start"); return; }
-      const s = Math.floor((Date.now() - r.started) / 1000);
-      el.textContent = `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
-    });
-  };
-  clearInterval(timerTick); timerTick = setInterval(paint, 1000); paint();
-  $$("[data-timer]").forEach((b) => b.onclick = () => {
-    const r = timer.get(), k = b.dataset.timer;
-    if (r) {
-      const hours = Math.round(((Date.now() - r.started) / 3600000) * 4) / 4;
-      const input = $(`[name=${r.kind}_h]`); input.value = Math.round((Number(input.value || 0) + hours) * 4) / 4;
-      timer.set(null);
-      $$(".timer").forEach((x) => x.classList.remove("on"));
-      if (r.kind === k) { paint(); return; }
-    }
-    timer.set({ kind: k, started: Date.now() }); b.classList.add("on"); paint();
   });
   $("#jform").onsubmit = async (ev) => {
     ev.preventDefault();
     const f = new FormData(ev.target);
     const entry = { player_id: ME.id, day, play_h: +f.get("play_h") || 0, study_h: +f.get("study_h") || 0, hands: +f.get("hands") || 0,
       mood: f.get("mood") ? +f.get("mood") : null, tags: $$(".tagchip.on").map((b) => b.dataset.tag),
-      played: f.get("played"), learned: f.get("learned"), did_well: f.get("did_well"), mistakes: f.get("mistakes") };
+      played: f.get("text"), learned: "", did_well: "", mistakes: "" };
     try { await db.saveJournal(entry); $("#jsaved").textContent = t("saved"); setTimeout(() => (location.hash = "#/"), 700); }
     catch (err) { $("#jsaved").textContent = t("error") + " : " + err.message; }
   };
@@ -731,7 +839,10 @@ const myTeamLabel = () => TEAMS.find((x) => x.id === ME.team_id)?.label;
 /* Summaries are plain markdown: "## Heading", "- bullet", "[34]" = minute in the replay. */
 function mdLite(s) {
   let html = "", inList = false;
-  const inline = (x) => esc(x).replace(/^\[(\d+)\]\s*/, (_, m) => `<span class="min">${m} min</span> `);
+  // Easy to read (Alexis 2026-10-28): **key words** bold, ==key takeaway== highlighted, sizes and frequencies in color.
+  const inline = (x) => esc(x).replace(/^\[(\d+)\]\s*/, (_, m) => `<span class="min">${m} min</span> `)
+    .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/==(.+?)==/g, "<mark>$1</mark>")
+    .replace(/(^|[\s(])(\d+(?:[.,]\d+)?\s?(?:%|x|bb|BB)(?![\w]))/g, '$1<span class="num">$2</span>');
   for (const raw of String(s || "").split("\n")) {
     const l = raw.trim();
     if (l.startsWith("- ")) { if (!inList) { html += "<ul>"; inList = true; } html += `<li>${inline(l.slice(2))}</li>`; continue; }
@@ -750,8 +861,11 @@ function replayRow(c, attended) {
   </div>`;
 }
 
+/* Same rule as the database (006_team_scope.sql), so Direction in player view sees exactly what a player sees. */
+const myCoaching = (c) => { const l = (c.team_label || "").toLowerCase(); return !has(ME, "player") || isStaff() || l === ME.team_id || (!l && (c.teams || []).includes(ME.team)) || (ME.team === "elite" && ["academy", "challenger"].includes(l)); };
 async function viewCoaching() {
-  const [cs, att, qz] = await Promise.all([db.coachings(), db.attendance(ME.id), db.quizzes()]);
+  const [csAll, att, qz] = await Promise.all([db.coachings(), db.attendance(ME.id), db.quizzes()]);
+  const cs = csAll.filter(myCoaching);
   const q = Object.fromEntries(new URLSearchParams(location.hash.split("?")[1] || ""));
   // A player lands on his own team's sessions; "All" is one tap away.
   if (q.team === undefined && has(ME, "player") && cs.some((c) => c.team_label === myTeamLabel())) q.team = myTeamLabel();
@@ -783,7 +897,7 @@ async function viewCoaching() {
 
 async function viewCoachingOne(id) {
   const [cs, ex, done, qz] = await Promise.all([db.coachings(), db.exercises(), db.exerciseDone(ME.id), db.quizzes()]);
-  const c = cs.find((x) => String(x.id) === id);
+  const c = cs.filter(myCoaching).find((x) => String(x.id) === id);
   if (!c) { $("#main").innerHTML = empty(t("notFound")); return; }
   const mine = ex.filter((e) => e.coaching_id === c.id), quiz = qz.find((q) => q.coaching_id === c.id);
   const meta = [fmtDay(c.day) + (c.starts_at ? " · " + hhmm(c.starts_at) : ""), c.coach, c.team_label, c.duration].filter(Boolean).map(esc).join(" · ");
@@ -1001,57 +1115,102 @@ async function viewSubmit() {
 
 /* ---------- calendar: one shared Google Calendar per team ---------- */
 /* In-app events first (coaching, mentor call, study session, peer review). Peer review: private (tagged players) or open to chosen teams. */
+/* Personal week calendar: only what concerns me (my team's coachings, my invites, open slots for my teams).
+   Coachings are entered by admin; a coach edits his own. */
 async function viewCalendar() {
+  const w = +(new URLSearchParams(location.hash.split("?")[1] || "").get("w") || 0);
+  const mon = new Date(weekStart() + "T00:00:00"); mon.setDate(mon.getDate() + 7 * w);
+  const days = [...Array(7)].map((_, i) => { const d = new Date(mon); d.setDate(d.getDate() + i); return iso(d); });
   const ids = [...new Set([ME.team_id, ...(ME.coaches || []).flatMap((s) => TEAMS.filter((x) => x.side === s).map((x) => x.id))].filter(Boolean))];
   const cals = TEAMS.filter((x) => ids.includes(x.id) && x.calendar_id);
-  const [events, dir] = await Promise.all([db.events(new Date(Date.now() - 3 * 36e5).toISOString(), addDays(45) + "T23:59"), directory()]);
+  const [all, dir, staff] = await Promise.all([db.events(new Date(mon.getTime() - 864e5).toISOString(), days[6] + "T23:59"), directory(),
+    isAdmin() ? db.people().catch(() => []) : []]);
+  const events = all.filter(forMe).filter((e) => days.includes(iso(new Date(e.starts_at))));
   const joins = await db.joins(events.map((e) => e.id));
-  const who = (id) => nm(dir.find((d) => d.id === id) || person(id));
+  const who = (id) => nm(dir.find((d) => d.id === id) || staff.find((d) => d.id === id) || person(id));
+  const coachList = staff.filter((p) => p.roles.some((r) => ["coach", "admin", "mentor", "manager"].includes(r)));
   const kinds = ["review", "study", "mentoring", "other"].concat(isStaff() ? ["coaching"] : []);
-  const byDay = {};
-  events.forEach((e) => (byDay[e.starts_at.slice(0, 10)] ||= []).push(e));
-  $("#main").innerHTML = `${head(t("calendar"), t("calendar"), t("calSub2"))}
-    <div class="grid two">
-      <div class="stack">${Object.entries(byDay).map(([d, l]) => `<p class="sub">${d === today() ? t("today") : fmtDay(d)}</p>${l.map((e) => {
-        const mine = e.created_by === ME.id, joined = joins.some((j) => j.event_id === e.id && j.player_id === ME.id), n = joins.filter((j) => j.event_id === e.id).length;
-        return `<article class="card ev k-${e.kind}"><div class="card-head"><h3>${KIND_ICON[e.kind]} ${esc(e.title)}</h3><span class="tag">${hhmm(e.starts_at)} · ${e.minutes} min</span></div>
-          <p class="muted small">${t("kind_" + e.kind)} · ${e.open ? `${t("openTo")} ${e.teams.length ? e.teams.map((x) => esc(TEAMS.find((y) => y.id === x)?.label || x)).join(", ") : t("allTeams")}` : t("private")}${mine ? "" : " · " + t("by") + " " + who(e.created_by)}</p>
-          ${e.invitees.length ? `<p class="small">${t("with")} ${e.invitees.map(who).join(", ")}</p>` : ""}${n ? `<p class="small">${n} ${t("joined")}</p>` : ""}
-          <p>${e.link ? `<a class="btn btn-sm btn-red" href="${esc(e.link)}" target="_blank" rel="noopener">${t("join")} ↗</a> ` : ""}${e.open && !mine && has(ME, "player") ? `<button class="btn btn-sm btn-ghost-red" data-join="${e.id}" data-v="${joined ? "" : "1"}">${joined ? t("leave") : t("imIn")}</button> ` : ""}${mine || isAdmin() ? `<button class="btn btn-sm" data-del="${e.id}">${t("del")}</button>` : ""}</p></article>`;
-      }).join("")}`).join("") || empty(t("noEvents"))}</div>
-      <form class="card" id="evform"><div class="card-head"><h3>${t("planSomething")}</h3></div>
+  const H0 = 8, H1 = 24, PX = 34;
+  const top = (e) => { const d = new Date(e.starts_at); return Math.max(0, (d.getHours() + d.getMinutes() / 60 - H0) * PX); };
+  const nowD = new Date(), nowTop = (nowD.getHours() + nowD.getMinutes() / 60 - H0) * PX;
+  const label = `${fmtDay(days[0])} → ${fmtDay(days[6])}`;
+  $("#main").innerHTML = `${head(t("calendar"), t("calendar"), t("calSub3"))}
+    <div class="wk-bar"><a class="btn btn-sm" href="#/calendar?w=${w - 1}">←</a><a class="btn btn-sm${w ? "" : " on"}" href="#/calendar">${t("thisWeek")}</a><a class="btn btn-sm" href="#/calendar?w=${w + 1}">→</a>
+      <b class="wk-label">${label}</b><button class="btn btn-red btn-sm" id="addev">+ ${t("planSomething")}</button></div>
+    <div class="card wk"><div class="wk-hours">${[...Array(H1 - H0)].map((_, i) => `<span style="top:${i * PX}px">${String(H0 + i).padStart(2, "0")}:00</span>`).join("")}</div>
+      ${days.map((d) => `<div class="wk-day${d === today() ? " today" : ""}"><p class="wk-dh">${new Date(d + "T12:00").toLocaleDateString(LANG === "fr" ? "fr-FR" : "en-GB", { weekday: "short", day: "numeric" })}</p>
+        <div class="wk-col" style="height:${(H1 - H0) * PX}px">${d === today() && nowTop > 0 ? `<i class="wk-now" style="top:${nowTop}px"></i>` : ""}
+        ${events.filter((e) => iso(new Date(e.starts_at)) === d).map((e) => {
+          const joined = joins.some((j) => j.event_id === e.id && j.player_id === ME.id);
+          return `<button class="wk-ev k-${e.kind}${joined || e.created_by === ME.id ? " me" : ""}${isOperation(e) ? " op" : ""}" data-ev="${e.id}" style="top:${top(e)}px;height:${Math.max(22, e.minutes / 60 * PX - 2)}px">
+            <b>${KIND_ICON[e.kind]} ${esc(opTitle(e))}</b><small>${hhmm(e.starts_at)}</small></button>`; }).join("")}</div></div>`).join("")}
+    </div>
+    ${events.length ? "" : `<p class="muted small">${t("noEvents")}</p>`}
+    ${cals.length ? `<p class="small">${cals.map((c) => `<a class="small-link" target="_blank" rel="noopener" href="https://calendar.google.com/calendar/r?cid=${encodeURIComponent(c.calendar_id)}">${t("subscribe")} · ${esc(c.label)} ↗</a>`).join(" · ")}</p>` : ""}
+    <dialog id="evd" class="card"></dialog>
+    <dialog id="evformd" class="card"><form id="evform"><div class="card-head"><h3 id="evft">${t("planSomething")}</h3><button class="x" type="button" data-close>×</button></div>
         <label>${t("type")}<select name="kind">${kinds.map((k) => `<option value="${k}">${KIND_ICON[k]} ${t("kind_" + k)}</option>`).join("")}</select></label>
         <label>${t("titleL")}<input name="title" required placeholder="${t("titlePh")}"></label>
-        <div class="row3"><label>${t("date")}<input type="date" name="date" required value="${today()}"></label><label>${t("time")}<input type="time" name="time" required value="16:00"></label>
+        <div class="row3"><label>${t("date")}<input type="date" name="date" required value="${w ? days[0] : today()}"></label><label>${t("time")}<input type="time" name="time" required value="16:00"></label>
           <label>${t("minutes")}<input type="number" name="minutes" value="60" step="15" min="15"></label></div>
         <label>${t("link")}<input name="link" type="url" placeholder="https://zoom.us/j/..."></label>
+        ${coachList.length ? `<label>${t("coachL")}<select name="by"><option value="">${t("meL")}</option>${coachList.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join("")}</select></label>` : ""}
         <div id="who"><p class="lbl">${t("whoSees")}</p>
           <div class="seg"><label><input type="radio" name="vis" value="private" checked>${t("private")}</label><label><input type="radio" name="vis" value="open">${t("openSlot")}</label></div>
           <div id="vis-private"><input id="tagq" placeholder="${t("tagPlayers")}"><div class="chips pick">${dir.filter((d) => d.id !== ME.id).map((d) => `<label class="tagchip" data-name="${esc(d.name.toLowerCase())}"><input type="checkbox" name="inv" value="${d.id}" hidden>${nm(d)} <small>${esc(TEAMS.find((x) => x.id === d.team_id)?.label || "")}</small></label>`).join("")}</div></div>
           <div id="vis-open" hidden><p class="muted small">${t("openWho")}</p><div class="chips">${TEAMS.map((x) => `<label class="tagchip"><input type="checkbox" name="teams" value="${x.id}" hidden>${esc(x.label)}</label>`).join("")}</div></div></div>
-        <button class="btn btn-red">${t("addEvent")}</button><p class="saved" id="evsaved"></p></form>
-    </div>
-    ${cals.map((c) => `<div class="card cal"><div class="card-head"><h3>${esc(c.label)} · Google</h3><a class="btn btn-sm btn-red" target="_blank" rel="noopener" href="https://calendar.google.com/calendar/r?cid=${encodeURIComponent(c.calendar_id)}">${t("subscribe")}</a></div>
-      <iframe title="${esc(c.label)}" src="https://calendar.google.com/calendar/embed?src=${encodeURIComponent(c.calendar_id)}&mode=AGENDA&ctz=Europe%2FLondon&showTitle=0&showPrint=0&showTabs=0"></iframe></div>`).join("")}`;
-  const f = $("#evform");
+        <button class="btn btn-red">${t("save")}</button><p class="saved" id="evsaved"></p></form></dialog>`;
+  const f = $("#evform"), fd = $("#evformd");
+  let editing = null;
   const vis = () => { const v = f.vis.value; $("#vis-private").hidden = v !== "private"; $("#vis-open").hidden = v !== "open"; };
+  const tick = () => $$(".tagchip input", f).forEach((c) => c.parentElement.classList.toggle("on", c.checked));
   $$("[name=vis]", f).forEach((r) => r.onchange = vis);
-  $$(".tagchip input", f).forEach((c) => c.onchange = () => c.parentElement.classList.toggle("on", c.checked));
+  $$(".tagchip input", f).forEach((c) => c.onchange = tick);
   $("#tagq").oninput = (e) => $$(".pick .tagchip", f).forEach((l) => { l.hidden = !l.dataset.name.includes(e.target.value.toLowerCase()); });
+  $$("[data-close]").forEach((b) => b.onclick = () => b.closest("dialog").close());
+  const openForm = (e) => {
+    editing = e || null; f.reset(); $("#evft").textContent = e ? t("editEvent") : t("planSomething");
+    if (e) {
+      const d = new Date(e.starts_at);
+      f.kind.value = e.kind; f.title.value = e.title; f.date.value = iso(d); f.time.value = hhmm(e.starts_at); f.minutes.value = e.minutes; f.link.value = e.link || "";
+      if (f.by) f.by.value = e.created_by === ME.id ? "" : e.created_by;
+      f.vis.value = e.open ? "open" : "private";
+      $$("[name=teams]", f).forEach((c) => c.checked = e.teams.includes(c.value));
+      $$("[name=inv]", f).forEach((c) => c.checked = e.invitees.includes(c.value));
+    }
+    vis(); tick(); fd.showModal();
+  };
+  $("#addev").onclick = () => openForm();
   f.onsubmit = async (ev) => {
     ev.preventDefault(); const d = new FormData(f);
     const open = d.get("vis") === "open";
-    try {
-      await db.saveEvent({ kind: d.get("kind"), title: d.get("title").trim(), starts_at: new Date(`${d.get("date")}T${d.get("time")}`).toISOString(), minutes: +d.get("minutes") || 60,
-        link: d.get("link").trim() || null, open, teams: open ? d.getAll("teams") : [], invitees: open ? [] : d.getAll("inv") });
-      route();
-    } catch (err) { $("#evsaved").textContent = t("error") + " : " + err.message; }
+    const row = { kind: d.get("kind"), title: d.get("title").trim(), starts_at: new Date(`${d.get("date")}T${d.get("time")}`).toISOString(), minutes: +d.get("minutes") || 60,
+      link: d.get("link").trim() || null, open, teams: open ? d.getAll("teams") : [], invitees: open ? [] : d.getAll("inv") };
+    if (d.get("by")) row.created_by = d.get("by");
+    try { await db.saveEvent(editing ? { ...row, id: editing.id } : row); fd.close(); route(); }
+    catch (err) { $("#evsaved").textContent = t("error") + " : " + err.message; }
   };
-  $$("[data-join]").forEach((b) => b.onclick = async () => {
-    await db.join(b.dataset.join, !!b.dataset.v);
-    if (b.dataset.v && events.find((e) => e.id === b.dataset.join)?.kind === "review") location.hash = "#/hq?go=review"; else route();
+  $$("[data-ev]").forEach((b) => b.onclick = () => {
+    const e = events.find((x) => x.id === b.dataset.ev), mine = e.created_by === ME.id || isAdmin();
+    const joined = joins.some((j) => j.event_id === e.id && j.player_id === ME.id), n = joins.filter((j) => j.event_id === e.id).length;
+    const dl = $("#evd");
+    dl.classList.toggle("op", isOperation(e));
+    dl.innerHTML = `<div class="card-head"><h3>${KIND_ICON[e.kind]} ${esc(opTitle(e))}</h3><button class="x" data-close>×</button></div>
+      <p><b>${fmtDay(iso(new Date(e.starts_at)))} · ${hhmm(e.starts_at)}</b> · ${e.minutes} min</p>
+      <p class="muted small">${t("kind_" + e.kind)} · ${e.open ? `${t("openTo")} ${e.teams.length ? e.teams.map((x) => esc(TEAMS.find((y) => y.id === x)?.label || x)).join(", ") : t("allTeams")}` : t("private")} · ${t("by")} ${who(e.created_by)}</p>
+      ${e.invitees.length ? `<p class="small">${t("with")} ${e.invitees.map(who).join(", ")}</p>` : ""}${n ? `<p class="small">${n} ${t("joined")}</p>` : ""}
+      <p class="btns">${e.link ? `<a class="btn btn-sm btn-red" href="${esc(e.link)}" target="_blank" rel="noopener">${t("join")} ↗</a>` : ""}
+        ${e.open && e.created_by !== ME.id && has(ME, "player") && e.kind !== "coaching" ? `<button class="btn btn-sm btn-ghost-red" data-join="${e.id}" data-v="${joined ? "" : "1"}">${joined ? t("leave") : t("imIn")}</button>` : ""}
+        ${mine ? `<button class="btn btn-sm" data-edit>${t("edit")}</button><button class="btn btn-sm" data-del="${e.id}">${t("del")}</button>` : ""}</p>`;
+    $$("[data-close]", dl).forEach((x) => x.onclick = () => dl.close());
+    $("[data-edit]", dl)?.addEventListener("click", () => { dl.close(); openForm(e); });
+    $("[data-join]", dl)?.addEventListener("click", async (x) => {
+      const v = !!x.target.dataset.v; await db.join(e.id, v);
+      if (v && e.kind === "review") location.hash = "#/hq?go=review"; else route();
+    });
+    $("[data-del]", dl)?.addEventListener("click", async () => { if (confirm(t("removeEvent"))) { await db.dropEvent(e.id); route(); } });
+    dl.showModal();
   });
-  $$("[data-del]").forEach((b) => b.onclick = async () => { if (confirm(t("removeEvent"))) { await db.dropEvent(b.dataset.del); route(); } });
 }
 
 /* ---------- my account: contract + accountability (off the home page) ---------- */
@@ -1111,7 +1270,9 @@ async function viewAdmin() {
       <label>Coach<span class="checks">${["academy", "elite"].map((s) => `<label><input type="checkbox" name="coaches" value="${s}" ${(p.coaches || []).includes(s) ? "checked" : ""}>${sideLabel(s)}</label>`).join("")}</span></label>
       <label>Manager<span class="checks">${["academy", "elite"].map((s) => `<label><input type="checkbox" name="manages" value="${s}" ${(p.manages || []).includes(s) ? "checked" : ""}>${sideLabel(s)}</label>`).join("")}</span></label></div>
     <div class="row3"><label>${t("stakesL")}<input name="stakes" value="${esc(p.stakes || "")}" placeholder="NL200"></label>
-      <label>${t("rtsSince")}<input name="rts_since" type="number" min="2022" max="2040" value="${p.rts_since || ""}" placeholder="2025"></label></div>
+      <label>${t("rtsSince")}<input name="rts_since" type="number" min="2022" max="2040" value="${p.rts_since || ""}" placeholder="2025"></label>
+      ${isAdmin() ? `<label>${t("secretL")}<span class="checks"><label><input type="checkbox" name="secret" ${p.secret ? "checked" : ""}>${t("secretSub")}</label></span></label>` : ""}</div>
+    ${isAdmin() ? `<label>${t("awardsL")}<input name="awards" value="${esc((p.awards || []).join(", "))}" placeholder="potm, contest-summer, contest-winter"></label>` : ""}
     <p class="lbl">${t("roles")}</p><span class="checks">${ROLES.map((r) => `<label><input type="checkbox" name="roles" value="${r}" ${(p.roles || ["player"]).includes(r) ? "checked" : ""}>${r}</label>`).join("")}</span>
     <div><button class="btn btn-sm btn-red" type="submit">${t("save")}</button>
     ${p.id ? `<button class="btn btn-sm btn-ghost-red" type="button" data-toggle="${p.active === false ? "on" : "off"}">${p.active === false ? t("restore") : t("remove")}</button>` : ""}</div></form>`;
@@ -1127,6 +1288,7 @@ async function viewAdmin() {
       const team = TEAMS.find((x) => x.id === fd.get("team_id"));
       const p = { name: fd.get("name").trim(), email: fd.get("email").trim().toLowerCase(), team_id: team?.id || null, team: team?.side || "staff",
         mentor_id: fd.get("mentor_id") || null, stakes: fd.get("stakes").trim() || null, rts_since: +fd.get("rts_since") || null, roles: fd.getAll("roles"), coaches: fd.getAll("coaches"), manages: fd.getAll("manages") };
+      if (isAdmin()) Object.assign(p, { secret: fd.get("secret") === "on", awards: (fd.get("awards") || "").split(",").map((x) => x.trim()).filter(Boolean) });
       if (f.dataset.id) p.id = f.dataset.id;
       try { await db.saveProfile(p); VISIBLE = await db.people(); route(); } catch (err) { alert(t("error") + " : " + err.message); }
     };
@@ -1190,6 +1352,7 @@ const asPlayer = (p) => ({ ...p, roles: ["player"], coaches: [], manages: [], te
 
 function shell() {
   document.body.classList.remove("is-login");
+  document.body.classList.toggle("ops", ME?.team_id === "supreme");
   const demo = db.mode === "demo";
   const links = [["", "home"], ["hq", "hq"]].concat(has(ME, "player") ? [["journal", "journal"], ["study", "study"]] : []).concat([["coaching", "coaching"], ["library", "library"], ["replayer", "replayer"], ["calendar", "calendar"]])
     .concat(isStaff() ? [["team", "team"]] : []).concat(isOps() ? [["admin", "admin"]] : []).concat(isAdmin() ? [["ceo", "ceo"]] : []).concat([["account", "account"]]);
@@ -1218,7 +1381,6 @@ async function route() {
   if (!ME) return;
   clearInterval(timerTick);
   document.onpaste = null;
-  if (!location.hash.startsWith("#/hq")) { HQ?.leave(); HQ = null; }
   const [path] = (location.hash || "#/").split("?");
   const [, a = "", b, c] = path.split("/");
   const navKey = a === "p" ? "" : ["c", "quiz", "review"].includes(a) ? "coaching" : ["s", "submit"].includes(a) ? "library" : a === "recall" ? "study" : ["session", "hands", "hero"].includes(a) ? "" : a === "notes" ? "" : a;
@@ -1246,6 +1408,7 @@ async function needFiles() {
 
 async function boot() {
   await needFiles();
+  presenceStop();
   cam.set(cam.on);
   setLang(LANG);
   const s = await db.session();
@@ -1258,6 +1421,7 @@ async function boot() {
   if (ME.lang && !saved) setLang(ME.lang);
   [VISIBLE, TEAMS] = await Promise.all([db.people(), db.teams()]);
   shell(); route();
+  presenceStart();
 }
 
 window.addEventListener("hashchange", route);

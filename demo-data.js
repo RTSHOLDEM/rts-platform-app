@@ -15,7 +15,7 @@ const D_PEOPLE = [
   { id: "ines", name: "Inès Moreau", team: "academy", team_id: "academy", roles: ["player"], mentor_id: "sam", stakes: "NL100" },
   { id: "theo", name: "Théo Bernard", team: "elite", team_id: "master", roles: ["player", "mentor"], mentor_id: "alex", stakes: "NL1000" },
   { id: "sam", name: "Samuel Klein", team: "elite", team_id: "master", roles: ["player", "mentor"], mentor_id: "alex", stakes: "NL600" },
-  { id: "max", name: "Maxime Petit", team: "elite", team_id: "supreme", roles: ["player", "coach", "manager"], coaches: ["academy", "elite"], manages: ["academy"], mentor_id: "alex", stakes: "NL2000" },
+  { id: "max", name: "Maxime Petit", team: "elite", team_id: "supreme", secret: true, roles: ["player", "coach", "manager"], coaches: ["academy", "elite"], manages: ["academy"], mentor_id: "alex", stakes: "NL2000" },
   { id: "alex", name: "Alex Demo", team: "elite", team_id: "supreme", roles: ["player", "coach", "mentor", "admin"], coaches: ["academy", "elite"], stakes: "NL2000" },
   { id: "ops", name: "Olivier Ops", team: "staff", team_id: null, roles: ["ops"] },
 ].map((p) => ({ coaches: [], manages: [], email: p.id + "@example.com", active: true, away_from: null, away_to: null, lang: "en", ...p }));
@@ -118,5 +118,19 @@ function dFinances(pid) {
     const result = Math.round((r(i) - 0.3) * 6000 / 10) * 10;
     out.push({ month: m.toISOString().slice(0, 10), result, cut: Math.max(0, result) * 0.35, paid: i > 0 ? Math.max(0, result) * 0.35 : 0, makeup: result < 0 ? -result : 0 });
   }
+  return out;
+}
+
+/* Weekly coachings for the demo calendar, this week and the next 2 (same pattern as the real schedule). */
+function demoCoachings() {
+  const mon = new Date(); mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7)); mon.setHours(0, 0, 0, 0);
+  const slots = [[0, 14, 110, "master", "Coaching Master · Théo", "theo"], [1, 13, 90, "challenger", "Coaching Challenger · vs regs", "theo"], [1, 15, 90, "academy", "Coaching Academy · vs regs", "theo"],
+    [2, 15.5, 135, "supreme", "Supreme HU · Max", "max"], [3, 13, 90, "challenger", "Coaching Challenger · Alex", "alex"], [3, 15, 90, "academy", "Coaching Academy · Alex", "alex"],
+    [4, 13, 75, null, "Conference RTS · Alex", "alex"], [4, 14.5, 135, "master", "Coaching Master · Alex", "alex"]];
+  const out = [];
+  for (let w = 0; w < 3; w++) slots.forEach(([d, h, min, team, title, by], i) => {
+    const s = new Date(mon); s.setDate(s.getDate() + 7 * w + d); s.setHours(Math.floor(h), (h % 1) * 60);
+    out.push({ id: `dc${w}-${i}`, kind: "coaching", title, starts_at: s.toISOString(), minutes: min, link: "https://zoom.us/j/demo", created_by: by, invitees: [], open: true, teams: team ? [team] : [] });
+  });
   return out;
 }
