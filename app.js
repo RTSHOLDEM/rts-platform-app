@@ -191,7 +191,7 @@ async function viewHome() {
         <div class="dock">
           <a href="#/hq"><span>🏢</span>${t("hq")}</a>
           <a href="https://app.gtowizard.com" target="_blank" rel="noopener"><span>🧙</span>GTO Wizard</a>
-          <a href="https://rts.pokereplayer.com" target="_blank" rel="noopener"><span>▶</span>Replayer</a>
+          <a href="#/replayer"><span>▶</span>Replayer</a>
           <a href="#/library"><span>📖</span>${t("library")}</a>
         </div>
       </aside>
