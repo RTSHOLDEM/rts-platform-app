@@ -25,6 +25,7 @@ function handInfo(hh) {
   return { site, stakes, cards };
 }
 
+const LAST = 10; // the list shows the 10 latest hands, "See all" opens the rest
 const SUIT = { s: "♠", h: "♥", d: "♦", c: "♣" };
 const cardsHtml = (cards) => cards.map((c) => `<span class="rpc ${c.s}">${esc(c.r)}<i>${SUIT[c.s] || ""}</i></span>`).join("");
 
@@ -49,7 +50,7 @@ async function viewReplayer(id) {
     <section class="rp">
       <aside class="rp-side card">
         <div class="rp-side-head"><h3>${t("myHands")} <span class="muted">${hands.length || ""}</span></h3><a class="btn btn-sm btn-red" href="#/replayer/new">+ ${t("newHand")}</a></div>
-        <div class="rp-list">${hands.map(item).join("") || `<p class="muted rp-empty">${t("noReplays")}</p>`}</div>
+        <div class="rp-list ${hands.indexOf(cur) >= LAST ? "all" : ""}">${hands.map((h, i) => (i === LAST ? `<button class="rp-more" id="rpmore">${t("seeAll")} (${hands.length})</button>` : "") + item(h)).join("") || `<p class="muted rp-empty">${t("noReplays")}</p>`}</div>
       </aside>
       <div class="rp-stage">${cur ? `
         <div class="rp-bar"><span class="rp-cards">${cardsHtml(handInfo(cur.hh).cards)}</span>
@@ -70,6 +71,7 @@ async function viewReplayer(id) {
     const s = e.clipboardData.getData("text");
     if (isHH(s)) { e.preventDefault(); save(s); }
   };
+  $("#rpmore")?.addEventListener("click", () => $(".rp-list").classList.add("all"));
   if (cur) {
     const url = await replayUrl(cur.hh);
     $("#rpframe").src = url; $("#rpfull").href = url;
