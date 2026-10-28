@@ -582,27 +582,29 @@ body.cam .journal-page textarea.sensitive { color: transparent; text-shadow: 0 0
 .wk-ev.me { box-shadow: 0 0 0 1px var(--text) inset; }
 dialog .btns { display: flex; gap: 8px; flex-wrap: wrap; }
 
-/* ---------- special ops look (Supreme team, Max's HU = operations) ---------- */
-:root { --khaki: #b5b37a; --olive: #4d5a2e; --olive-2: #36401f; --stencil: "Black Ops One", var(--head); }
+/* ---------- secret agent look (Supreme team, Max's HU = missions). Alexis 2026-10-28: "online poker secret agent team", no army. ---------- */
+:root { --agent-line: rgba(253,6,6,.45); --mono: "JetBrains Mono", ui-monospace, Menlo, monospace; }
 body.ops { background:
-  linear-gradient(rgba(181,179,122,.035) 1px, transparent 1px) 0 0 / 28px 28px,
-  linear-gradient(90deg, rgba(181,179,122,.035) 1px, transparent 1px) 0 0 / 28px 28px, var(--bg); }
-body.ops h1, body.ops .char-name, body.ops .hero-name { font-family: var(--stencil); font-weight: 400; letter-spacing: .02em; }
-body.ops .rank { color: var(--khaki); letter-spacing: .04em; }
-body.ops .lvl-badge { background: var(--olive); color: #f1efd2; border: 1px solid var(--khaki); clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); border-radius: 0; }
-body.ops .char { position: relative; }
+  repeating-linear-gradient(0deg, rgba(255,255,255,.016) 0 1px, transparent 1px 3px),
+  radial-gradient(1100px 520px at 50% -8%, rgba(253,6,6,.09), transparent 62%), var(--bg); }
+body.ops h1, body.ops .char-name, body.ops .hero-name { font-family: var(--mono); font-weight: 600; letter-spacing: .05em; text-transform: uppercase; }
+body.ops .rank { color: var(--red); font-family: var(--mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
+body.ops .lvl-badge { background: #000; color: var(--red); border: 1px solid var(--red); font-family: var(--mono); border-radius: 4px; box-shadow: 0 0 12px rgba(253,6,6,.35); }
+body.ops .char { position: relative; background: radial-gradient(120% 80% at 50% 0%, rgba(253,6,6,.12), transparent 70%), #08080a; border-color: var(--agent-line); }
+body.ops .char::before { content: "TOP SECRET"; position: absolute; top: 16px; right: 14px; pointer-events: none;
+  font: 700 9.5px/1 var(--mono); letter-spacing: .28em; color: var(--red); border: 1.5px solid var(--red); border-radius: 3px; padding: 4px 6px; transform: rotate(-7deg); opacity: .75; }
 body.ops .char::after, .op.nextup-in::after { content: ""; position: absolute; inset: 6px; pointer-events: none;
-  background: linear-gradient(var(--khaki), var(--khaki)) 0 0 / 14px 2px, linear-gradient(var(--khaki), var(--khaki)) 0 0 / 2px 14px,
-    linear-gradient(var(--khaki), var(--khaki)) 100% 0 / 14px 2px, linear-gradient(var(--khaki), var(--khaki)) 100% 0 / 2px 14px,
-    linear-gradient(var(--khaki), var(--khaki)) 0 100% / 14px 2px, linear-gradient(var(--khaki), var(--khaki)) 0 100% / 2px 14px,
-    linear-gradient(var(--khaki), var(--khaki)) 100% 100% / 14px 2px, linear-gradient(var(--khaki), var(--khaki)) 100% 100% / 2px 14px;
-  background-repeat: no-repeat; opacity: .7; }
-.op.nextup-in { position: relative; background: repeating-linear-gradient(135deg, var(--olive-2) 0 10px, #2c3519 10px 20px) !important; border-color: var(--khaki) !important; }
-.op.nextup-in b, .hrow.op, .wk-ev.op b, dialog.op h3 { font-family: var(--stencil); font-weight: 400; letter-spacing: .03em; }
-.op.nextup-in .eyebrow { color: var(--khaki); }
-.wk-ev.op { background: repeating-linear-gradient(135deg, var(--olive-2) 0 8px, #2c3519 8px 16px); border-color: var(--khaki); border-left-color: var(--khaki); }
-.wk-ev.op small { color: var(--khaki); }
-dialog.op { border-color: var(--khaki); background: linear-gradient(180deg, #232a15, var(--bg-2, #111)); }
+  background: linear-gradient(var(--red), var(--red)) 0 0 / 12px 1.5px, linear-gradient(var(--red), var(--red)) 0 0 / 1.5px 12px,
+    linear-gradient(var(--red), var(--red)) 100% 0 / 12px 1.5px, linear-gradient(var(--red), var(--red)) 100% 0 / 1.5px 12px,
+    linear-gradient(var(--red), var(--red)) 0 100% / 12px 1.5px, linear-gradient(var(--red), var(--red)) 0 100% / 1.5px 12px,
+    linear-gradient(var(--red), var(--red)) 100% 100% / 12px 1.5px, linear-gradient(var(--red), var(--red)) 100% 100% / 1.5px 12px;
+  background-repeat: no-repeat; opacity: .8; }
+.op.nextup-in { position: relative; background: linear-gradient(135deg, #1a0405, #08080a 65%) !important; border-color: var(--agent-line) !important; }
+.op.nextup-in b, .hrow.op, .wk-ev.op b, dialog.op h3 { font-family: var(--mono); font-weight: 600; letter-spacing: .04em; }
+.op.nextup-in .eyebrow { color: var(--red); font-family: var(--mono); }
+.wk-ev.op { background: linear-gradient(135deg, #1d0405, #0b0b0d); border-color: var(--agent-line); border-left-color: var(--red); }
+.wk-ev.op small { color: var(--red); }
+dialog.op { border-color: var(--agent-line); background: linear-gradient(180deg, #170405, var(--bg-2, #111)); }
 
 /* ---------- avatar picker ---------- */
 .nick-row { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 12px; }

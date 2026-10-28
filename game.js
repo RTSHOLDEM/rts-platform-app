@@ -182,13 +182,13 @@ async function gameStats(p) {
   g.skins = SKINS.filter((s) => !s.unlock || g.unlocked.includes(s.unlock)).map((s) => s.id);
   return g;
 }
-/* Special ops look for Supreme (Alexis 2026-10-28: "armée RTS, opération spéciale", for Supreme and Max's coachings first). */
-const OPS_RANKS = [[1, "Recruit", "Recrue"], [3, "Private", "Soldat"], [5, "Corporal", "Caporal"], [8, "Sergeant", "Sergent"], [12, "Lieutenant", "Lieutenant"],
-  [16, "Captain", "Capitaine"], [20, "Major", "Commandant"], [25, "Colonel", "Colonel"], [30, "General", "Général"]];
+/* Secret agent look for Supreme (Alexis 2026-10-28: "online poker secret agent team", replaced the army look). Ranks = clearance levels. */
+const OPS_RANKS = [[1, "Recruit", "Recrue"], [3, "Field agent", "Agent de terrain"], [6, "Special agent", "Agent spécial"], [10, "Senior agent", "Agent senior"],
+  [15, "Handler", "Officier traitant"], [22, "Station chief", "Chef de station"], [30, "Director", "Directeur"]];
 const opsRank = (lvl) => { const r = OPS_RANKS.filter((x) => lvl >= x[0]).pop(); return LANG === "fr" ? r[2] : r[1]; };
 const isOperation = (e) => e.kind === "coaching" && e.teams?.length === 1 && e.teams[0] === "supreme";
-const opTitle = (e) => (isOperation(e) ? `OP · ${e.title}` : e.title);
-const rankLine = (p, g) => [p.team_id === "supreme" ? `★ ${opsRank(g.level)}` : null, esc(teamOf(p).label), p.stakes ? esc(p.stakes) : null, `${t("season")} ${g.season}`].filter(Boolean).join(" · ");
+const opTitle = (e) => (isOperation(e) ? `MISSION · ${e.title}` : e.title);
+const rankLine = (p, g) => [p.team_id === "supreme" ? `◆ ${opsRank(g.level)}` : null, esc(teamOf(p).label), p.stakes ? esc(p.stakes) : null, `${t("season")} ${g.season}`].filter(Boolean).join(" · ");
 const mySkin = (p, g) => (g?.skins || []).includes(p.skin) ? p.skin : (g?.skins || ["rookie"]).slice(-1)[0] || "rookie";
 
 /* XP toast: shows what you earned since your last visit, and level ups. */
@@ -406,5 +406,5 @@ async function viewHQ() {
   $("#hqsay").onsubmit = (ev) => { ev.preventDefault(); const v = ev.target.m.value.trim(); if (v) PRES.ch?.say(v); ev.target.reset(); };
   if (go) setTimeout(() => hqMove(go), 900);
 }
-/* Map art (Higgsfield, 2026-10-28): the HQ for everyone, the special ops bunker for Supreme. */
+/* Map art (Higgsfield, 2026-10-28): the HQ for everyone, the secret agent HQ for Supreme. */
 const hqArt = () => (document.body.classList.contains("ops") ? "img/hq/hq-ops.webp" : "img/hq/hq.webp");
