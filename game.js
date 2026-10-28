@@ -215,11 +215,12 @@ function bindSwatches() {
 }
 
 /* ---------- hero page: character, skins, achievements, color ---------- */
-/* Avatar catalog (pixel art from Higgsfield sheets, app/img/av/<id>.png). */
+/* Avatar catalog (pixel art from Higgsfield sheets, app/img/av/<id>.png, sliced by tools/slice_avatars.py).
+   Army tab replaced by Agents 2026-10-28; the old army PNGs stay so players who picked one keep it. */
 const AV_CATALOG = {
   animals: ["whale", "frog", "fox", "owl", "shark", "bear", "cat", "panda", "octopus", "penguin", "lion", "wolf", "rabbit", "tiger", "monkey", "eagle"],
   poker: ["chip", "ace", "king", "queen", "dice", "dealer", "cowboy", "highroller", "fish", "donkey", "suitshark", "luckycat", "crown", "moneybag", "slots", "tophat"],
-  army: ["commando", "sniper", "soldier", "pilot", "general", "diver", "tanker", "medic", "radio", "spy", "ninja", "samurai", "viking", "knight", "cyborg", "astronaut"],
+  agents: ["agent", "agentw", "hacker", "tuxedo", "director", "phantom", "burglar", "analyst", "rider", "dealerspy", "nightvision", "trench", "pug", "android", "shadow", "diplomat"],
   fantasy: ["wizard", "robot", "alien", "ghost", "dragon", "vampire", "pirate", "zombie", "unicorn", "skeleton", "elf", "dwarf", "mermaid", "demon", "angel", "mushroom"],
 };
 /* "Look like me": the photo never leaves the browser. We read the hair color (top of the head) and the skin tone (cheeks) from it. */
