@@ -26,7 +26,7 @@ function handInfo(hh) {
 }
 
 const SUIT = { s: "♠", h: "♥", d: "♦", c: "♣" };
-const cardsHtml = (cards) => cards.map((c) => `<span class="pc ${c.s}">${esc(c.r)}<i>${SUIT[c.s] || ""}</i></span>`).join("");
+const cardsHtml = (cards) => cards.map((c) => `<span class="rpc ${c.s}">${esc(c.r)}<i>${SUIT[c.s] || ""}</i></span>`).join("");
 
 async function viewReplayer(id) {
   const hands = (await db.hands()).filter((h) => isHH(h.hh));
@@ -34,7 +34,7 @@ async function viewReplayer(id) {
   const item = (h) => {
     const i = handInfo(h.hh);
     return `<a class="rp-item ${h === cur ? "on" : ""}" href="#/replayer/${h.id}">
-      <span class="rp-cards">${cardsHtml(i.cards) || `<span class="pc">?</span>`}</span>
+      <span class="rp-cards">${cardsHtml(i.cards) || `<span class="rpc">?</span>`}</span>
       <span class="rp-meta"><b>${esc([i.stakes, i.site].filter(Boolean).join(" · ") || t("hand"))}</b>
         <small>${fmtDay(h.created_at.slice(0, 10))} · ${hhmm(h.created_at)}</small>
         ${h.note ? `<small class="rp-note">${esc(h.note)}</small>` : ""}</span></a>`;

@@ -15,12 +15,12 @@
 
 /* Playing cards: 4 colours, like most poker clients. */
 .rp-cards { display: inline-flex; gap: 3px; flex-shrink: 0; }
-.pc { display: inline-flex; align-items: baseline; justify-content: center; gap: 1px; min-width: 26px; height: 34px; padding: 6px 4px 0; border-radius: 6px;
+.rpc { display: inline-flex; align-items: baseline; justify-content: center; gap: 1px; min-width: 26px; height: 34px; padding: 6px 4px 0; border-radius: 6px;
   background: #f4f4f2; color: #111; font: 700 14px/1 var(--body); box-shadow: 0 1px 0 rgba(255,255,255,.08) inset; }
-.pc i { font-style: normal; font-size: 12px; }
-.pc.h { color: #d60f0f; }
-.pc.d { color: #1d6fe0; }
-.pc.c { color: #12924f; }
+.rpc i { font-style: normal; font-size: 12px; }
+.rpc.h { color: #d60f0f; }
+.rpc.d { color: #1d6fe0; }
+.rpc.c { color: #12924f; }
 
 .rp-stage { min-width: 0; }
 .rp-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }

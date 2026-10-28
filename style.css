@@ -354,6 +354,8 @@ article.hand.done { opacity: .6; }
 .replay .date { color: var(--red); font-size: 13px; }
 .replay .date small { display: block; color: var(--muted); }
 .replay .meta { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.replay b small { display: block; color: var(--muted); font: 400 13px var(--body); margin-top: 3px; }
+.quizbox summary { display: flex; align-items: center; gap: 10px; }
 .replay .acts { display: flex; gap: 8px; align-items: center; }
 .min { display: inline-block; min-width: 52px; color: var(--muted); font-size: 12px; }
 .summary h4 { margin: 18px 0 6px; }

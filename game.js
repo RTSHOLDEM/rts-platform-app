@@ -228,7 +228,7 @@ async function viewHQ() {
     list.forEach((p) => {
       if (!els[p.id]) {
         const el = document.createElement("div"); el.className = "pc" + (p.id === ME.id ? " me" : "");
-        el.innerHTML = `<div class="bubble" hidden></div>${sprite(p.skin, 34)}<span class="pname">${label(p)} <small>${p.lvl || 1}</small></span>`;
+        el.innerHTML = `<div class="bubble" hidden></div>${sprite(p.skin, 42)}<span class="pname">${label(p)} <small>${p.lvl || 1}</small></span>`;
         box.appendChild(el); els[p.id] = el; at[p.id] = hqSpot(p.room, p.id); place(el, at[p.id], 0);
       } else if (people[p.id] && people[p.id].room !== p.room) walk(p.id, people[p.id].room, p.room);
       people[p.id] = p;
