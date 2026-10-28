@@ -135,54 +135,104 @@ function weekView(events, sessions) {
     }).join("")}</div></div>`;
 }
 
-/* ---------- home ---------- */
+/* ---------- home: the lobby (one screen, no scroll) ---------- */
+const elapsed = (s) => (s.paused_at ? new Date(s.paused_at) : Date.now()) - new Date(s.started_at) - Number(s.paused_ms || 0);
+const weekHours = (entries) => entries.filter((e) => e.day >= weekStart()).reduce((a, e) => a + Number(e.play_h || 0) + Number(e.study_h || 0), 0);
+const xpBar = (v, max) => `<div class="xpbar big"><i style="width:${Math.min(100, max ? (v / max) * 100 : 0)}%"></i></div>`;
+
 async function viewHome() {
-  const isPlayer = has(ME, "player");
-  const [mine, goals, deck, events, sessions, open, hands, cards] = await Promise.all([db.journal(ME.id, daysAgo(400)), db.goals(ME.id), db.deck(ME.id),
-    db.events(new Date(Date.now() - 864e5).toISOString(), addDays(14) + "T23:59"), db.sessions(ME.id, weekStart()), db.openSession(ME.id),
-    isPlayer ? db.hands() : [], isPlayer ? db.cards() : []]);
-  ME._goal = goals.find((g) => g.label === monthStart());
-  const s = stats(mine, ME);
+  if (!has(ME, "player")) return viewHomeStaff();
+  const [mine, goals, deck, events, open, hands, cards, g] = await Promise.all([db.journal(ME.id, daysAgo(400)), db.goals(ME.id), db.deck(ME.id),
+    db.events(new Date(Date.now() - 864e5).toISOString(), addDays(14) + "T23:59"), db.openSession(ME.id), db.hands(), db.cards(), gameStats(ME)]);
+  ME._goal = goals.find((x) => x.label === monthStart());
+  const s = stats(mine, ME), target = teamOf(ME).week_hours || 35, wk = weekHours(mine) + (open ? elapsed(open) / 36e5 : 0);
+  const handsLeft = hands.filter((h) => !h.reviewed).length, recall = cards.filter((c) => c.player_id === ME.id && c.due <= today()).length;
   const due = deck.filter((d) => d.due <= today()).length;
-  const handsLeft = hands.filter((h) => !h.reviewed).length;
-  const recall = cards.filter((c) => c.player_id === ME.id && c.due <= today()).length;
-  const menu = [
-    ["#/journal", t("journal"), t("jSub")],
-    ["#/study", t("studyHub"), t("studyHubSub")],
-    ["#/p/" + ME.id + "/overview", t("mypage"), t("objectives") + " · " + t("report")],
-    ["#/coaching", t("coaching"), t("program") + " · " + t("quizzes")],
-    ["#/library", t("library"), t("libSub")],
-  ].concat(isStaff() ? [["#/team", t("team"), t("teamSub").split(".")[0]]] : [])
-   .concat(isOps() ? [["#/admin", t("admin"), t("adminSub").split(".")[0]]] : [])
-   .concat(isAdmin() ? [["#/ceo", t("ceo"), t("ceoSub")]] : []);
+  const now = new Date().toISOString(), coming = events.filter((e) => new Date(new Date(e.starts_at).getTime() + e.minutes * 6e4).toISOString() >= now);
+  const coach = coming.find((e) => e.kind === "coaching" && e.starts_at.slice(0, 10) === today());
+  const quest = (done, href, label, xp, attr = "") => `<a class="quest ${done ? "done" : ""}" ${href ? `href="${href}"` : ""} ${attr}><span>${done ? "✓" : "○"} ${label}</span><b>+${xp} XP</b></a>`;
+  const skin = mySkin(ME, g), first = cam.on ? esc(ME.name[0]) + "." : esc(ME.name.split(" ")[0]);
+  const todayE = mine.find((e) => e.day === today()) || { player_id: ME.id, day: today() };
+  $("#main").innerHTML = `
+    <section class="lobby-top">
+      <h1 class="hi">${t("hi")} ${first}</h1>
+      ${open ? `<a class="go-pill on ${open.kind}" href="#/session">${KIND_ICON[open.kind]} ${t(open.kind === "grind" ? "grindOn" : "studyOn")} <b data-since>${clock(elapsed(open))}</b> <em>${t("backCockpit")} →</em></a>`
+        : `<button class="go-pill grind" data-start="grind">♠ ${t("startPoker")}</button><button class="go-pill study" data-start="study">📚 ${t("startStudyS")}</button>`}
+    </section>
+    <div class="lobby">
+      <aside class="card char">
+        <a class="char-stage" href="#/hero" title="${t("charLink")}">${sprite(skin, 112, "idle")}</a>
+        <h3 class="char-name">${nm(ME)}</h3><p class="rank">${rankLine(ME, g)}</p>
+        <div class="lvl-line"><span class="lvl-badge">${g.level}</span><div class="xpbar"><i style="width:${(g.into / g.need) * 100}%"></i></div></div>
+        <p class="muted tiny">${fmtNum(g.into)} / ${fmtNum(g.need)} XP · ${t("lvl")} ${g.level + 1}</p>
+        <div class="ach-row">${ACH.filter((a) => g.unlocked.includes(a.id)).slice(-6).map((a) => `<span title="${esc(L2(a))}">${a.icon}</span>`).join("") || `<span class="muted tiny">${t("noAch")}</span>`}</div>
+        <a class="btn btn-sm char-link" href="#/hero">${t("charLink")} · ${g.unlocked.length}/${ACH.length}</a>
+      </aside>
+      <section class="stack lobby-mid">
+        <div class="card weekxp"><div class="card-head"><h3>${t("weekHours")}</h3><b class="wk-num">${fmtH(wk)} <small>/ ${target} h</small></b></div>${xpBar(wk, target)}</div>
+        <div class="card"><div class="card-head"><h3>${t("quests")}</h3></div><div class="quests">
+          ${quest(s.filledToday, null, t("questJournal"), 20, 'data-eod role="button"')}
+          ${handsLeft ? quest(false, "#/hands", `${handsLeft} ${t("questHands")}`, 5 * handsLeft) : ""}
+          ${recall ? quest(false, "#/recall", `${recall} ${t("questRecall")}`, 5 * recall) : ""}
+          ${due ? quest(false, "#/review", `${due} ${t("questQuiz")}`, 5 * due) : ""}
+          ${coach ? quest(false, coach.link || "#/calendar", `${t("questCoaching")} ${esc(coach.title)} · ${hhmm(coach.starts_at)}`, 25) : ""}
+        </div></div>
+        <div class="card stats-strip">
+          <div><span>🔥 ${t("streak")}</span><b>${s.streak} <small>${s.streak === 1 ? t("day") : t("days")}</small></b></div>
+          <div><span>♠ ${t("handsMonth")}</span><b>${fmtNum(s.hands)} <small>/ ${fmtNum(s.handsTarget)}</small></b>${bar(s.hands, s.handsTarget, s.hands >= s.pace * 0.9 ? "" : "warn")}</div>
+          <div><span>⏱ ${t("hoursMonth")}</span><b>${fmtH(s.play + s.study)}</b></div>
+        </div>
+        <button class="btn btn-ghost-red eod-btn" data-eod>🌙 ${t("endOfDay")}</button>
+      </section>
+      <aside class="stack lobby-right">
+        ${nextUp(coming)}
+        <div class="card"><div class="card-head"><h3>${t("comingUp")}</h3><a class="small-link" href="#/calendar">${t("calendar")} →</a></div>
+          ${coming.slice(1, 4).map((e) => `<p class="hrow">${KIND_ICON[e.kind]} ${esc(e.title)}<small class="muted"> · ${e.starts_at.slice(0, 10) === today() ? t("today") : dayName(e.starts_at.slice(0, 10))} ${hhmm(e.starts_at)}</small></p>`).join("") || `<p class="muted small">${t("noEvents")}</p>`}</div>
+        <div class="dock">
+          <a href="#/hq"><span>🏢</span>${t("hq")}</a>
+          <a href="https://app.gtowizard.com" target="_blank" rel="noopener"><span>🧙</span>GTO Wizard</a>
+          <a href="https://rts.pokereplayer.com" target="_blank" rel="noopener"><span>▶</span>Replayer</a>
+          <a href="#/library"><span>📖</span>${t("library")}</a>
+        </div>
+      </aside>
+    </div>
+    <dialog id="eod" class="card"><form method="dialog" id="eodf"><div class="card-head"><h3>🌙 ${t("endOfDay")}</h3><button class="x" value="cancel" formnovalidate>×</button></div>
+      <p class="muted small">${t("eodSub")}</p>
+      <label>${t("hands")}<input name="hands" type="number" min="0" step="50" inputmode="numeric" value="${todayE.hands ?? ""}" placeholder="0"></label>
+      <p class="lbl">${t("mood")}</p><div class="mood">${[1, 2, 3, 4, 5].map((n) => `<input type="radio" name="mood" id="em${n}" value="${n}" ${Number(todayE.mood) === n ? "checked" : ""}><label for="em${n}">${n}</label>`).join("")}</div>
+      <label class="ta">${t("eodHow")}<textarea name="played" rows="4" class="sensitive">${esc(todayE.played || "")}</textarea></label>
+      <button class="btn btn-red" value="save">${t("save")} · +20 XP</button> <a class="btn btn-sm" href="#/journal">${t("fullJournal")}</a></form></dialog>`;
+  $$("[data-start]").forEach((b) => b.onclick = async () => { b.disabled = true; await db.startSession(b.dataset.start); location.hash = "#/session"; });
+  const since = $("[data-since]");
+  if (since && !open.paused_at) timerTick = setInterval(() => { since.textContent = clock(elapsed(open)); }, 1000);
+  const dlg = $("#eod");
+  dictateButton(dlg.querySelector("textarea"));
+  $$("[data-eod]").forEach((b) => b.onclick = (e) => { e.preventDefault(); dlg.showModal(); });
+  $("#eodf").onsubmit = async (ev) => {
+    if (ev.submitter?.value !== "save") return;
+    const f = new FormData(ev.target);
+    await db.saveJournal({ ...todayE, hands: +f.get("hands") || 0, mood: +f.get("mood") || todayE.mood || null, played: f.get("played").trim() });
+    route();
+  };
+  xpToast(g);
+}
+
+/* Staff without a player seat keep the overview home. */
+async function viewHomeStaff() {
+  const [events, sessions] = await Promise.all([db.events(new Date(Date.now() - 864e5).toISOString(), addDays(14) + "T23:59"), db.sessions(ME.id, weekStart())]);
+  const menu = [["#/coaching", t("coaching"), t("program") + " · " + t("quizzes")], ["#/library", t("library"), t("libSub")]]
+    .concat(isStaff() ? [["#/team", t("team"), t("teamSub").split(".")[0]]] : [])
+    .concat(isOps() ? [["#/admin", t("admin"), t("adminSub").split(".")[0]]] : [])
+    .concat(isAdmin() ? [["#/ceo", t("ceo"), t("ceoSub")]] : []);
   $("#main").innerHTML = `
     ${head(fmtDay(today()), `${t("hi")} ${cam.on ? esc(ME.name[0]) + "." : esc(ME.name.split(" ")[0])}`)}
     ${nextUp(events)}
-    ${isPlayer ? `<div class="grid two start">
-      ${open ? `<a class="card go ${open.kind}" href="#/session"><span>${t(open.kind === "grind" ? "grindOn" : "studyOn")}</span><b data-since="${esc(open.started_at)}">${clock(Date.now() - new Date(open.started_at))}</b><em>${t("backCockpit")} →</em></a>`
-        : ["grind", "study"].map((k) => `<button class="card go ${k}" data-start="${k}"><span>${KIND_ICON[k]} ${t(k === "grind" ? "startGrind" : "startStudy")}</span><b>${t("oneClick")}</b><em>${t(k === "grind" ? "grindSub" : "studySub")}</em></button>`).join("")}
-    </div>
-    <div class="grid kpis">
-      ${kpi(t("streak"), `${s.streak} <small>${s.streak === 1 ? t("day") : t("days")}</small>`, streakDots(mine, ME))}
-      ${kpi(t("handsMonth"), `${fmtNum(s.hands)} <small>/ ${fmtNum(s.handsTarget)}</small>`, bar(s.hands, s.handsTarget, s.hands >= s.pace * 0.9 ? "" : "warn") + `<em>${s.hands >= s.pace * 0.9 ? t("pace") : t("behind")} · ${fmtNum(s.pace)} ${t("target")}</em>`)}
-      ${kpi(t("hoursMonth"), `${fmtH(s.play + s.study)}`, `<em>${fmtH(s.play)} ${t("play").toLowerCase()} · ${fmtH(s.study)} ${t("study").toLowerCase()}</em>`)}
-    </div>
-    <div class="grid four">
-      <a class="card cta ${s.filledToday ? "done" : ""}" href="#/journal"><b>${s.filledToday ? "✓ " + t("filledToday") : t("fillToday")}</b><span>${s.filledToday ? t("edit") : t("jSub")}</span></a>
-      <a class="card cta ${handsLeft ? "" : "done"}" href="#/hands"><b>${handsLeft ? `${handsLeft} ${t("handsToReview")}` : t("noHands")}</b><span>${t("handsSub")}</span></a>
-      <a class="card cta ${recall ? "" : "done"}" href="#/recall"><b>${recall ? `${recall} ${t("cardsToRecall")}` : t("noRecall")}</b><span>${t("recallSub")}</span></a>
-      <a class="card cta ${due ? "" : "done"}" href="#/review"><b>${due ? `${due} ${t("toReview")}` : t("noReview")}</b><span>${t("backToDeck")}</span></a>
-    </div>` : ""}
     ${weekView(events, sessions)}
     <div class="grid menu">${menu.map(([h, l, sub]) => `<a class="card menu-item" href="${h}"><b>${l}</b><span>${esc(sub)}</span></a>`).join("")}
-      <a class="card menu-item tool" href="https://app.gtowizard.com" target="_blank" rel="noopener"><b>GTO Wizard ↗</b><span>Solver, trainer</span></a>
-      <a class="card menu-item tool" href="https://rts.pokereplayer.com" target="_blank" rel="noopener"><b>RTS Replayer ↗</b><span>${t("replayerSub")}</span></a></div>`;
-  $$("[data-start]").forEach((b) => b.onclick = async () => { b.disabled = true; await db.startSession(b.dataset.start); location.hash = "#/session"; });
-  const since = $("[data-since]");
-  if (since) { timerTick = setInterval(() => { since.textContent = clock(Date.now() - new Date(since.dataset.since)); }, 1000); }
+      <a class="card menu-item" href="#/hq"><b>${t("hq")}</b><span>${t("hqSub")}</span></a></div>`;
 }
 
-/* ---------- session cockpit (grind or study) ---------- */
+/* ---------- session cockpit (grind or study): one screen ---------- */
 async function focusList(pid, editable) {
   const items = await db.focus(pid);
   return `<div class="card focus"><div class="card-head"><h3>${t("focus")}</h3></div>
@@ -194,49 +244,82 @@ function bindFocus() {
   $$("[data-addf]").forEach((f) => f.onsubmit = async (ev) => { ev.preventDefault(); await db.addFocus(f.dataset.addf, new FormData(f).get("f").trim()); route(); });
 }
 
+/* Opponent notes: player only (RLS), typed during the session, kept for every future session. */
+function oppForm(notes) {
+  return `<form class="card" id="oform"><div class="card-head"><h3>${t("oppNotes")}</h3><a class="small-link" href="#/notes">${t("allNotes")} (${notes.length}) →</a></div>
+    <input name="nick" list="nicks" required autocomplete="off" placeholder="${t("oppNick")}" class="sensitive">
+    <datalist id="nicks">${notes.map((n) => `<option value="${esc(n.nick)}">`).join("")}</datalist>
+    <textarea name="note" rows="3" placeholder="${t("oppNote")}" class="sensitive"></textarea>
+    <button class="btn btn-sm btn-red">${t("saveNote")}</button><p class="saved" id="osaved"></p></form>`;
+}
+function bindOpp(notes) {
+  const f = $("#oform"); if (!f) return;
+  f.nick.oninput = () => { const n = notes.find((x) => x.nick.toLowerCase() === f.nick.value.trim().toLowerCase()); if (n) f.note.value = n.note; };
+  f.onsubmit = async (ev) => { ev.preventDefault(); const nick = f.nick.value.trim(); if (!nick) return; await db.saveNote({ nick, note: f.note.value.trim() }); $("#osaved").textContent = `${nick} · ${t("saved")}`; f.reset(); };
+}
+
 async function viewSession() {
   const s = await db.openSession(ME.id);
   if (!s) { location.hash = "#/"; return; }
   const grind = s.kind === "grind";
-  const [focus, hands, cards] = await Promise.all([focusList(ME.id, true), db.hands(), db.cards()]);
+  const [focus, hands, cards, notes, mine] = await Promise.all([focusList(ME.id, true), db.hands(), db.cards(), db.notes().catch(() => []), db.journal(ME.id, weekStart())]);
   const mineHere = hands.filter((h) => h.session_id === s.id), cardsHere = cards.filter((c) => c.session_id === s.id);
+  const target = teamOf(ME).week_hours || 35, before = weekHours(mine);
   $("#main").innerHTML = `
-    <section class="cockpit-head"><p class="eyebrow">${t(grind ? "grindCockpit" : "studyCockpit")}</p>
-      <div class="bigclock" id="sclock">${clock(Date.now() - new Date(s.started_at))}</div>
-      <p class="muted">${t("startedAt")} ${hhmm(s.started_at)}</p></section>
-    <div class="grid two">
+    <section class="card cock-top ${s.paused_at ? "paused" : ""}">
+      <div class="ct-side"><span class="eyebrow">${KIND_ICON[s.kind]} ${t(grind ? "grindCockpit" : "studyCockpit")}</span><small class="muted">${s.paused_at ? "⏸ " + t("paused") : t("startedAt") + " " + hhmm(s.started_at)}</small></div>
+      <div class="ct-mid"><div class="midclock" id="sclock">${clock(elapsed(s))}</div>
+        <div class="ct-week"><div class="xpbar big"><i id="wbar"></i></div><small class="muted" id="wtxt"></small></div></div>
+      <div class="ct-side right"><button class="btn btn-sm" id="pause">${s.paused_at ? "▶ " + t("resume") : "⏸ " + t("pause")}</button><button class="btn btn-sm btn-red" id="endb">■ ${t("end")}</button></div>
+    </section>
+    <div class="cock-grid">
       <div class="stack">${focus}
-        ${grind ? `<div class="card"><div class="card-head"><h3>${t("handsSession")}</h3><span class="tag">${mineHere.length}</span></div>
-          ${mineHere.map((h) => `<p class="hrow">${h.image_path || h.image_data ? "🖼" : "📋"} <span class="sensitive">${esc((h.note || h.hh || t("screenshot")).slice(0, 70))}</span></p>`).join("") || `<p class="muted small">${t("noHandsYet")}</p>`}</div>`
-        : `<div class="card"><div class="card-head"><h3>${t("conclusions")}</h3><span class="tag">${cardsHere.length}</span></div>
-          ${cardsHere.map((c) => `<p class="hrow"><b>${esc(c.situation)}</b><br><span class="muted sensitive">${esc(c.conclusion)}</span></p>`).join("") || `<p class="muted small">${t("noCardsYet")}</p>`}</div>`}
+        <form class="card" id="nform"><div class="card-head"><h3>${t(grind ? "sessionNotes" : "studyNotes")}</h3><span class="saved" id="nsaved"></span></div>
+          <label class="ta"><textarea name="notes" rows="${grind ? 5 : 7}" class="sensitive" placeholder="${t("sessionNotesPh")}">${esc(s.notes)}</textarea></label></form>
       </div>
       <div class="stack">
-        ${grind ? `<form class="card" id="hform"><div class="card-head"><h3>${t("addHand")}</h3></div>
+        ${grind ? `<form class="card" id="hform"><div class="card-head"><h3>${t("addHand")}</h3><span class="tag">${mineHere.length}</span></div>
             <div class="drop" id="drop">${t("dropHere")}<input type="file" id="hfile" accept="image/*" multiple hidden></div>
-            <label class="ta">${t("pasteHH")}<textarea name="hh" rows="5" class="sensitive mono" placeholder="Winamax Poker - CashGame - HandId: ..."></textarea></label>
-            <label>${t("handNote")}<input name="note" placeholder="${t("handNotePh")}"></label>
-            <button class="btn btn-red">${t("saveHand")}</button><p class="saved" id="hsaved"></p></form>`
-        : `<form class="card" id="nform"><div class="card-head"><h3>${t("studyNotes")}</h3></div>
-            <label class="ta"><textarea name="notes" rows="6" class="sensitive">${esc(s.notes)}</textarea></label>
-            <button class="btn btn-sm btn-ghost-red">${t("save")}</button><p class="saved" id="nsaved"></p></form>
-          <form class="card" id="cform"><div class="card-head"><h3>${t("addConclusion")}</h3></div>
+            <textarea name="hh" rows="4" class="sensitive mono" placeholder="${t("pasteHH")}"></textarea>
+            <input name="note" placeholder="${t("handNotePh")}">
+            <button class="btn btn-sm btn-red">${t("saveHand")}</button><p class="saved" id="hsaved"></p></form>`
+        : `<form class="card" id="cform"><div class="card-head"><h3>${t("addConclusion")}</h3><span class="tag">${cardsHere.length}</span></div>
             <p class="muted small">${t("conclusionAsk")}</p>
-            <label>${t("situation")}<input name="situation" required placeholder="SB vs BTN, 3BP, K72r, c-bet small"></label>
-            <label class="ta">${t("myConclusion")}<textarea name="conclusion" rows="3" required></textarea></label>
+            <input name="situation" required placeholder="${t("situation")} · SB vs BTN, 3BP, K72r">
+            <textarea name="conclusion" rows="3" required placeholder="${t("myConclusion")}"></textarea>
             <label class="check"><input type="checkbox" name="shared"><span>${t("shareTeam")}</span></label>
-            <button class="btn btn-red">${t("saveConclusion")}</button></form>`}
-        <form class="card end" id="eform"><div class="card-head"><h3>${t("endSession")}</h3></div>
-          ${grind ? `<label>${t("handsPlayed")}<input name="hands" type="number" min="0" step="50" inputmode="numeric" placeholder="0"></label>` : ""}
-          <button class="btn btn-red">${t("endSave")}</button><p class="muted small">${t("endSub")}</p></form>
+            <button class="btn btn-sm btn-red">${t("saveConclusion")}</button></form>`}
       </div>
-    </div>`;
-  bindFocus();
+      <div class="stack">
+        ${grind ? `<div class="card scroll-card"><div class="card-head"><h3>${t("handsSession")}</h3></div>
+          ${mineHere.map((h) => `<p class="hrow">${h.image_path || h.image_data ? "🖼" : "📋"} <span class="sensitive">${esc((h.note || h.hh || t("screenshot")).slice(0, 60))}</span></p>`).join("") || `<p class="muted small">${t("noHandsYet")}</p>`}</div>
+          ${oppForm(notes)}`
+        : `<div class="card scroll-card"><div class="card-head"><h3>${t("conclusions")}</h3></div>
+          ${cardsHere.map((c) => `<p class="hrow"><b>${esc(c.situation)}</b><br><span class="muted sensitive">${esc(c.conclusion)}</span></p>`).join("") || `<p class="muted small">${t("noCardsYet")}</p>`}</div>`}
+      </div>
+    </div>
+    <dialog id="endd" class="card"><form method="dialog"><div class="card-head"><h3>${t("endTitle")}</h3></div>
+      <p class="end-dur" id="edur"></p><p class="muted small">${t("endSub")}</p>
+      <p class="row-btns"><button class="btn btn-red" value="end">■ ${t("endGo")}</button><button class="btn" value="cancel">${t("cancel")}</button></p></form></dialog>`;
+  bindFocus(); bindOpp(notes);
   $$("textarea").forEach(dictateButton);
-  timerTick = setInterval(() => { const c = $("#sclock"); if (c) c.textContent = clock(Date.now() - new Date(s.started_at)); }, 1000);
+  const tick = () => {
+    const ms = elapsed(s), wk = before + ms / 36e5;
+    $("#sclock") && ($("#sclock").textContent = clock(ms));
+    $("#wbar") && ($("#wbar").style.width = Math.min(100, (wk / target) * 100) + "%");
+    $("#wtxt") && ($("#wtxt").textContent = `${fmtH(wk)} / ${target} h · ${t("weekHours").toLowerCase()}`);
+  };
+  tick(); if (!s.paused_at) timerTick = setInterval(tick, 1000);
+  const notesNow = () => $("[name=notes]").value;
+  const saveNotes = async () => { await db.saveSession({ id: s.id, notes: notesNow() }); $("#nsaved").textContent = t("saved"); };
+  $("[name=notes]").onblur = saveNotes;
+  $("#pause").onclick = async () => {
+    const x = s.paused_at ? { paused_ms: Number(s.paused_ms || 0) + (Date.now() - new Date(s.paused_at)), paused_at: null } : { paused_at: new Date().toISOString() };
+    await db.saveSession({ id: s.id, notes: notesNow(), ...x }); route();
+  };
   if (grind) {
-    const save = async (h, file) => { $("#hsaved").textContent = "…"; try { await db.addHand({ session_id: s.id, ...h }, file); route(); } catch (err) { $("#hsaved").textContent = t("error") + " : " + err.message; } };
-    const files = async (list) => { for (const f of [...list].filter((f) => f.type.startsWith("image/"))) await db.addHand({ session_id: s.id, note: $("[name=note]").value || null }, f); route(); };
+    const save = async (h, file) => { $("#hsaved").textContent = "…"; try { await db.saveSession({ id: s.id, notes: notesNow() }); await db.addHand({ session_id: s.id, ...h }, file); route(); } catch (err) { $("#hsaved").textContent = t("error") + " : " + err.message; } };
+    const files = async (list) => { await db.saveSession({ id: s.id, notes: notesNow() }); for (const f of [...list].filter((f) => f.type.startsWith("image/"))) await db.addHand({ session_id: s.id, note: $("[name=note]").value || null }, f); route(); };
     const drop = $("#drop");
     drop.onclick = () => $("#hfile").click();
     $("#hfile").onchange = (e) => files(e.target.files);
@@ -247,23 +330,37 @@ async function viewSession() {
     document.onpaste = (e) => { if (location.hash !== "#/session") return; const im = [...(e.clipboardData?.files || [])]; if (im.length) { e.preventDefault(); files(im); } };
     $("#hform").onsubmit = (ev) => { ev.preventDefault(); const f = new FormData(ev.target); const hh = f.get("hh").trim(); if (!hh) return; save({ hh, note: f.get("note").trim() || null }); };
   } else {
-    $("#nform").onsubmit = async (ev) => { ev.preventDefault(); await db.saveSession({ id: s.id, notes: new FormData(ev.target).get("notes") }); $("#nsaved").textContent = t("saved"); };
     $("#cform").onsubmit = async (ev) => {
       ev.preventDefault(); const f = new FormData(ev.target);
-      await db.saveSession({ id: s.id, notes: $("[name=notes]").value });
+      await db.saveSession({ id: s.id, notes: notesNow() });
       await db.addCard({ session_id: s.id, situation: f.get("situation").trim(), conclusion: f.get("conclusion").trim(), shared: f.has("shared") }); route();
     };
   }
-  // End: hours (and hands) go straight into today's journal. Zero double entry.
-  $("#eform").onsubmit = async (ev) => {
-    ev.preventDefault();
-    const f = new FormData(ev.target), minutes = Math.max(1, Math.round((Date.now() - new Date(s.started_at)) / 60000)), hands = +f.get("hands") || 0;
-    await db.saveSession({ id: s.id, ended_at: new Date().toISOString(), minutes, hands: grind ? hands : null, ...(grind ? {} : { notes: $("[name=notes]").value }) });
+  // End: hours go straight into today's journal (hands are counted once, in the End of day journal).
+  const dlg = $("#endd");
+  $("#endb").onclick = () => { $("#edur").textContent = clock(elapsed(s)); dlg.showModal(); };
+  dlg.onclose = async () => {
+    if (dlg.returnValue !== "end") return;
+    const minutes = Math.max(1, Math.round(elapsed(s) / 60000));
+    await db.saveSession({ id: s.id, ended_at: new Date().toISOString(), minutes, notes: notesNow(),
+      ...(s.paused_at ? { paused_ms: Number(s.paused_ms || 0) + (Date.now() - new Date(s.paused_at)), paused_at: null } : {}) });
     const day = s.started_at.slice(0, 10), e = (await db.journal(ME.id, day)).find((x) => x.day === day) || { player_id: ME.id, day };
     const k = grind ? "play_h" : "study_h";
-    await db.saveJournal({ ...e, [k]: Math.round((Number(e[k] || 0) + minutes / 60) * 100) / 100, hands: Number(e.hands || 0) + hands });
-    location.hash = grind ? "#/hands" : "#/study";
+    await db.saveJournal({ ...e, [k]: Math.round((Number(e[k] || 0) + minutes / 60) * 100) / 100 });
+    location.hash = grind ? (mineHere.length ? "#/hands" : "#/") : "#/study";
   };
+}
+
+/* All opponent notes, searchable, editable. Player only. */
+async function viewNotes() {
+  const notes = await db.notes();
+  $("#main").innerHTML = `${head(t("oppNotes"), t("oppNotes"), t("oppNotesSub"))}
+    <input id="nq" placeholder="${t("searchNotes")}" class="sensitive">
+    <div class="grid notes-grid">${notes.map((n) => `<form class="card onote" data-nick="${esc(n.nick.toLowerCase())}"><div class="card-head"><h3 class="sensitive">${esc(n.nick)}</h3><small class="muted">${fmtDay(n.updated_at.slice(0, 10))}</small></div>
+      <textarea name="note" rows="3" class="sensitive">${esc(n.note)}</textarea><input type="hidden" name="nick" value="${esc(n.nick)}">
+      <button class="btn btn-sm">${t("save")}</button></form>`).join("") || empty(t("noNotes"))}</div>`;
+  $("#nq").oninput = (e) => $$(".onote").forEach((f) => { f.hidden = !f.dataset.nick.includes(e.target.value.toLowerCase()); });
+  $$(".onote").forEach((f) => f.onsubmit = async (ev) => { ev.preventDefault(); await db.saveNote({ nick: f.nick.value, note: f.note.value.trim() }); ev.submitter.textContent = t("saved"); });
 }
 
 /* ---------- hands to review (player only) ---------- */
@@ -277,7 +374,7 @@ async function viewHands() {
     ${h.image_path || h.image_data ? `<img class="hshot sensitive" data-img="${esc(h.image_path || "")}" ${h.image_data ? `src="${h.image_data}"` : ""} alt="">` : ""}
     ${h.hh ? `<pre class="hh sensitive">${esc(h.hh)}</pre>` : ""}</article>`;
   $("#main").innerHTML = `${head(t("hands"), t("handsTitle"), t("handsPrivate"))}
-    <p><a class="btn btn-ghost-red" href="https://rts.pokereplayer.com" target="_blank" rel="noopener">RTS Replayer ↗</a></p>
+    <p><a class="btn btn-ghost-red" href="#/replayer">▶ RTS Replayer</a></p>
     <div class="stack">${todo.map(card).join("") || empty(t("noHands"))}</div>
     ${done.length ? `<details class="h-sec"><summary>${t("reviewedList")} (${done.length})</summary><div class="stack">${done.map(card).join("")}</div></details>` : ""}`;
   $$("[data-img]").forEach(async (im) => { if (im.dataset.img) im.src = (await db.handImage(im.dataset.img)) || ""; });
@@ -334,7 +431,7 @@ async function viewRecall() {
         <p><button class="btn btn-red" data-ok="1">✓ ${t("hadIt")}</button> <button class="btn btn-ghost-red" data-ok="">${t("missedIt")}</button></p></div>`;
       $$("[data-ok]").forEach((b) => b.onclick = async () => {
         const ok = !!b.dataset.ok; if (ok) got++;
-        if (!teamMode) await db.saveCard({ id: c.id, ...nextRecall(c, ok) });
+        if (!teamMode) await db.saveCard({ id: c.id, ...nextRecall(c, ok), ...(ok ? { hits: Number(c.hits || 0) + 1 } : {}) });
         i++; paint();
       });
     };
@@ -627,18 +724,61 @@ function coachingRow(c, extra = "") {
   return `<a class="card row-link" href="#/c/${c.id}"><span class="date">${fmtDay(c.day)}</span><b>${esc(c.title)}<small>${esc(c.module || "")}</small></b><span class="muted">${extra || esc(c.coach || "")}</span></a>`;
 }
 
-/* ---------- coaching, quizzes, retry deck ---------- */
+/* ---------- coaching: every past session (replay + summary), quizzes, retry deck ---------- */
+const TEAM_ORDER = ["Academy", "Challenger", "Master", "Supreme"];
+const myTeamLabel = () => TEAMS.find((x) => x.id === ME.team_id)?.label;
+
+/* Summaries are plain markdown: "## Heading", "- bullet", "[34]" = minute in the replay. */
+function mdLite(s) {
+  let html = "", inList = false;
+  const inline = (x) => esc(x).replace(/^\[(\d+)\]\s*/, (_, m) => `<span class="min">${m} min</span> `);
+  for (const raw of String(s || "").split("\n")) {
+    const l = raw.trim();
+    if (l.startsWith("- ")) { if (!inList) { html += "<ul>"; inList = true; } html += `<li>${inline(l.slice(2))}</li>`; continue; }
+    if (inList) { html += "</ul>"; inList = false; }
+    if (l.startsWith("## ")) html += `<h4>${esc(l.slice(3))}</h4>`;
+    else if (l) html += `<p>${inline(l)}</p>`;
+  }
+  return html + (inList ? "</ul>" : "");
+}
+
+function replayRow(c, attended) {
+  return `<div class="card replay" data-go="#/c/${c.id}">
+    <span class="date">${fmtDay(c.day)}${c.starts_at ? `<small>${hhmm(c.starts_at)}</small>` : ""}</span>
+    <b>${esc(c.title)}<small>${[c.coach, c.team_label, c.duration].filter(Boolean).map(esc).join(" · ")}${c.kind && c.kind !== "Coaching" ? " · " + esc(c.kind) : ""}</small></b>
+    <span class="acts">${attended ? `<span class="tag ok">${t("attended")}</span>` : ""}${c.summary ? `<a class="btn btn-sm btn-ghost-red" href="#/c/${c.id}">${t("summary")}</a>` : ""}${c.replay_url ? `<a class="btn btn-sm btn-red" href="${esc(c.replay_url)}" target="_blank" rel="noopener">▶ ${t("watch")}</a>` : ""}</span>
+  </div>`;
+}
+
 async function viewCoaching() {
   const [cs, att, qz] = await Promise.all([db.coachings(), db.attendance(ME.id), db.quizzes()]);
-  const byModule = {};
-  cs.slice().sort((a, b) => (a.day < b.day ? -1 : 1)).forEach((c) => (byModule[c.module || "—"] ||= []).push(c));
+  const q = Object.fromEntries(new URLSearchParams(location.hash.split("?")[1] || ""));
+  // A player lands on his own team's sessions; "All" is one tap away.
+  if (q.team === undefined && has(ME, "player") && cs.some((c) => c.team_label === myTeamLabel())) q.team = myTeamLabel();
+  const teams = TEAM_ORDER.filter((x) => cs.some((c) => c.team_label === x));
+  const coaches = [...new Set(cs.map((c) => c.coach).filter(Boolean))].sort();
+  const match = (c) => (!q.team || c.team_label === q.team) && (!q.coach || c.coach === q.coach)
+    && (!q.q || [c.title, c.themes, c.coach, c.summary].join(" ").toLowerCase().includes(q.q.toLowerCase()));
+  const found = cs.filter(match);
+  const byMonth = {};
+  found.forEach((c) => (byMonth[c.day.slice(0, 7)] ||= []).push(c));
+  const link = (k, v) => { const p = new URLSearchParams({ ...q, [k]: v }); ["q", "coach"].forEach((x) => !p.get(x) && p.delete(x)); return "#/coaching?" + p; };
   $("#main").innerHTML = `
-    ${head(t("coaching"), t("program"))}
-    <div class="grid two">
-      <div class="stack">${Object.entries(byModule).map(([m, l]) => `<div class="card"><div class="card-head"><h3>${esc(m)}</h3></div><div class="list">${l.map((c) => coachingRow(c, att.includes(c.id) ? `<span class="tag ok">${t("attended")}</span>` : esc(c.coach || ""))).join("")}</div></div>`).join("") || empty(t("noCoaching"))}</div>
-      <div class="card"><div class="card-head"><h3>${t("quizzes")}</h3><a class="btn btn-sm btn-ghost-red" href="#/review">${t("review")}</a></div>
-        <div class="list">${qz.map((q) => `<a class="card row-link" href="#/quiz/${q.id}"><span class="date">${esc(q.module || "")}</span><b>${esc(q.title)}</b>${q.status === "draft" ? `<span class="tag warn">${t("pendingApproval")}</span>` : `<span class="tag ok">${t("live")}</span>`}</a>`).join("") || `<p class="muted">—</p>`}</div></div>
-    </div>`;
+    ${head(t("coaching"), t("coachingsTitle"), t("coachingsSub"))}
+    ${qz.length ? `<details class="card quizbox"><summary><b>${t("quizzes")}</b> <span class="muted small">${qz.length}</span> <a class="btn btn-sm btn-ghost-red" href="#/review">${t("review")}</a></summary>
+      <div class="list">${qz.map((x) => `<a class="card row-link" href="#/quiz/${x.id}"><span class="date">${esc(x.module || "")}</span><b>${esc(x.title)}</b>${x.status === "draft" ? `<span class="tag warn">${t("pendingApproval")}</span>` : `<span class="tag ok">${t("live")}</span>`}</a>`).join("")}</div></details>` : ""}
+    <div class="finder card">
+      <input type="search" id="cq" placeholder="${t("searchCoaching")}" value="${esc(q.q || "")}">
+      <div class="filters">
+        <div class="chips">${[["", t("all")], ...teams.map((x) => [x, x])].map(([v, l]) => `<a class="tagchip ${(q.team || "") === v ? "on" : ""}" href="${link("team", v)}">${esc(l)}</a>`).join("")}</div>
+        <select id="ccoach"><option value="">${t("allCoaches")}</option>${coaches.map((x) => `<option ${q.coach === x ? "selected" : ""}>${esc(x)}</option>`).join("")}</select>
+      </div>
+      <p class="muted small">${found.length} ${t("sessionsN")}</p>
+    </div>
+    ${Object.entries(byMonth).map(([m, l]) => `<p class="sub">${fmtMonth(m)}</p><div class="list">${l.map((c) => replayRow(c, att.includes(c.id))).join("")}</div>`).join("") || empty(t("noCoaching"))}`;
+  const go = (k, v) => (location.hash = link(k, v));
+  $("#cq").addEventListener("keydown", (e) => { if (e.key === "Enter") go("q", e.target.value.trim()); });
+  $("#ccoach").onchange = (e) => go("coach", e.target.value);
 }
 
 async function viewCoachingOne(id) {
@@ -646,14 +786,18 @@ async function viewCoachingOne(id) {
   const c = cs.find((x) => String(x.id) === id);
   if (!c) { $("#main").innerHTML = empty(t("notFound")); return; }
   const mine = ex.filter((e) => e.coaching_id === c.id), quiz = qz.find((q) => q.coaching_id === c.id);
+  const meta = [fmtDay(c.day) + (c.starts_at ? " · " + hhmm(c.starts_at) : ""), c.coach, c.team_label, c.duration].filter(Boolean).map(esc).join(" · ");
   $("#main").innerHTML = `
     <a class="back" href="#/coaching">← ${t("coaching")}</a>
-    <section class="hello"><p class="eyebrow">${fmtDay(c.day)} · ${esc(c.coach || "")}${c.duration ? " · " + esc(c.duration) : ""}</p><h1 class="h-long">${esc(c.title)}</h1><p class="muted">${esc(c.module || "")}</p></section>
+    <section class="hello"><p class="eyebrow">${meta}</p><h1 class="h-long">${esc(c.title)}</h1>
+      ${c.themes ? `<div class="chips static">${c.themes.split("·").map((x) => `<span class="tagchip">${esc(x.trim())}</span>`).join("")}</div>` : ""}</section>
     <div class="grid two">
-      <div class="card"><div class="card-head"><h3>${t("notes")}</h3></div><ul>${(c.notes || []).map((n) => `<li>${esc(n)}</li>`).join("")}</ul></div>
+      <div class="card summary"><div class="card-head"><h3>${t("summary")}</h3></div>
+        ${c.summary ? mdLite(c.summary) : `<p class="muted">${t("summarySoon")}</p>`}
+        ${(c.notes || []).length ? `<ul>${c.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}</div>
       <div class="stack">
-        <div class="card"><div class="card-head"><h3>${t("replay")} · ${t("slides")}</h3></div>
-          ${c.replay_url ? `<a class="btn btn-red" href="${esc(c.replay_url)}" target="_blank" rel="noopener">${t("watchReplay")}</a>` : `<p class="muted">—</p>`}
+        <div class="card watch"><div class="card-head"><h3>${t("replay")}</h3></div>
+          ${c.replay_url ? `<a class="btn btn-red btn-big" href="${esc(c.replay_url)}" target="_blank" rel="noopener">▶ ${t("watchReplay")}</a><p class="muted small">${t("opensZoom")}</p>` : `<p class="muted">—</p>`}
           ${c.slides_url ? ` <a class="btn btn-ghost-red" href="${esc(c.slides_url)}" target="_blank" rel="noopener">${t("slides")}</a>` : ""}</div>
         ${mine.length ? `<div class="card"><div class="card-head"><h3>${t("exercises")}</h3></div>${mine.map((e) => `<label class="check"><input type="checkbox" data-ex="${e.id}" ${done.includes(e.id) ? "checked" : ""}><span><b>${esc(e.title)}</b><small>${esc(e.detail || "")}</small></span></label>`).join("")}</div>` : ""}
         ${quiz ? `<a class="card cta" href="#/quiz/${quiz.id}"><b>${t("startQuiz")}</b><span>${esc(quiz.title)}</span></a>` : ""}
@@ -707,47 +851,71 @@ async function viewReview() {
   runQuiz(due, t("review"), "#/coaching");
 }
 
-/* ---------- library: strategy by situation ---------- */
+/* ---------- strategies: every agreed sizing and frequency, as a tree ----------
+   Tree: pot type (Preflop, SRP, 3-bet pot, 4-bet pot) > positions (BTN vs BB) > street > the cards.
+   Hash: #/library?b=SRP&m=BTN vs BB&st=flop  (b = branch, m = matchup, st = street, q = search, vs = reg/fish) */
+const POT_ORDER = ["Preflop", "SRP", "3BP", "4BP", "limp", "—"];
+const potLabel = (b) => ({ SRP: t("potSRP"), "3BP": t("pot3BP"), "4BP": t("pot4BP"), limp: t("potLimp"), "—": t("potOther") }[b] || b);
+const branchOf = (s) => (s.street === "preflop" ? "Preflop" : s.pot || "—");
+const matchupOf = (s) => `${s.hero_pos || "?"} vs ${s.villain_pos || "?"}`;
+const STREETS = ["preflop", "flop", "turn", "river"];
+
 async function viewLibrary() {
-  const [sits, cs] = await Promise.all([db.situations(), db.coachings()]);
+  const sits = await db.situations();
   const live = sits.filter((s) => s.status === "live"), drafts = sits.filter((s) => s.status === "draft");
-  const opts = (k) => [...new Set(live.map((s) => s[k]).filter(Boolean))].sort();
   const q = Object.fromEntries(new URLSearchParams(location.hash.split("?")[1] || ""));
-  const match = (s) => (!q.pot || s.pot === q.pot) && (!q.pos || s.hero_pos === q.pos) && (!q.street || s.street === q.street) && (!q.vs || s.villain_type === q.vs || s.villain_type === "any")
-    && (!q.q || [s.title, s.line, s.conclusion, s.board, s.hero_pos, s.villain_pos].join(" ").toLowerCase().includes(q.q.toLowerCase()));
-  const found = live.filter(match);
-  // Map: pot > hero vs villain > street
+  const href = (o) => "#/library" + (Object.keys(o).length ? "?" + new URLSearchParams(o) : "");
   const tree = {};
-  live.forEach((s) => { ((tree[s.pot || "—"] ||= {})[`${s.hero_pos || "?"} vs ${s.villain_pos || "?"}`] ||= []).push(s); });
-  const byMonth = {};
-  cs.forEach((c) => (byMonth[c.day.slice(0, 7)] ||= []).push(c));
-  const sel = (k, all, list) => `<select data-f="${k}"><option value="">${all}</option>${list.map((v) => `<option ${q[k] === v ? "selected" : ""}>${esc(v)}</option>`).join("")}</select>`;
+  live.forEach((s) => (((tree[branchOf(s)] ||= {})[matchupOf(s)] ||= {})[s.street || "flop"] ||= []).push(s));
+  const count = (o) => Array.isArray(o) ? o.length : Object.values(o).reduce((n, x) => n + count(x), 0);
+  const branches = POT_ORDER.filter((b) => tree[b]).concat(Object.keys(tree).filter((b) => !POT_ORDER.includes(b)));
+  const byCount = (o) => Object.keys(o).sort((a, b) => count(o[b]) - count(o[a]));
+  const vsOk = (s) => !q.vs || s.villain_type === q.vs || s.villain_type === "any";
+
+  let right;
+  if (q.q) {
+    const words = q.q.toLowerCase();
+    const found = live.filter((s) => vsOk(s) && [s.title, s.line, s.conclusion, s.board, s.hero_pos, s.villain_pos, s.sizing].join(" ").toLowerCase().includes(words));
+    right = `<p class="crumbs"><a href="${href({})}">${t("library")}</a> › “${esc(q.q)}” · ${found.length}</p>${found.map(sitCard).join("") || empty(t("noSituation"))}`;
+  } else if (!q.b || !tree[q.b]) {
+    right = `<div class="grid branches">${branches.map((b) => `<a class="card branch" href="${href({ b })}"><b>${esc(potLabel(b))}</b><span>${count(tree[b])} ${t("cardsN")} · ${Object.keys(tree[b]).length} ${t("spotsN")}</span></a>`).join("") || empty(t("noSituation"))}</div>`;
+  } else if (!q.m || !tree[q.b][q.m]) {
+    const ms = byCount(tree[q.b]);
+    right = `<p class="crumbs"><a href="${href({})}">${t("library")}</a> › ${esc(potLabel(q.b))}</p>
+      <div class="grid branches">${ms.map((m) => `<a class="card branch" href="${href({ b: q.b, m })}"><b>${esc(m)}</b><span>${STREETS.filter((st) => tree[q.b][m][st]).map((st) => `${t("st_" + st)} ${tree[q.b][m][st].length}`).join(" · ")}</span></a>`).join("")}</div>`;
+  } else {
+    const node = tree[q.b][q.m], sts = STREETS.filter((st) => node[st]), st = node[q.st] ? q.st : sts[0];
+    const list = (node[st] || []).filter(vsOk);
+    right = `<p class="crumbs"><a href="${href({})}">${t("library")}</a> › <a href="${href({ b: q.b })}">${esc(potLabel(q.b))}</a> › ${esc(q.m)}</p>
+      <div class="chips">${sts.map((x) => `<a class="tagchip ${x === st ? "on" : ""}" href="${href({ b: q.b, m: q.m, st: x })}">${t("st_" + x)} <small>${node[x].length}</small></a>`).join("")}</div>
+      <div class="stack">${list.map(sitCard).join("") || empty(t("noSituation"))}</div>`;
+  }
+
   $("#main").innerHTML = `
-    ${head(t("library"), t("situations"), t("libSub"))}
+    ${head(t("library"), t("stratTitle"), t("libSub"))}
     <div class="finder card">
       <input type="search" id="lq" placeholder="${t("search")}" value="${esc(q.q || "")}">
-      <div class="filters">${sel("pot", t("allPots"), opts("pot"))}${sel("pos", t("allPos"), opts("hero_pos"))}${sel("street", t("allStreets"), ["preflop", "flop", "turn", "river"])}${sel("vs", t("allVs"), ["reg", "fish"])}</div>
+      <div class="filters"><select data-f="vs"><option value="">${t("allVs")}</option>${["reg", "fish"].map((v) => `<option ${q.vs === v ? "selected" : ""}>${v}</option>`).join("")}</select></div>
     </div>
     <div class="grid lib">
-      <div class="card tree"><div class="card-head"><h3>${t("map")}</h3><span class="muted small">${live.length}</span></div>
-        ${Object.entries(tree).map(([pot, m]) => `<details open><summary>${esc(pot)}</summary>${Object.entries(m).map(([pp, l]) => `<details><summary>${esc(pp)} <small>${l.length}</small></summary>${l.map((s) => `<a href="#/s/${esc(s.id)}">${esc(s.street || "")} · ${esc(s.title)}</a>`).join("")}</details>`).join("")}</details>`).join("") || `<p class="muted">—</p>`}
-      </div>
-      <div class="stack">${found.map(sitCard).join("") || empty(t("noSituation"))}</div>
+      <nav class="card tree"><div class="card-head"><h3>${t("map")}</h3><span class="muted small">${live.length}</span></div>
+        ${branches.map((b) => `<details ${q.b === b ? "open" : ""}><summary><a href="${href({ b })}">${esc(potLabel(b))}</a> <small>${count(tree[b])}</small></summary>
+          ${byCount(tree[b]).map((m) => `<a class="${q.b === b && q.m === m ? "on" : ""}" href="${href({ b, m })}">${esc(m)} <small>${count(tree[b][m])}</small></a>`).join("")}</details>`).join("") || `<p class="muted">—</p>`}
+      </nav>
+      <div class="stack">${right}</div>
     </div>
-    ${drafts.length && isStaff() ? `<h2 class="h-sec">${t("toReviewLib")}</h2><div class="stack">${drafts.map(sitCard).join("")}</div>` : ""}
+    ${drafts.length && isStaff() ? `<h2 class="h-sec">${t("toReviewLib")} <small class="muted">${drafts.length}</small></h2><details class="card"><summary>${t("showDrafts")}</summary><div class="stack">${drafts.map(sitCard).join("")}</div></details>` : ""}
     <p><a class="btn btn-ghost-red" href="#/submit">${t("submit")}</a></p>
-    <h2 class="h-sec">${t("pastCoachings")}</h2>
-    ${Object.entries(byMonth).map(([m, l]) => `<p class="sub">${fmtMonth(m)}</p><div class="list">${l.map((c) => coachingRow(c)).join("")}</div>`).join("") || `<p class="muted">—</p>`}
     <h2 class="h-sec">${t("onboarding")} · ${t("tools")}</h2>
     <div class="grid menu">
       <a class="card menu-item" href="https://app.gtowizard.com" target="_blank" rel="noopener"><b>GTO Wizard</b><span>Solver, trainer</span></a>
-      <a class="card menu-item" href="https://rts.pokereplayer.com" target="_blank" rel="noopener"><b>RTS Replayer</b><span>Hand histories</span></a>
+      <a class="card menu-item" href="#/replayer"><b>RTS Replayer</b><span>Hand histories</span></a>
     </div>`;
   const go = () => {
-    const p = new URLSearchParams();
-    const v = $("#lq").value.trim(); if (v) p.set("q", v);
-    $$("[data-f]").forEach((s) => s.value && p.set(s.dataset.f, s.value));
-    location.hash = "#/library" + (p.toString() ? "?" + p : "");
+    const p = { ...q }; delete p.q;
+    const v = $("#lq").value.trim(); if (v) { p.q = v; delete p.b; delete p.m; delete p.st; }
+    $$("[data-f]").forEach((s) => { if (s.value) p[s.dataset.f] = s.value; else delete p[s.dataset.f]; });
+    location.hash = href(p);
   };
   $$("[data-f]").forEach((s) => s.onchange = go);
   $("#lq").addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
@@ -879,7 +1047,10 @@ async function viewCalendar() {
       route();
     } catch (err) { $("#evsaved").textContent = t("error") + " : " + err.message; }
   };
-  $$("[data-join]").forEach((b) => b.onclick = async () => { await db.join(b.dataset.join, !!b.dataset.v); route(); });
+  $$("[data-join]").forEach((b) => b.onclick = async () => {
+    await db.join(b.dataset.join, !!b.dataset.v);
+    if (b.dataset.v && events.find((e) => e.id === b.dataset.join)?.kind === "review") location.hash = "#/hq?go=review"; else route();
+  });
   $$("[data-del]").forEach((b) => b.onclick = async () => { if (confirm(t("removeEvent"))) { await db.dropEvent(b.dataset.del); route(); } });
 }
 
@@ -891,8 +1062,9 @@ async function viewAccount() {
       <a class="card menu-item" href="#/p/${ME.id}/contract"><b>${t("contract")}</b><span>PDF</span></a>
       <a class="card menu-item" href="#/p/${ME.id}/overview"><b>${t("mypage")}</b><span>${t("objectives")} · ${t("report")}</span></a>
     </div>
+    <div class="card"><div class="card-head"><h3>${t("yourColor")}</h3><a class="small-link" href="#/hero">${t("charLink")} →</a></div>${swatches(ME.accent)}</div>
     ${has(ME, "player") ? awayCard() : ""}`;
-  bindAway();
+  bindAway(); bindSwatches();
 }
 
 /* ---------- staff: team dashboard ---------- */
@@ -938,6 +1110,8 @@ async function viewAdmin() {
     <div class="row3"><label>${t("mentor")}<select name="mentor_id"><option value="">—</option>${mentors.map((m) => `<option value="${m.id}" ${p.mentor_id === m.id ? "selected" : ""}>${nm(m)}</option>`).join("")}</select></label>
       <label>Coach<span class="checks">${["academy", "elite"].map((s) => `<label><input type="checkbox" name="coaches" value="${s}" ${(p.coaches || []).includes(s) ? "checked" : ""}>${sideLabel(s)}</label>`).join("")}</span></label>
       <label>Manager<span class="checks">${["academy", "elite"].map((s) => `<label><input type="checkbox" name="manages" value="${s}" ${(p.manages || []).includes(s) ? "checked" : ""}>${sideLabel(s)}</label>`).join("")}</span></label></div>
+    <div class="row3"><label>${t("stakesL")}<input name="stakes" value="${esc(p.stakes || "")}" placeholder="NL200"></label>
+      <label>${t("rtsSince")}<input name="rts_since" type="number" min="2022" max="2040" value="${p.rts_since || ""}" placeholder="2025"></label></div>
     <p class="lbl">${t("roles")}</p><span class="checks">${ROLES.map((r) => `<label><input type="checkbox" name="roles" value="${r}" ${(p.roles || ["player"]).includes(r) ? "checked" : ""}>${r}</label>`).join("")}</span>
     <div><button class="btn btn-sm btn-red" type="submit">${t("save")}</button>
     ${p.id ? `<button class="btn btn-sm btn-ghost-red" type="button" data-toggle="${p.active === false ? "on" : "off"}">${p.active === false ? t("restore") : t("remove")}</button>` : ""}</div></form>`;
@@ -952,7 +1126,7 @@ async function viewAdmin() {
       ev.preventDefault(); const fd = new FormData(f);
       const team = TEAMS.find((x) => x.id === fd.get("team_id"));
       const p = { name: fd.get("name").trim(), email: fd.get("email").trim().toLowerCase(), team_id: team?.id || null, team: team?.side || "staff",
-        mentor_id: fd.get("mentor_id") || null, roles: fd.getAll("roles"), coaches: fd.getAll("coaches"), manages: fd.getAll("manages") };
+        mentor_id: fd.get("mentor_id") || null, stakes: fd.get("stakes").trim() || null, rts_since: +fd.get("rts_since") || null, roles: fd.getAll("roles"), coaches: fd.getAll("coaches"), manages: fd.getAll("manages") };
       if (f.dataset.id) p.id = f.dataset.id;
       try { await db.saveProfile(p); VISIBLE = await db.people(); route(); } catch (err) { alert(t("error") + " : " + err.message); }
     };
@@ -1017,7 +1191,7 @@ const asPlayer = (p) => ({ ...p, roles: ["player"], coaches: [], manages: [], te
 function shell() {
   document.body.classList.remove("is-login");
   const demo = db.mode === "demo";
-  const links = [["", "home"]].concat(has(ME, "player") ? [["journal", "journal"], ["study", "study"]] : []).concat([["coaching", "coaching"], ["library", "library"], ["calendar", "calendar"]])
+  const links = [["", "home"], ["hq", "hq"]].concat(has(ME, "player") ? [["journal", "journal"], ["study", "study"]] : []).concat([["coaching", "coaching"], ["library", "library"], ["replayer", "replayer"], ["calendar", "calendar"]])
     .concat(isStaff() ? [["team", "team"]] : []).concat(isOps() ? [["admin", "admin"]] : []).concat(isAdmin() ? [["ceo", "ceo"]] : []).concat([["account", "account"]]);
   $("#app").innerHTML = `
     <header class="top"><div class="wrap">
@@ -1044,14 +1218,15 @@ async function route() {
   if (!ME) return;
   clearInterval(timerTick);
   document.onpaste = null;
+  if (!location.hash.startsWith("#/hq")) { HQ?.leave(); HQ = null; }
   const [path] = (location.hash || "#/").split("?");
   const [, a = "", b, c] = path.split("/");
-  const navKey = a === "p" ? "" : ["c", "quiz", "review"].includes(a) ? "coaching" : ["s", "submit"].includes(a) ? "library" : a === "recall" ? "study" : ["session", "hands"].includes(a) ? "" : a;
+  const navKey = a === "p" ? "" : ["c", "quiz", "review"].includes(a) ? "coaching" : ["s", "submit"].includes(a) ? "library" : a === "recall" ? "study" : ["session", "hands", "hero"].includes(a) ? "" : a === "notes" ? "" : a;
   $$("[data-nav]").forEach((l) => l.classList.toggle("on", l.dataset.nav === navKey));
   $("#main").innerHTML = `<p class="muted loading">${t("loading")}</p>`;
   const views = { "": viewHome, journal: viewJournal, p: () => viewPlayer(b, c), coaching: viewCoaching, c: () => viewCoachingOne(b), quiz: () => viewQuiz(b),
     review: viewReview, library: viewLibrary, s: () => viewSituation(b), submit: viewSubmit, calendar: viewCalendar, team: viewTeam, admin: viewAdmin, ceo: viewCeo,
-    session: viewSession, hands: viewHands, study: viewStudy, recall: viewRecall, account: viewAccount };
+    session: viewSession, hands: viewHands, replayer: () => viewReplayer(b), study: viewStudy, recall: viewRecall, account: viewAccount, hero: viewHero, hq: viewHQ, notes: viewNotes };
   try { await (views[a] || viewHome)(); }
   catch (err) { $("#main").innerHTML = `<p class="card">${t("error")} : ${esc(err.message)}</p>`; console.error(err); }
   window.scrollTo(0, 0);
@@ -1065,6 +1240,7 @@ async function boot() {
   REAL = ME = await db.me();
   if (!ME) { await db.signOut(); return viewLogin(t("notRegistered")); }
   if (isAdmin(REAL) && pv.on) ME = asPlayer(REAL);
+  applyAccent(REAL.accent);
   let saved = null; try { saved = localStorage.getItem("rts-lang"); } catch {}
   if (ME.lang && !saved) setLang(ME.lang);
   [VISIBLE, TEAMS] = await Promise.all([db.people(), db.teams()]);

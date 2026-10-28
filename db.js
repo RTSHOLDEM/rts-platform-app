@@ -115,6 +115,19 @@ function liveDb() {
     async dropEvent(id) { return rows(sb.from("events").delete().eq("id", id)); },
     async joins(ids) { return ids.length ? rows(sb.from("event_joins").select("*").in("event_id", ids)) : []; },
     async join(id, on) { const me = await db.me(); return on ? rows(sb.from("event_joins").upsert({ event_id: id, player_id: me.id })) : rows(sb.from("event_joins").delete().eq("event_id", id).eq("player_id", me.id)); },
+    // game layer (005)
+    async myJoins() { const me = await db.me(); return rows(sb.from("event_joins").select("*").eq("player_id", me.id)); },
+    async setPrefs(accent, skin) { const { error } = await sb.rpc("set_prefs", { p_accent: accent ?? null, p_skin: skin ?? null }); if (error) throw error; meCache = null; },
+    async notes() { const me = await db.me(); return rows(sb.from("opp_notes").select("*").eq("player_id", me.id).order("updated_at", { ascending: false })); },
+    async saveNote(n) { const me = await db.me(); return rows(sb.from("opp_notes").upsert({ ...n, player_id: me.id, updated_at: new Date().toISOString() }, { onConflict: "player_id,nick" }).select()); },
+    /* RTS HQ: live presence (who is where) + chat bubbles. Realtime only, nothing stored. */
+    hq(me, onSync, onChat) {
+      const ch = sb.channel("rts-hq", { config: { presence: { key: me.id }, broadcast: { self: true } } });
+      ch.on("presence", { event: "sync" }, () => onSync(Object.values(ch.presenceState()).map((l) => l[l.length - 1])))
+        .on("broadcast", { event: "chat" }, ({ payload }) => onChat(payload))
+        .subscribe((s) => { if (s === "SUBSCRIBED") ch.track(me); });
+      return { track: (st) => ch.track(st), say: (text) => ch.send({ type: "broadcast", event: "chat", payload: { id: me.id, text, at: Date.now() } }), leave: () => sb.removeChannel(ch) };
+    },
   };
   return db;
 }
@@ -227,6 +240,25 @@ function demoDb() {
     async dropEvent(id) { S.events = S.events.filter((e) => e.id !== id); save(); },
     async joins(ids) { return (S.joins ||= []).filter((j) => ids.includes(j.event_id)); },
     async join(id, on) { S.joins = (S.joins || []).filter((j) => !(j.event_id === id && j.player_id === meId())); if (on) S.joins.push({ event_id: id, player_id: meId() }); save(); },
+    async myJoins() { return (S.joins || []).filter((j) => j.player_id === meId()); },
+    async setPrefs(accent, skin) { if (accent) me().accent = accent; if (skin) me().skin = skin; save(); },
+    async notes() { return (S.notes ||= []).filter((n) => n.player_id === meId()).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)); },
+    async saveNote(n) { const l = (S.notes ||= []); const i = l.findIndex((x) => x.player_id === meId() && x.nick === n.nick); const row = { ...(i >= 0 ? l[i] : { id: "n" + Date.now() }), ...n, player_id: meId(), updated_at: new Date().toISOString() }; i >= 0 ? (l[i] = row) : l.push(row); save(); },
+    /* Demo HQ: teammates wander between rooms, so the map is alive without a server. */
+    hq(meState, onSync, onChat) {
+      let mine = meState;
+      const rooms = ["lobby", "grind", "study", "review", "coaching", "lounge"];
+      const npcs = S.people.filter((p) => p.id !== meState.id && p.roles.includes("player")).slice(0, 5).map((p, i) => ({ id: p.id, name: p.name, skin: ["academy", "suit", "hoodie", "shark", "cap"][i], room: rooms[(i + 1) % rooms.length], lvl: 3 + i * 4 }));
+      const push = () => onSync([mine, ...npcs]);
+      const lines = ["gl all", "anyone for a review at 20:00?", "running 6 tables tonight", "who has the SB vs BTN deck?", "gg"];
+      const tick = setInterval(() => {
+        const n = npcs[Math.floor(Math.random() * npcs.length)];
+        if (Math.random() < 0.6) { n.room = rooms[Math.floor(Math.random() * rooms.length)]; push(); }
+        else onChat({ id: n.id, text: lines[Math.floor(Math.random() * lines.length)], at: Date.now() });
+      }, 6000);
+      setTimeout(push, 50);
+      return { track: (st) => { mine = st; push(); }, say: (text) => onChat({ id: mine.id, text, at: Date.now() }), leave: () => clearInterval(tick) };
+    },
   };
   return db;
 }

@@ -347,3 +347,25 @@ article.hand.done { opacity: .6; }
 }
 @media (max-width: 600px) { .grid.four { grid-template-columns: 1fr; } }
 .chip, .links a { white-space: nowrap; }
+
+/* coaching archive: one row per replay, summary or watch */
+.replay { display: grid; grid-template-columns: 120px 1fr auto; gap: 16px; align-items: center; padding: 14px 20px; cursor: pointer; transition: border-color .2s; }
+.replay:hover { border-color: var(--red); }
+.replay .date { color: var(--red); font-size: 13px; }
+.replay .date small { display: block; color: var(--muted); }
+.replay .meta { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.replay .acts { display: flex; gap: 8px; align-items: center; }
+.min { display: inline-block; min-width: 52px; color: var(--muted); font-size: 12px; }
+.summary h4 { margin: 18px 0 6px; }
+.summary ul { margin: 0; padding-left: 18px; }
+.summary li { margin: 4px 0; line-height: 1.5; }
+.btn-big { display: inline-block; padding: 16px 28px; font-size: 17px; }
+.quizbox summary { cursor: pointer; }
+.branches { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.branch { display: grid; gap: 4px; text-decoration: none; padding: 18px 20px; transition: border-color .2s; }
+.branch:hover { border-color: var(--red); }
+.branch span { color: var(--muted); font-size: 13px; }
+.crumbs { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+.crumbs a { color: var(--muted); }
+.tree a.on { color: var(--text); }
+@media (max-width: 720px) { .replay { grid-template-columns: 1fr; gap: 6px; } }
