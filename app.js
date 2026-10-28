@@ -1232,7 +1232,20 @@ async function route() {
   window.scrollTo(0, 0);
 }
 
+/* GitHub Pages caches index.html up to 10 min: right after a deploy an old page can load the new app.js without the files it needs.
+   Load any missing one instead of crashing to a blank page (blank site 2026-10-28). */
+async function needFiles() {
+  const add = (tag, attrs) => new Promise((ok) => { const el = Object.assign(document.createElement(tag), attrs); el.onload = el.onerror = ok; document.head.appendChild(el); });
+  const v = "?v=" + Date.now();
+  for (const [fn, file] of [["viewHQ", "game"], ["viewReplayer", "replayer"]]) {
+    if (typeof window[fn] === "function") continue;
+    if (file === "replayer" && !document.querySelector('link[href^="replayer.css"]')) add("link", { rel: "stylesheet", href: "replayer.css" + v });
+    await add("script", { src: file + ".js" + v });
+  }
+}
+
 async function boot() {
+  await needFiles();
   cam.set(cam.on);
   setLang(LANG);
   const s = await db.session();
