@@ -85,8 +85,44 @@ function liveDb() {
       return error ? null : data.signedUrl;
     },
     async saveProfile(p) { return rows(p.id ? sb.from("profiles").update(p).eq("id", p.id).select() : sb.from("profiles").insert(p).select()); },
+    // player hub (004)
+    async sessions(pid, from) { return rows(sb.from("sessions").select("*").eq("player_id", pid).gte("started_at", from).order("started_at", { ascending: false })); },
+    async openSession(pid) { return (await rows(sb.from("sessions").select("*").eq("player_id", pid).is("ended_at", null).order("started_at", { ascending: false }).limit(1)))[0] || null; },
+    async startSession(kind) { const me = await db.me(); return (await rows(sb.from("sessions").insert({ player_id: me.id, kind }).select()))[0]; },
+    async saveSession(s) { return (await rows(sb.from("sessions").update(s).eq("id", s.id).select()))[0]; },
+    async focus(pid) { return rows(sb.from("focus_items").select("*").eq("player_id", pid).eq("active", true).order("created_at")); },
+    async addFocus(pid, text) { const me = await db.me(); return rows(sb.from("focus_items").insert({ player_id: pid, text, added_by: me.id }).select()); },
+    async dropFocus(id) { return rows(sb.from("focus_items").update({ active: false }).eq("id", id)); },
+    async hands() { const me = await db.me(); return rows(sb.from("hands").select("*").eq("player_id", me.id).order("created_at", { ascending: false })); },
+    async addHand(h, file) {
+      const me = await db.me();
+      if (file) {
+        const path = `${me.id}/${Date.now()}-${file.name.replace(/[^\w.-]/g, "_")}`;
+        const { error } = await sb.storage.from("hands").upload(path, file, { contentType: file.type });
+        if (error) throw error;
+        h.image_path = path;
+      }
+      return rows(sb.from("hands").insert({ ...h, player_id: me.id }).select());
+    },
+    async setHand(id, v) { return rows(sb.from("hands").update(v).eq("id", id)); },
+    async handImage(path) { const { data, error } = await sb.storage.from("hands").createSignedUrl(path, 600); return error ? null : data.signedUrl; },
+    async cards() { return rows(sb.from("study_cards").select("*").order("created_at", { ascending: false })); },
+    async addCard(c) { const me = await db.me(); return rows(sb.from("study_cards").insert({ ...c, player_id: me.id }).select()); },
+    async saveCard(c) { return rows(sb.from("study_cards").update(c).eq("id", c.id)); },
+    async directory() { const { data, error } = await sb.rpc("player_directory"); if (error) throw error; return data || []; },
+    async events(from, to) { return rows(sb.from("events").select("*").gte("starts_at", from).lte("starts_at", to).order("starts_at")); },
+    async saveEvent(e) { const me = await db.me(); return rows(e.id ? sb.from("events").update(e).eq("id", e.id).select() : sb.from("events").insert({ ...e, created_by: me.id }).select()); },
+    async dropEvent(id) { return rows(sb.from("events").delete().eq("id", id)); },
+    async joins(ids) { return ids.length ? rows(sb.from("event_joins").select("*").in("event_id", ids)) : []; },
+    async join(id, on) { const me = await db.me(); return on ? rows(sb.from("event_joins").upsert({ event_id: id, player_id: me.id })) : rows(sb.from("event_joins").delete().eq("event_id", id).eq("player_id", me.id)); },
   };
   return db;
+}
+
+/* Recall cards (own study conclusions): a miss comes back in 1 day, each hit multiplies the wait by 2.5. */
+function nextRecall(card, ok) {
+  const interval = ok ? Math.max(2, Math.round((card.interval_days || 1) * 2.5)) : 1;
+  return { due: addDays(interval), interval_days: interval };
 }
 
 /* ---------- demo (demo-data.js) ---------- */
@@ -163,6 +199,34 @@ function demoDb() {
       else S.people.push({ coaches: [], manages: [], active: true, lang: "en", away_from: null, away_to: null, ...p, id: "u" + Date.now() });
       save();
     },
+    // player hub (004), same rules as the database
+    async sessions(pid, from) { return canSee(me(), byId(pid)) ? (S.sessions ||= []).filter((s) => s.player_id === pid && s.started_at >= from).sort((a, b) => (a.started_at < b.started_at ? 1 : -1)) : []; },
+    async openSession(pid) { return (S.sessions ||= []).find((s) => s.player_id === pid && !s.ended_at) || null; },
+    async startSession(kind) { const s = { id: "se" + Date.now(), player_id: meId(), kind, started_at: new Date().toISOString(), ended_at: null }; (S.sessions ||= []).push(s); save(); return s; },
+    async saveSession(x) { const s = S.sessions.find((y) => y.id === x.id); Object.assign(s, x); save(); return s; },
+    async focus(pid) { return canSee(me(), byId(pid)) ? (S.focus ||= []).filter((f) => f.player_id === pid && f.active) : []; },
+    async addFocus(pid, text) { (S.focus ||= []).push({ id: "f" + Date.now(), player_id: pid, text, added_by: meId(), active: true }); save(); },
+    async dropFocus(id) { S.focus.find((f) => f.id === id).active = false; save(); },
+    async hands() { return (S.hands ||= []).filter((h) => h.player_id === meId()).sort((a, b) => (a.created_at < b.created_at ? 1 : -1)); },
+    async addHand(h, file) {
+      if (file) h.image_data = await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(file); });
+      (S.hands ||= []).push({ ...h, id: "h" + Date.now() + Math.random().toString(36).slice(2, 5), player_id: meId(), reviewed: false, created_at: new Date().toISOString() }); save();
+    },
+    async setHand(id, v) { Object.assign(S.hands.find((h) => h.id === id), v); save(); },
+    async handImage() { return null; },
+    async cards() { const m = me(); return (S.cards ||= []).filter((c) => canSee(m, byId(c.player_id)) || (c.shared && byId(c.player_id)?.team === m.team)); },
+    async addCard(c) { (S.cards ||= []).push({ ...c, id: "k" + Date.now(), player_id: meId(), shared: !!c.shared, due: addDays(1), interval_days: 1, created_at: new Date().toISOString() }); save(); },
+    async saveCard(c) { Object.assign(S.cards.find((x) => x.id === c.id), c); save(); },
+    async directory() { return S.people.filter((p) => p.roles.includes("player") && p.active !== false).map((p) => ({ id: p.id, name: p.name, team_id: p.team_id || p.team })); },
+    async events(from, to) {
+      const m = me();
+      return (S.events ||= []).filter((e) => e.starts_at >= from && e.starts_at <= to && (e.created_by === m.id || e.invitees.includes(m.id) || (e.open && (!e.teams.length || e.teams.includes(m.team_id || m.team) || isStaffM(m)))))
+        .sort((a, b) => (a.starts_at < b.starts_at ? -1 : 1));
+    },
+    async saveEvent(e) { if (e.id) Object.assign(S.events.find((x) => x.id === e.id), e); else (S.events ||= []).push({ invitees: [], teams: [], open: false, minutes: 60, ...e, id: "e" + Date.now(), created_by: meId() }); save(); },
+    async dropEvent(id) { S.events = S.events.filter((e) => e.id !== id); save(); },
+    async joins(ids) { return (S.joins ||= []).filter((j) => ids.includes(j.event_id)); },
+    async join(id, on) { S.joins = (S.joins || []).filter((j) => !(j.event_id === id && j.player_id === meId())); if (on) S.joins.push({ event_id: id, player_id: meId() }); save(); },
   };
   return db;
 }
