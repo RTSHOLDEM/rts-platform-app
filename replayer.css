@@ -1,4 +1,8 @@
 /* RTS Replayer page: hand list on the left, replayer on the right. Same tokens as style.css. */
+/* Compact title here: the table is the hero of this page. */
+.hello:has(+ .rp) { margin-bottom: 18px; }
+.hello:has(+ .rp) h1 { font-size: clamp(28px, 3.4vw, 38px); }
+.hello:has(+ .rp) .muted { margin-top: 8px; }
 .rp { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; margin-bottom: 40px; }
 .rp-side { padding: 0; position: sticky; top: 84px; max-height: calc(100vh - 104px); display: flex; flex-direction: column; overflow: hidden; }
 .rp-side-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 16px 16px 14px; border-bottom: 1px solid var(--line); }

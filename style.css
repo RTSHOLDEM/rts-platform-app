@@ -370,6 +370,8 @@ article.hand.done { opacity: .6; }
 .crumbs { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
 .crumbs a { color: var(--muted); }
 .tree a.on { color: var(--text); }
+.tree summary a { display: inline; padding: 0; color: var(--text); font-size: 14px; }
+.tree summary small { margin-left: 4px; }
 @media (max-width: 720px) { .replay { grid-template-columns: 1fr; gap: 6px; } }
 
 /* ===== Ep. 4: one look for every input and button ===== */
