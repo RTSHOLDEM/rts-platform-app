@@ -740,3 +740,18 @@ mark { background: color-mix(in srgb, #f0b429 30%, transparent); color: var(--te
 @media (max-width: 700px) { .goals-grid { grid-template-columns: 1fr 1fr; } }
 a.wk-num { color: inherit; text-decoration: none; }
 a.wk-num:hover small { color: var(--red); }
+
+/* Session notebook */
+.nb-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.nb-bar .grow { flex: 1; }
+.nb-bar .chip { text-decoration: none; }
+.tag.red { color: var(--red); border-color: rgba(253,6,6,.5); background: var(--red-soft); }
+.nb-sess > summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.nb-sess > summary::-webkit-details-marker { display: none; }
+.nb-sess[open] > summary { margin-bottom: 12px; }
+.nb-when b { text-transform: capitalize; }
+.nb-meta { color: var(--muted); font-size: 13px; }
+.nb-sess .live { color: #fd0606; }
+.nb-notes { white-space: pre-wrap; margin: 0 0 12px; }
+.nb-sess .hand { box-shadow: none; }
+.nb-other { margin: 28px 0 10px; }

@@ -462,20 +462,40 @@ async function viewNotes() {
   $$(".onote").forEach((f) => { bindKind(f); f.onsubmit = async (ev) => { ev.preventDefault(); await db.saveNote({ nick: f.nick.value, note: f.note.value.trim(), kind: kindOf(f) }); ev.submitter.textContent = t("saved"); }; });
 }
 
-/* ---------- hands to review (player only) ---------- */
+/* ---------- session notebook (player only): every grind and study session, its notes and its hands to review ---------- */
 async function viewHands() {
-  const hands = await db.hands();
-  const todo = hands.filter((h) => !h.reviewed), done = hands.filter((h) => h.reviewed);
+  const my = RENDER;
+  const [hands, sessions] = await Promise.all([db.hands(), db.sessions(ME.id, daysAgo(90)).catch(() => [])]);
+  if (my !== RENDER) return;
+  const onlyTodo = new URLSearchParams(location.hash.split("?")[1] || "").get("f") === "todo";
+  const todoN = hands.filter((h) => !h.reviewed).length;
   const card = (h) => `<article class="card hand ${h.reviewed ? "done" : ""}">
     <div class="card-head"><h3>${fmtDay(h.created_at.slice(0, 10))} · ${hhmm(h.created_at)}</h3>
       <span>${h.hh ? `<button class="btn btn-sm" data-copy="${h.id}">${t("copyHH")}</button> ` : ""}<button class="btn btn-sm ${h.reviewed ? "" : "btn-red"}" data-rev="${h.id}" data-v="${h.reviewed ? "" : "1"}">${h.reviewed ? t("undo") : "✓ " + t("reviewed")}</button></span></div>
     ${h.note ? `<p>${esc(h.note)}</p>` : ""}
     ${h.image_path || h.image_data ? `<img class="hshot sensitive" data-img="${esc(h.image_path || "")}" ${h.image_data ? `src="${h.image_data}"` : ""} alt="">` : ""}
     ${h.hh ? `<pre class="hh sensitive">${esc(h.hh)}</pre>` : ""}</article>`;
-  $("#main").innerHTML = `${head(t("hands"), t("handsTitle"), t("handsPrivate"))}
-    <p><a class="btn btn-ghost-red" href="#/replayer">▶ RTS Replayer</a></p>
-    <div class="stack">${todo.map(card).join("") || empty(t("noHands"))}</div>
-    ${done.length ? `<details class="h-sec"><summary>${t("reviewedList")} (${done.length})</summary><div class="stack">${done.map(card).join("")}</div></details>` : ""}`;
+  const ids = new Set(sessions.map((x) => x.id));
+  const block = (x) => {
+    const hs = hands.filter((h) => h.session_id === x.id), todo = hs.filter((h) => !h.reviewed).length;
+    const shown = onlyTodo ? hs.filter((h) => !h.reviewed) : hs;
+    if (onlyTodo && !shown.length) return "";
+    if (!hs.length && !(x.notes || "").trim() && (x.minutes || 0) < 5 && x.ended_at) return ""; // skip empty test sessions
+    const min = x.ended_at ? Number(x.minutes || 0) : Math.round(elapsed(x) / 6e4);
+    const dur = min >= 60 ? `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, "0")}` : `${min} min`;
+    return `<details class="card nb-sess" ${todo || !x.ended_at ? "open" : ""}><summary>
+      <span class="nb-when">${KIND_ICON[x.kind] || "•"} <b>${new Date(x.started_at).toLocaleDateString(LANG === "fr" ? "fr-FR" : "en-GB", { weekday: "long" })}</b> ${fmtDay(iso(new Date(x.started_at)))} · ${hhmm(x.started_at)}${x.ended_at ? " → " + hhmm(x.ended_at) : ` · <span class="live">${t("nbLive")}</span>`}</span>
+      <span class="nb-meta">${dur}${hs.length ? ` · ${hs.length} ${t("hands").toLowerCase()}` : ""}${todo ? ` <span class="tag red">${todo} ${t("handsToReview")}</span>` : ""}</span></summary>
+      ${(x.notes || "").trim() ? `<p class="nb-notes sensitive">${esc(x.notes)}</p>` : ""}
+      <div class="stack">${shown.map(card).join("")}</div></details>`;
+  };
+  const loose = hands.filter((h) => !ids.has(h.session_id) && !(onlyTodo && h.reviewed));
+  const body = sessions.map(block).join("");
+  $("#main").innerHTML = `${head(t("nbTab"), t("nbTitle"), t("handsPrivate"))}
+    <div class="nb-bar"><a class="chip ${onlyTodo ? "" : "on"}" href="#/hands">${t("nbAll")}</a><a class="chip ${onlyTodo ? "on" : ""}" href="#/hands?f=todo">${t("nbTodo")} (${todoN})</a>
+      <span class="grow"></span><a class="btn btn-sm" href="#/notes">${t("oppNotes")}</a> <a class="btn btn-sm btn-ghost-red" href="#/replayer">▶ RTS Replayer</a></div>
+    <div class="stack">${body || empty(onlyTodo ? t("noHands") : t("nbEmpty"))}</div>
+    ${loose.length ? `<h3 class="nb-other">${t("nbOther")}</h3><div class="stack">${loose.map(card).join("")}</div>` : ""}`;
   $$("[data-img]").forEach(async (im) => { if (im.dataset.img) im.src = (await db.handImage(im.dataset.img)) || ""; });
   $$("[data-rev]").forEach((b) => b.onclick = async () => { await db.setHand(b.dataset.rev, { reviewed: !!b.dataset.v }); route(); });
   $$("[data-copy]").forEach((b) => b.onclick = async () => { try { await navigator.clipboard.writeText(hands.find((h) => h.id === b.dataset.copy).hh); b.textContent = t("copied"); } catch {} });
@@ -1535,7 +1555,7 @@ function shell() {
   document.body.classList.remove("is-login");
   document.body.classList.toggle("ops", ME?.team_id === "supreme");
   const demo = db.mode === "demo";
-  const links = [["", "home"], ["hq", "hq"]].concat(has(ME, "player") ? [["journal", "journal"], ["goals", "goals"], ["study", "study"]] : []).concat([["coaching", "coaching"], ["library", "library"], ["replayer", "replayer"], ["calendar", "calendar"]])
+  const links = [["", "home"], ["hq", "hq"]].concat(has(ME, "player") ? [["journal", "journal"], ["hands", "nbTab"], ["goals", "goals"], ["study", "study"]] : []).concat([["library", "library"], ["coaching", "coaching"], ["replayer", "replayer"], ["calendar", "calendar"]])
     .concat(isStaff() ? [["team", "team"]] : []).concat(isOps() ? [["admin", "admin"]] : []).concat(isAdmin() ? [["ceo", "ceo"]] : []).concat([["account", "account"]]);
   $("#app").innerHTML = `
     <header class="top"><div class="wrap">
@@ -1566,7 +1586,7 @@ async function route() {
   document.onpaste = null;
   const [path] = (location.hash || "#/").split("?");
   const [, a = "", b, c] = path.split("/");
-  const navKey = a === "p" ? "" : ["c", "quiz", "review"].includes(a) ? "coaching" : ["s", "submit"].includes(a) ? "library" : a === "recall" ? "study" : ["session", "hands", "hero"].includes(a) ? "" : a === "notes" ? "" : a;
+  const navKey = a === "p" ? "" : ["c", "quiz", "review"].includes(a) ? "coaching" : ["s", "submit"].includes(a) ? "library" : a === "recall" ? "study" : ["session", "hero"].includes(a) ? "" : a === "notes" ? "hands" : a;
   $$("[data-nav]").forEach((l) => l.classList.toggle("on", l.dataset.nav === navKey));
   $("#main").innerHTML = `<p class="muted loading">${t("loading")}</p>`;
   const views = { "": viewHome, journal: viewJournal, p: () => viewPlayer(b, c), coaching: viewCoaching, c: () => viewCoachingOne(b), quiz: () => viewQuiz(b),
