@@ -483,6 +483,11 @@ svg.px .f2 { display: none; }
 .midclock { font: 400 52px/1 var(--serif); font-variant-numeric: tabular-nums; }
 .cock-top.paused .midclock { color: var(--amber); }
 .ct-week { width: 100%; display: grid; gap: 4px; text-align: center; }
+.rng .card-head { margin-bottom: 4px; }
+.rng-n { font: 400 64px/1 var(--serif); font-variant-numeric: tabular-nums; text-align: center; padding: 6px 0 10px; }
+.rng-bar { height: 4px; border-radius: 4px; background: rgba(127,127,127,.2); overflow: hidden; }
+.rng-bar i { display: block; height: 100%; background: var(--red, currentColor); animation: rngdrain 3s linear; }
+@keyframes rngdrain { from { width: 100%; } to { width: 0; } }
 .cock-grid { display: grid; grid-template-columns: 300px 1fr 340px; gap: 14px; align-items: start; }
 .cock-grid .stack { gap: 14px; }
 .cock-grid .card { padding: 16px; }

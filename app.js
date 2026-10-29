@@ -279,7 +279,7 @@ async function viewSession() {
       <div class="ct-side right"><button class="btn btn-sm" id="pause">${s.paused_at ? "▶ " + t("resume") : "⏸ " + t("pause")}</button><button class="btn btn-sm btn-red" id="endb">■ ${t("end")}</button></div>
     </section>
     <div class="cock-grid">
-      <div class="stack">${focus}
+      <div class="stack">${grind ? `<div class="card rng"><div class="card-head"><h3>RNG</h3><small class="muted">1-100 · 3 s</small></div><div class="rng-n" id="rngn">--</div><div class="rng-bar"><i id="rngbar"></i></div></div>` : ""}${focus}
         <form class="card" id="nform"><div class="card-head"><h3>${t(grind ? "sessionNotes" : "studyNotes")}</h3><span class="saved" id="nsaved"></span></div>
           <label class="ta"><textarea name="notes" rows="${grind ? 5 : 7}" class="sensitive" placeholder="${t("sessionNotesPh")}">${esc(s.notes)}</textarea></label></form>
       </div>
@@ -316,6 +316,11 @@ async function viewSession() {
     $("#wtxt") && ($("#wtxt").textContent = `${fmtH(wk)} / ${target} h · ${t("weekHours").toLowerCase()}`);
   };
   tick(); if (!s.paused_at) timerTick = setInterval(tick, 1000);
+  // RNG for mixed strategies: new 1-100 every 3 s, runs even when the session is paused.
+  if (grind) {
+    const roll = () => { const n = $("#rngn"), bar = $("#rngbar"); if (!n) return; n.textContent = 1 + (crypto.getRandomValues(new Uint32Array(1))[0] % 100); bar.style.animation = "none"; void bar.offsetWidth; bar.style.animation = ""; };
+    roll(); rngTick = setInterval(roll, 3000);
+  }
   const notesNow = () => $("[name=notes]").value;
   const saveNotes = async () => { await db.saveSession({ id: s.id, notes: notesNow() }); $("#nsaved").textContent = t("saved"); };
   $("[name=notes]").onblur = saveNotes;
@@ -567,7 +572,7 @@ const timer = {
   get() { try { return JSON.parse(localStorage.getItem(TIMER_KEY)); } catch { return null; } },
   set(v) { try { v ? localStorage.setItem(TIMER_KEY, JSON.stringify(v)) : localStorage.removeItem(TIMER_KEY); } catch {} },
 };
-let timerTick = null;
+let timerTick = null, rngTick = null;
 
 /* Daily journal: one paper page per day, written at the end of the day. Free writing, prompts only help.
    Hours come from the cockpit sessions (editable). The old 4 boxes are merged into the page text. */
@@ -1379,7 +1384,7 @@ function shell() {
 
 async function route() {
   if (!ME) return;
-  clearInterval(timerTick);
+  clearInterval(timerTick); clearInterval(rngTick);
   document.onpaste = null;
   const [path] = (location.hash || "#/").split("?");
   const [, a = "", b, c] = path.split("/");
