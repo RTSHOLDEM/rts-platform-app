@@ -703,6 +703,10 @@ html,body{height:100%;background:#0b0b0d;color:#f4f4f2;font:500 13px Inter,syste
 .rng small{font-size:10px;font-weight:600;letter-spacing:.18em;color:#8b8b92}
 .rng b{font-size:26px;line-height:1;font-weight:500;font-variant-numeric:tabular-nums;min-width:2.2ch;text-align:right}
 .rb{grid-column:1/-1}
+.rng.ant{grid-template-columns:auto auto auto}
+.ant video{grid-row:1/span 2;width:34px;height:34px;border-radius:8px;object-fit:cover;background:#0b0b0d}
+.ant small{font-size:9px;letter-spacing:.08em;line-height:1.2}
+.ant .rb{grid-column:2/-1}
 @keyframes rngdrain{from{width:100%}to{width:0}}
 button{font:600 13px Inter,system-ui,sans-serif;color:#f4f4f2;background:#141417;border:1px solid #2c2c31;border-radius:999px;padding:9px 14px;cursor:pointer}
 button:hover{background:#1c1c20}
@@ -710,13 +714,14 @@ button:hover{background:#1c1c20}
 .clock{font-size:22px}
 .rng{padding:3px 8px}.rng b{font-size:20px}
 button{padding:6px 10px;font-size:12px}
+@media (max-width:290px){.ant video{display:none}.rng.ant{grid-template-columns:auto auto}.ant .rb{grid-column:1/-1}}
 @media (max-width:330px){.wk{display:none}.bar{grid-template-columns:auto 1fr auto}}
 @media (max-width:230px){.clock{display:none}.bar{grid-template-columns:1fr auto}}
-@media (max-height:44px){.bar{padding:2px 8px}.rb{display:none}}`;
+@media (max-height:44px){.bar{padding:2px 8px}.rb{display:none}.rng{padding:1px 8px}.ant video{width:28px;height:28px;border-radius:7px}.ant small{font-size:8px}}`;
 async function openPop() {
   if (POP.win && !POP.win.closed) { POP.win.focus(); return; }
   let w;
-  try { w = await documentPictureInPicture.requestWindow({ width: 340, height: 92 }); }
+  try { w = await documentPictureInPicture.requestWindow({ width: 360, height: 92 }); }
   catch (err) { const b = $("#popb"); if (b) { b.textContent = t("popOutFail"); b.disabled = true; } console.warn("Pop out:", err); return; }
   POP.win = w;
   const d = w.document;
@@ -724,7 +729,7 @@ async function openPop() {
   d.head.innerHTML = `<meta charset="utf-8"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"><style>${POP_CSS}</style>`;
   d.body.innerHTML = `<div class="bar"><div class="clock" id="c">0:00:00</div>
     <div class="wk"><div class="wkbar"><i id="w"></i></div><small id="wt"></small></div>
-    <div class="rng" title="RNG 1-100"><small>RNG</small><b id="n">--</b><span class="rb"><i id="nb"></i></span></div>
+    <div class="rng ant" title="Antho lance le rando · RNG 1-100"><video id="av" src="${new URL("img/antho-rng.mp4", location.href).href}" poster="${new URL("img/antho-rng.jpg", location.href).href}" muted playsinline preload="auto"></video><small>Le RNG<br>d'Antho</small><b id="n">--</b><span class="rb"><i id="nb"></i></span></div>
     <button id="p"></button></div>`;
   const q = (id) => d.getElementById(id);
   q("p").onclick = () => POP.pause && POP.pause();
@@ -736,8 +741,9 @@ async function openPop() {
     q("w").style.width = Math.min(100, (wk / POP.target) * 100) + "%";
     q("wt").textContent = `${fmtH(wk)} / ${POP.target} h`;
     q("p").textContent = s.paused_at ? "▶" : "⏸"; q("p").title = s.paused_at ? t("resume") : t("pause");
-    paintRng(q("n"), q("nb"));
+    if (paintRng(q("n"), q("nb")) && av) { av.currentTime = 0; av.play().catch(() => {}); }
   };
+  const av = q("av"); if (av) av.playbackRate = 1.6;
   tick(); w.setInterval(tick, 200);
   w.addEventListener("pagehide", () => { POP.win = null; });
 }
