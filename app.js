@@ -256,18 +256,27 @@ function bindFocus() {
 /* Opponent notes: player only (RLS), typed during the session, kept for every future session. */
 function oppForm(notes) {
   return `<form class="card" id="oform"><div class="card-head"><h3>${t("oppNotes")}</h3><a class="small-link" href="#/notes">${t("allNotes")} (${notes.length}) →</a></div>
-    <select name="pick" class="sensitive"><option value="">+ ${t("newOpp")}</option>${[...notes].sort((a, b) => a.nick.localeCompare(b.nick)).map((n) => `<option value="${esc(n.nick)}">${esc(n.nick)}</option>`).join("")}</select>
+    <select name="pick" class="sensitive"><option value="">+ ${t("newOpp")}</option>${[...notes].sort((a, b) => a.nick.localeCompare(b.nick)).map((n) => `<option value="${esc(n.nick)}">${esc(n.nick)}${n.kind ? " · " + t(n.kind) : ""}</option>`).join("")}</select>
     <input name="nick" required autocomplete="off" placeholder="${t("oppNick")}" class="sensitive">
+    ${kindPick()}
     <textarea name="note" rows="3" placeholder="${t("oppNote")}" class="sensitive"></textarea>
     <button class="btn btn-sm btn-red">${t("saveNote")}</button><p class="saved" id="osaved"></p></form>`;
 }
+/* Reg or Fish: two toggles, click the lit one again to clear it. */
+function kindPick(v) {
+  return `<div class="kind">${["reg", "fish"].map((k) => `<input type="radio" name="kind" id="k-${k}-${KIDS}" value="${k}" ${v === k ? "checked" : ""}><label for="k-${k}-${KIDS++}">${t(k)}</label>`).join("")}</div>`;
+}
+let KIDS = 0;
+function bindKind(f) { $$("[name=kind]", f).forEach((r) => { r.onclick = () => { if (r.dataset.was) { r.checked = false; delete r.dataset.was; } else { $$("[name=kind]", f).forEach((x) => delete x.dataset.was); r.dataset.was = 1; } }; if (r.checked) r.dataset.was = 1; }); }
+const kindOf = (f) => ($$("[name=kind]", f).find((r) => r.checked) || {}).value || null;
 function bindOpp(notes) {
   const f = $("#oform"); if (!f) return;
   // Pick a known opponent from the dropdown (note loads, nickname box hides) or "+ New opponent" to type one.
-  const pick = () => { const n = notes.find((x) => x.nick === f.pick.value); f.nick.hidden = !!n; f.nick.value = n ? n.nick : ""; f.note.value = n ? n.note : ""; };
+  const pick = () => { const n = notes.find((x) => x.nick === f.pick.value); f.nick.hidden = !!n; f.nick.value = n ? n.nick : ""; f.note.value = n ? n.note : ""; $$("[name=kind]", f).forEach((r) => { r.checked = !!n && r.value === n.kind; delete r.dataset.was; if (r.checked) r.dataset.was = 1; }); };
+  bindKind(f);
   f.pick.onchange = pick;
   f.nick.oninput = () => { const n = notes.find((x) => x.nick.toLowerCase() === f.nick.value.trim().toLowerCase()); if (n) { f.pick.value = n.nick; pick(); } };
-  f.onsubmit = async (ev) => { ev.preventDefault(); const nick = f.nick.value.trim(); if (!nick) return; await db.saveNote({ nick, note: f.note.value.trim() }); route(); };
+  f.onsubmit = async (ev) => { ev.preventDefault(); const nick = f.nick.value.trim(); if (!nick) return; await db.saveNote({ nick, note: f.note.value.trim(), kind: kindOf(f) }); route(); };
 }
 
 async function viewSession() {
@@ -295,8 +304,9 @@ async function viewSession() {
       <div class="stack">
         ${grind ? `<form class="card" id="hform"><div class="card-head"><h3>${t("addHand")}</h3><span class="tag">${mineHere.length}</span></div>
             <div class="drop" id="drop">${t("dropHere")}<input type="file" id="hfile" accept="image/*" multiple hidden></div>
-            <textarea name="hh" rows="4" class="sensitive mono" placeholder="${t("pasteHH")}"></textarea>
-            <input name="note" placeholder="${t("handNotePh")}">
+            <div class="shots" id="shots" hidden></div>
+            <textarea name="hh" rows="3" class="sensitive mono" placeholder="${t("pasteHH")}"></textarea>
+            <textarea name="note" rows="2" class="sensitive" placeholder="${t("handNotePh")}"></textarea>
             <button class="btn btn-sm btn-red">${t("saveHand")}</button><p class="saved" id="hsaved"></p>
             <details class="hlist"><summary>${t("handsSession")} · ${mineHere.length}</summary>
               ${mineHere.map((h) => `<p class="hrow">${h.image_path || h.image_data ? "🖼" : "📋"} <span class="sensitive">${esc((h.note || h.hh || t("screenshot")).slice(0, 60))}</span></p>`).join("") || `<p class="muted small">${t("noHandsYet")}</p>`}</details></form>`
@@ -342,7 +352,11 @@ async function viewSession() {
   $("#popb") && ($("#popb").onclick = openPop);
   if (grind) {
     const save = async (h, file) => { $("#hsaved").textContent = "…"; try { await db.saveSession({ id: s.id, notes: notesNow() }); await db.addHand({ session_id: s.id, ...h }, file); route(); } catch (err) { $("#hsaved").textContent = t("error") + " : " + err.message; } };
-    const files = async (list) => { await db.saveSession({ id: s.id, notes: notesNow() }); for (const f of [...list].filter((f) => f.type.startsWith("image/"))) await db.addHand({ session_id: s.id, note: $("[name=note]").value || null }, f); route(); };
+    // Screenshots wait here (thumbnails) so the player writes questions + notes first, then clicks Save hand.
+    const shots = [];
+    const showShots = () => { const el = $("#shots"); el.hidden = !shots.length; el.innerHTML = shots.map((x, i) => `<span class="shot"><img src="${x.url}" alt=""><button type="button" data-rm="${i}" title="${t("removeShot")}">×</button></span>`).join("");
+      $$("[data-rm]", el).forEach((b) => b.onclick = () => { URL.revokeObjectURL(shots[b.dataset.rm].url); shots.splice(b.dataset.rm, 1); showShots(); }); };
+    const files = (list) => { [...list].filter((f) => f.type.startsWith("image/")).forEach((f) => shots.push({ f, url: URL.createObjectURL(f) })); showShots(); $("#hform").note.focus(); };
     const drop = $("#drop");
     drop.onclick = () => $("#hfile").click();
     $("#hfile").onchange = (e) => files(e.target.files);
@@ -351,7 +365,14 @@ async function viewSession() {
     drop.ondrop = (e) => { e.preventDefault(); files(e.dataTransfer.files); };
     // Cmd+V a screenshot anywhere in the cockpit saves it too.
     document.onpaste = (e) => { if (location.hash !== "#/session") return; const im = [...(e.clipboardData?.files || [])]; if (im.length) { e.preventDefault(); files(im); } };
-    $("#hform").onsubmit = (ev) => { ev.preventDefault(); const f = new FormData(ev.target); const hh = f.get("hh").trim(); if (!hh) return; save({ hh, note: f.get("note").trim() || null }); };
+    $("#hform").onsubmit = async (ev) => {
+      ev.preventDefault(); const f = new FormData(ev.target), hh = f.get("hh").trim() || null, note = f.get("note").trim() || null;
+      if (!hh && !shots.length) return;
+      if (!shots.length) return save({ hh, note });
+      $("#hsaved").textContent = "…";
+      try { await db.saveSession({ id: s.id, notes: notesNow() }); for (const [i, x] of shots.entries()) await db.addHand({ session_id: s.id, note, hh: i ? null : hh }, x.f); route(); }
+      catch (err) { $("#hsaved").textContent = t("error") + " : " + err.message; }
+    };
   } else {
     $("#cform").onsubmit = async (ev) => {
       ev.preventDefault(); const f = new FormData(ev.target);
@@ -400,10 +421,10 @@ async function viewNotes() {
   $("#main").innerHTML = `${head(t("oppNotes"), t("oppNotes"), t("oppNotesSub"))}
     <input id="nq" placeholder="${t("searchNotes")}" class="sensitive">
     <div class="grid notes-grid">${notes.map((n) => `<form class="card onote" data-nick="${esc(n.nick.toLowerCase())}"><div class="card-head"><h3 class="sensitive">${esc(n.nick)}</h3><small class="muted">${fmtDay(n.updated_at.slice(0, 10))}</small></div>
-      <textarea name="note" rows="3" class="sensitive">${esc(n.note)}</textarea><input type="hidden" name="nick" value="${esc(n.nick)}">
+      ${kindPick(n.kind)}<textarea name="note" rows="3" class="sensitive">${esc(n.note)}</textarea><input type="hidden" name="nick" value="${esc(n.nick)}">
       <button class="btn btn-sm">${t("save")}</button></form>`).join("") || empty(t("noNotes"))}</div>`;
   $("#nq").oninput = (e) => $$(".onote").forEach((f) => { f.hidden = !f.dataset.nick.includes(e.target.value.toLowerCase()); });
-  $$(".onote").forEach((f) => f.onsubmit = async (ev) => { ev.preventDefault(); await db.saveNote({ nick: f.nick.value, note: f.note.value.trim() }); ev.submitter.textContent = t("saved"); });
+  $$(".onote").forEach((f) => { bindKind(f); f.onsubmit = async (ev) => { ev.preventDefault(); await db.saveNote({ nick: f.nick.value, note: f.note.value.trim(), kind: kindOf(f) }); ev.submitter.textContent = t("saved"); }; });
 }
 
 /* ---------- hands to review (player only) ---------- */
