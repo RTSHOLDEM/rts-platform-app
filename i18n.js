@@ -28,6 +28,7 @@ const STRINGS = {
     save: "Save", saved: "Saved ✓", timers: "Timers", start: "Start", stop: "Stop", running: "running",
     monthView: "Month by month", month: "Month", objective: "Objective", dictate: "Dictate",
     // objectives + report
+    goals: "Goals", goalsSub: "Your targets for this month. Empty = your team's default.", goalsMonth: "This month", goalWeekH: "Hours per week", goalHands: "Hands this month", goalPlayH: "Play hours this month", goalStudyH: "Study hours this month", goalOther: "Other goals", goalOtherPh: "One per line: move up to NL200, review 20 hands a week...", goalsNote: "Your mentor confirms them. Changing them sends them back for confirmation.", saveGoals: "Save my goals",
     objectives: "Monthly objectives", proposed: "Proposed", confirmed: "Confirmed by mentor", propose: "Propose",
     confirm: "Confirm", teamDefault: "Team default", other: "Other objectives (one per line)",
     report: "Private monthly report", rating: "Rate the month (1 to 10)", wins: "Wins", struggles: "Struggles",
@@ -157,6 +158,7 @@ const STRINGS = {
     played: "Comment j'ai joué", learned: "Ce que j'ai appris", didWell: "Ce que j'ai bien fait", mistakes: "Erreurs",
     save: "Enregistrer", saved: "Enregistré ✓", timers: "Chronos", start: "Démarrer", stop: "Arrêter", running: "en cours",
     monthView: "Mois par mois", month: "Mois", objective: "Objectif", dictate: "Dicter",
+    goals: "Objectifs", goalsSub: "Tes objectifs du mois. Vide = l'objectif de ton équipe.", goalsMonth: "Ce mois-ci", goalWeekH: "Heures par semaine", goalHands: "Mains ce mois", goalPlayH: "Heures de jeu ce mois", goalStudyH: "Heures d'étude ce mois", goalOther: "Autres objectifs", goalOtherPh: "Un par ligne : monter en NL200, revoir 20 mains par semaine...", goalsNote: "Ton mentor les valide. Les modifier les renvoie en validation.", saveGoals: "Enregistrer mes objectifs",
     objectives: "Objectifs du mois", proposed: "Proposé", confirmed: "Validé par le mentor", propose: "Proposer",
     confirm: "Valider", teamDefault: "Défaut équipe", other: "Autres objectifs (un par ligne)",
     report: "Bilan mensuel privé", rating: "Note du mois (1 à 10)", wins: "Réussites", struggles: "Difficultés",

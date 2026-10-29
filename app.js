@@ -36,6 +36,9 @@ const isAdmin = (p = ME) => has(p, "admin");
 const isOps = (p = ME) => has(p, "ops") || isAdmin(p);
 const isStaff = (p = ME) => ["mentor", "coach", "manager", "admin", "ops"].some((r) => has(p, r));
 const person = (id) => VISIBLE.find((p) => p.id === id) || (ME?.id === id ? ME : null);
+// Weekly hours goal: the player's latest own one (Goals page, carries over month to month) or the team's.
+const weekTarget = (p) => Number(p?._weekH) || teamOf(p).week_hours || 35;
+const setGoals = (p, goals) => { p._goal = goals.find((x) => x.label === monthStart()); p._weekH = goals.find((x) => x.week_h_target)?.week_h_target; };
 const teamOf = (p) => TEAMS.find((x) => x.id === p?.team_id) || TEAMS.find((x) => x.id === p?.team) || { label: p?.team || "", month_hands: 50000, week_hours: 35, cut_pct: 35 };
 const sideLabel = (side) => ({ academy: "Academy", elite: "Elite", staff: "Staff" }[side] || side);
 const seesMoney = (p) => ME.id === p.id || isAdmin() || (ME.manages || []).includes(p.team);
@@ -154,8 +157,8 @@ async function viewHome() {
   const [mine, goals, all, open, g] = await Promise.all([db.journal(ME.id, daysAgo(400)), db.goals(ME.id),
     db.events(new Date(Date.now() - 864e5).toISOString(), addDays(14) + "T23:59"), db.openSession(ME.id), gameStats(ME)]);
   if (my !== RENDER) return; // a newer screen started while this one loaded
-  ME._goal = goals.find((x) => x.label === monthStart());
-  const s = stats(mine, ME), target = teamOf(ME).week_hours || 35, wk = weekHours(mine) + (open ? elapsed(open) / 36e5 : 0);
+  setGoals(ME, goals);
+  const s = stats(mine, ME), target = weekTarget(ME), wk = weekHours(mine) + (open ? elapsed(open) / 36e5 : 0);
   const wkHands = mine.filter((e) => e.day >= weekStart()).reduce((a, e) => a + Number(e.hands || 0), 0);
   const now = new Date().toISOString(), coming = all.filter(forMe).filter((e) => new Date(new Date(e.starts_at).getTime() + e.minutes * 6e4).toISOString() >= now);
   const skin = mySkin(ME, g), first = cam.on ? esc((ME.nick || ME.name)[0]) + "." : esc(ME.nick || ME.name.split(" ")[0]);
@@ -178,7 +181,7 @@ async function viewHome() {
       </aside>
       <section class="stack lobby-mid">
         <div class="card grindbox">
-          <div class="card-head"><h3>${t("yourGrind")}</h3><b class="wk-num">${fmtH(wk)} <small>/ ${target} h</small></b></div>${xpBar(wk, target)}
+          <div class="card-head"><h3>${t("yourGrind")}</h3><a class="wk-num" href="#/goals" title="${t("goals")}">${fmtH(wk)} <small>/ ${target} h ✎</small></a></div>${xpBar(wk, target)}
           <div class="stats-strip">
             <div><span>♠ ${t("handsWeek")}</span><b>${fmtNum(wkHands)}</b></div>
             <div><span>🔥 ${t("streak")}</span><b>${s.streak} <small>${s.streak === 1 ? t("day") : t("days")}</small></b></div>
@@ -285,10 +288,11 @@ async function viewSession() {
   if (my !== RENDER) return;
   if (!s) { location.hash = "#/"; return; }
   const grind = s.kind === "grind";
-  const [focus, hands, cards, notes, mine] = await Promise.all([focusList(ME.id, true), db.hands(), db.cards(), db.notes().catch(() => []), db.journal(ME.id, weekStart())]);
-  if (my !== RENDER) return; // a newer screen started while this one loaded: never draw or start a stale clock
+  const [focus, hands, cards, notes, mine, goals] = await Promise.all([focusList(ME.id, true), db.hands(), db.cards(), db.notes().catch(() => []), db.journal(ME.id, weekStart()), db.goals(ME.id).catch(() => [])]);
+  if (my !== RENDER) return;
+  setGoals(ME, goals); // a newer screen started while this one loaded: never draw or start a stale clock
   const mineHere = hands.filter((h) => h.session_id === s.id), cardsHere = cards.filter((c) => c.session_id === s.id);
-  const target = teamOf(ME).week_hours || 35, before = weekHours(mine);
+  const target = weekTarget(ME), before = weekHours(mine);
   $("#main").innerHTML = `
     <section class="card cock-top ${s.paused_at ? "paused" : ""}">
       <div class="ct-side"><span class="eyebrow">${KIND_ICON[s.kind]} ${t(grind ? "grindCockpit" : "studyCockpit")}</span><small class="muted">${s.paused_at ? "⏸ " + t("paused") : t("startedAt") + " " + hhmm(s.started_at)}</small></div>
@@ -415,6 +419,35 @@ async function viewSizing() {
   $("#dlsz").onclick = async () => {
     const url = await db.toolUrl("MonPetitSizing.zip");
     if (url) location.href = url; else $("#dlsz").textContent = t("error");
+  };
+}
+
+/* Goals: the player sets his own targets for the month (weekly hours, hands, play / study hours, anything else).
+   Saving sends them to the mentor again for confirmation. Empty = the team's default. */
+async function viewGoals() {
+  const goals = await db.goals(ME.id);
+  setGoals(ME, goals);
+  const g = ME._goal, tm = teamOf(ME);
+  const num = (name, label, v, step, ph) => `<label>${label}<input name="${name}" type="number" min="0" step="${step}" value="${v ?? ""}" placeholder="${ph}"></label>`;
+  $("#main").innerHTML = `${head(t("goals"), t("goals") + " · " + fmtMonth(monthStart()), t("goalsSub"))}
+    <form class="card goals-card" id="goalf">
+      <div class="card-head"><h3>${t("goalsMonth")}</h3>${g ? `<span class="tag ${g.status === "confirmed" ? "ok" : "warn"}">${g.status === "confirmed" ? t("confirmed") : t("proposed")}</span>` : ""}</div>
+      <div class="goals-grid">
+        ${num("week_h_target", t("goalWeekH"), g?.week_h_target ?? ME._weekH, 1, tm.week_hours || 35)}
+        ${num("hands_target", t("goalHands"), g?.hands_target, 1000, tm.month_hands)}
+        ${num("play_h_target", t("goalPlayH"), g?.play_h_target, 1, Math.round((tm.week_hours || 35) * 4.3 * 0.7))}
+        ${num("study_h_target", t("goalStudyH"), g?.study_h_target, 1, Math.round((tm.week_hours || 35) * 4.3 * 0.3))}
+      </div>
+      <label class="ta">${t("goalOther")}<textarea name="items" rows="4" placeholder="${t("goalOtherPh")}">${esc((g?.items || []).join("\n"))}</textarea></label>
+      <p class="muted small">${t("goalsNote")}</p>
+      <button class="btn btn-red">${t("saveGoals")}</button> <span class="saved" id="gsaved"></span>
+    </form>`;
+  $("#goalf").onsubmit = async (ev) => {
+    ev.preventDefault(); const f = new FormData(ev.target), n = (k) => (f.get(k) === "" ? null : +f.get(k));
+    await db.saveGoal({ player_id: ME.id, period: "month", label: monthStart(), status: "proposed", week_h_target: n("week_h_target"), hands_target: n("hands_target"),
+      play_h_target: n("play_h_target"), study_h_target: n("study_h_target"), items: String(f.get("items") || "").split("\n").map((x) => x.trim()).filter(Boolean) });
+    $("#gsaved").textContent = "✓ " + t("saved");
+    setTimeout(route, 700);
   };
 }
 
@@ -1496,7 +1529,7 @@ function shell() {
   document.body.classList.remove("is-login");
   document.body.classList.toggle("ops", ME?.team_id === "supreme");
   const demo = db.mode === "demo";
-  const links = [["", "home"], ["hq", "hq"]].concat(has(ME, "player") ? [["journal", "journal"], ["study", "study"]] : []).concat([["coaching", "coaching"], ["library", "library"], ["replayer", "replayer"], ["calendar", "calendar"]])
+  const links = [["", "home"], ["hq", "hq"]].concat(has(ME, "player") ? [["journal", "journal"], ["goals", "goals"], ["study", "study"]] : []).concat([["coaching", "coaching"], ["library", "library"], ["replayer", "replayer"], ["calendar", "calendar"]])
     .concat(isStaff() ? [["team", "team"]] : []).concat(isOps() ? [["admin", "admin"]] : []).concat(isAdmin() ? [["ceo", "ceo"]] : []).concat([["account", "account"]]);
   $("#app").innerHTML = `
     <header class="top"><div class="wrap">
@@ -1532,7 +1565,7 @@ async function route() {
   $("#main").innerHTML = `<p class="muted loading">${t("loading")}</p>`;
   const views = { "": viewHome, journal: viewJournal, p: () => viewPlayer(b, c), coaching: viewCoaching, c: () => viewCoachingOne(b), quiz: () => viewQuiz(b),
     review: viewReview, library: viewLibrary, s: () => viewSituation(b), submit: viewSubmit, calendar: viewCalendar, team: viewTeam, admin: viewAdmin, ceo: viewCeo,
-    session: viewSession, hands: viewHands, replayer: () => viewReplayer(b), study: viewStudy, recall: viewRecall, account: viewAccount, hero: viewHero, hq: viewHQ, notes: viewNotes, sizing: viewSizing };
+    session: viewSession, hands: viewHands, replayer: () => viewReplayer(b), study: viewStudy, recall: viewRecall, account: viewAccount, hero: viewHero, hq: viewHQ, notes: viewNotes, sizing: viewSizing, goals: viewGoals };
   try { await (views[a] || viewHome)(); }
   catch (err) { $("#main").innerHTML = `<p class="card">${t("error")} : ${esc(err.message)}</p>`; console.error(err); }
   window.scrollTo(0, 0);
