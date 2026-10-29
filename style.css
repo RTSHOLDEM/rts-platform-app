@@ -487,7 +487,7 @@ svg.px .f2 { display: none; }
 .rng small { font-size: 10px; font-weight: 600; letter-spacing: .18em; color: var(--muted); }
 .rng b { font-size: 26px; line-height: 1; font-weight: 500; font-variant-numeric: tabular-nums; min-width: 2.2ch; text-align: right; }
 .rng-bar { grid-column: 1 / -1; display: block; height: 3px; border-radius: 3px; background: rgba(127,127,127,.2); overflow: hidden; }
-.rng-bar i { display: block; height: 100%; background: var(--red); animation: rngdrain 3s linear; }
+.rng-bar i { display: block; height: 100%; background: var(--red); }
 @keyframes rngdrain { from { width: 100%; } to { width: 0; } }
 .cock-grid { display: grid; grid-template-columns: 300px 1fr 340px; gap: 14px; align-items: start; }
 .cock-grid .stack { gap: 14px; }
@@ -506,7 +506,7 @@ svg.px .f2 { display: none; }
 .midclock { font-weight: 300 !important; letter-spacing: -.02em; }
 .cock-grid .fitem { font-size: 15px; }
 /* One screen on desktop: the cockpit fills the window, long lists scroll inside their panel. */
-@media (min-width: 1001px) and (min-height: 640px) {
+@media (min-width: 901px) and (min-height: 640px) {
   #app:has(.cock-top) { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
   #app:has(.cock-top) #main { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 12px 0 14px; }
   .cock-top { padding: 10px 20px; margin-bottom: 12px; flex: none; }
@@ -530,7 +530,7 @@ svg.px .f2 { display: none; }
 .hlist[open] summary::after { content: "▴"; }
 .hlist .hrow { margin: 0; padding: 6px 12px; border-top: 1px solid var(--line); font-size: 13px; }
 .hlist[open] { max-height: 180px; overflow: auto; }
-@media (min-width: 1001px) and (min-height: 640px) {
+@media (min-width: 901px) and (min-height: 640px) {
   #oform { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   #oform textarea { flex: 1; min-height: 80px; resize: none; }
 }
@@ -709,3 +709,6 @@ dialog.op { border-color: var(--agent-line); background: linear-gradient(180deg,
 /* readable reports: bold, highlight, numbers */
 mark { background: color-mix(in srgb, #f0b429 30%, transparent); color: var(--text); padding: 0 3px; border-radius: 4px; }
 .num { color: #f0b429; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Cockpit keeps 3 slimmer columns down to 901 px, so the one-screen layout never stacks them (squashed at 1024 px, 2026-10-29). */
+@media (min-width: 901px) and (max-width: 1100px) { .cock-grid { grid-template-columns: 230px 1fr 260px; } }

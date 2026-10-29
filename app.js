@@ -279,7 +279,7 @@ async function viewSession() {
       <div class="ct-side"><span class="eyebrow">${KIND_ICON[s.kind]} ${t(grind ? "grindCockpit" : "studyCockpit")}</span><small class="muted">${s.paused_at ? "⏸ " + t("paused") : t("startedAt") + " " + hhmm(s.started_at)}</small></div>
       <div class="ct-mid"><div class="midclock" id="sclock">${clock(elapsed(s))}</div>
         <div class="ct-week"><div class="xpbar big"><i id="wbar"></i></div><small class="muted" id="wtxt"></small></div></div>
-      <div class="ct-side right">${grind ? `<div class="rng" title="RNG 1-100, new roll every 3 s"><small>RNG</small><b id="rngn">--</b><span class="rng-bar"><i id="rngbar"></i></span></div>` : ""}<button class="btn btn-sm" id="pause">${s.paused_at ? "▶ " + t("resume") : "⏸ " + t("pause")}</button><button class="btn btn-sm btn-red" id="endb">■ ${t("end")}</button></div>
+      <div class="ct-side right">${grind ? `<div class="rng" title="RNG 1-100, new roll every 3 s"><small>RNG</small><b id="rngn">--</b><span class="rng-bar"><i id="rngbar"></i></span></div>` : ""}${grind && "documentPictureInPicture" in window ? `<button class="btn btn-sm" id="popb" title="${t("popOutTip")}">⧉ ${t("popOut")}</button>` : ""}<button class="btn btn-sm" id="pause">${s.paused_at ? "▶ " + t("resume") : "⏸ " + t("pause")}</button><button class="btn btn-sm btn-red" id="endb">■ ${t("end")}</button></div>
     </section>
     <div class="cock-grid">
       <div class="stack">${focus}
@@ -321,16 +321,19 @@ async function viewSession() {
   tick(); if (!s.paused_at) timerTick = setInterval(tick, 1000);
   // RNG for mixed strategies: new 1-100 every 3 s, runs even when the session is paused.
   if (grind) {
-    const roll = () => { const n = $("#rngn"), bar = $("#rngbar"); if (!n) return; n.textContent = 1 + (crypto.getRandomValues(new Uint32Array(1))[0] % 100); bar.style.animation = "none"; void bar.offsetWidth; bar.style.animation = ""; };
-    roll(); rngTick = setInterval(roll, 3000);
+    const roll = () => paintRng($("#rngn"), $("#rngbar"));
+    roll(); rngTick = setInterval(roll, 200);
   }
   const notesNow = () => $("[name=notes]").value;
   const saveNotes = async () => { await db.saveSession({ id: s.id, notes: notesNow() }); $("#nsaved").textContent = t("saved"); };
   $("[name=notes]").onblur = saveNotes;
-  $("#pause").onclick = async () => {
+  const pauseToggle = async () => {
     const x = s.paused_at ? { paused_ms: Number(s.paused_ms || 0) + (Date.now() - new Date(s.paused_at)), paused_at: null } : { paused_at: new Date().toISOString() };
     await db.saveSession({ id: s.id, notes: notesNow(), ...x }); route();
   };
+  $("#pause").onclick = pauseToggle;
+  Object.assign(POP, { s, before, target, pause: pauseToggle });
+  $("#popb") && ($("#popb").onclick = openPop);
   if (grind) {
     const save = async (h, file) => { $("#hsaved").textContent = "…"; try { await db.saveSession({ id: s.id, notes: notesNow() }); await db.addHand({ session_id: s.id, ...h }, file); route(); } catch (err) { $("#hsaved").textContent = t("error") + " : " + err.message; } };
     const files = async (list) => { await db.saveSession({ id: s.id, notes: notesNow() }); for (const f of [...list].filter((f) => f.type.startsWith("image/"))) await db.addHand({ session_id: s.id, note: $("[name=note]").value || null }, f); route(); };
@@ -576,6 +579,80 @@ const timer = {
   set(v) { try { v ? localStorage.setItem(TIMER_KEY, JSON.stringify(v)) : localStorage.removeItem(TIMER_KEY); } catch {} },
 };
 let timerTick = null, rngTick = null;
+
+/* RNG: one number per 3 s slot, shared by the cockpit and the pop out bar (same number on both). */
+const RNG = { slot: -1, n: 0 };
+function rngNow() {
+  const slot = Math.floor(Date.now() / 3000);
+  if (slot !== RNG.slot) { RNG.slot = slot; RNG.n = 1 + (crypto.getRandomValues(new Uint32Array(1))[0] % 100); }
+  return RNG.n;
+}
+function paintRng(numEl, barEl) {
+  if (!numEl) return;
+  const n = String(rngNow());
+  if (numEl.textContent === n && numEl.dataset.slot == RNG.slot) return;
+  numEl.textContent = n; numEl.dataset.slot = RNG.slot;
+  // Restart the 3 s drain, offset so it ends exactly when the next number lands.
+  barEl.style.animation = "none"; void barEl.offsetWidth; barEl.style.animation = `rngdrain 3s linear ${-(Date.now() % 3000)}ms`;
+}
+
+/* Pop out bar: timer, weekly hours, RNG and pause in an always-on-top window (Document Picture-in-Picture,
+   Chrome/Edge). It runs on its own window's timers, which keep ticking while the platform tab is hidden. */
+const POP = { win: null, s: null, before: 0, target: 35, pause: null };
+const POP_CSS = `
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;background:#0b0b0d;color:#f4f4f2;font:500 13px Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
+.bar{height:100%;display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:14px;padding:10px 14px;border-top:2px solid #fd0606}
+.bar.paused{border-top-color:#f0b429}
+.clock{font-size:28px;font-weight:300;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.paused .clock{color:#f0b429}
+.wk{display:grid;gap:5px;min-width:0}
+.wk small{color:#8b8b92;font-size:11px;white-space:nowrap}
+.wkbar,.rb{height:4px;border-radius:4px;background:rgba(127,127,127,.22);overflow:hidden}
+.wkbar i,.rb i{display:block;height:100%;background:#fd0606}
+.rng{display:grid;grid-template-columns:auto auto;align-items:center;column-gap:8px;row-gap:4px;padding:5px 10px;border:1px solid #2c2c31;border-radius:10px;background:#141417}
+.rng small{font-size:10px;font-weight:600;letter-spacing:.18em;color:#8b8b92}
+.rng b{font-size:26px;line-height:1;font-weight:500;font-variant-numeric:tabular-nums;min-width:2.2ch;text-align:right}
+.rb{grid-column:1/-1}
+@keyframes rngdrain{from{width:100%}to{width:0}}
+button{font:600 13px Inter,system-ui,sans-serif;color:#f4f4f2;background:#141417;border:1px solid #2c2c31;border-radius:999px;padding:9px 14px;cursor:pointer}
+button:hover{background:#1c1c20}
+.bar{gap:10px;padding:6px 10px}
+.clock{font-size:22px}
+.rng{padding:3px 8px}.rng b{font-size:20px}
+button{padding:6px 10px;font-size:12px}
+@media (max-width:330px){.wk{display:none}.bar{grid-template-columns:auto 1fr auto}}
+@media (max-width:230px){.clock{display:none}.bar{grid-template-columns:1fr auto}}
+@media (max-height:44px){.bar{padding:2px 8px}.rb{display:none}}`;
+async function openPop() {
+  if (POP.win && !POP.win.closed) { POP.win.focus(); return; }
+  let w;
+  try { w = await documentPictureInPicture.requestWindow({ width: 340, height: 92 }); }
+  catch (err) { const b = $("#popb"); if (b) { b.textContent = t("popOutFail"); b.disabled = true; } console.warn("Pop out:", err); return; }
+  POP.win = w;
+  const d = w.document;
+  d.title = "RTS · Grind";
+  d.head.innerHTML = `<meta charset="utf-8"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"><style>${POP_CSS}</style>`;
+  d.body.innerHTML = `<div class="bar"><div class="clock" id="c">0:00:00</div>
+    <div class="wk"><div class="wkbar"><i id="w"></i></div><small id="wt"></small></div>
+    <div class="rng" title="RNG 1-100"><small>RNG</small><b id="n">--</b><span class="rb"><i id="nb"></i></span></div>
+    <button id="p"></button></div>`;
+  const q = (id) => d.getElementById(id);
+  q("p").onclick = () => POP.pause && POP.pause();
+  const tick = () => {
+    const s = POP.s; if (!s) return;
+    const ms = elapsed(s), wk = POP.before + ms / 36e5;
+    d.querySelector(".bar").classList.toggle("paused", !!s.paused_at);
+    q("c").textContent = clock(ms);
+    q("w").style.width = Math.min(100, (wk / POP.target) * 100) + "%";
+    q("wt").textContent = `${fmtH(wk)} / ${POP.target} h`;
+    q("p").textContent = s.paused_at ? "▶" : "⏸"; q("p").title = s.paused_at ? t("resume") : t("pause");
+    paintRng(q("n"), q("nb"));
+  };
+  tick(); w.setInterval(tick, 200);
+  w.addEventListener("pagehide", () => { POP.win = null; });
+}
+function closePop() { if (POP.win && !POP.win.closed) POP.win.close(); POP.win = null; POP.s = null; }
 
 /* Daily journal: one paper page per day, written at the end of the day. Free writing, prompts only help.
    Hours come from the cockpit sessions (editable). The old 4 boxes are merged into the page text. */
@@ -1388,6 +1465,7 @@ function shell() {
 async function route() {
   if (!ME) return;
   clearInterval(timerTick); clearInterval(rngTick);
+  if (!(location.hash || "").startsWith("#/session")) closePop();
   document.onpaste = null;
   const [path] = (location.hash || "#/").split("?");
   const [, a = "", b, c] = path.split("/");
