@@ -294,7 +294,7 @@ async function viewSession() {
       <div class="ct-side"><span class="eyebrow">${KIND_ICON[s.kind]} ${t(grind ? "grindCockpit" : "studyCockpit")}</span><small class="muted">${s.paused_at ? "⏸ " + t("paused") : t("startedAt") + " " + hhmm(s.started_at)}</small></div>
       <div class="ct-mid"><div class="midclock" id="sclock">${clock(elapsed(s))}</div>
         <div class="ct-week"><div class="xpbar big"><i id="wbar"></i></div><small class="muted" id="wtxt"></small></div></div>
-      <div class="ct-side right">${grind ? `<div class="rng" title="RNG 1-100, new roll every 5 s"><small>RNG</small><b id="rngn">--</b><span class="rng-bar"><i id="rngbar"></i></span></div>` : ""}${grind && "documentPictureInPicture" in window ? `<button class="btn btn-sm" id="popb" title="${t("popOutTip")}">⧉ ${t("popOut")}</button>` : ""}<button class="btn btn-sm" id="pause">${s.paused_at ? "▶ " + t("resume") : "⏸ " + t("pause")}</button><button class="btn btn-sm btn-red" id="endb">■ ${t("end")}</button></div>
+      <div class="ct-side right">${grind ? `<div class="rng" title="Antho lance le rando · RNG 1-100, new roll every 5 s"><video id="rngv" class="rng-antho" src="img/antho-rng.mp4" poster="img/antho-rng.jpg" muted playsinline preload="auto"></video><small>RNG</small><b id="rngn">--</b><span class="rng-bar"><i id="rngbar"></i></span></div>` : ""}${grind && "documentPictureInPicture" in window ? `<button class="btn btn-sm" id="popb" title="${t("popOutTip")}">⧉ ${t("popOut")}</button>` : ""}<button class="btn btn-sm" id="pause">${s.paused_at ? "▶ " + t("resume") : "⏸ " + t("pause")}</button><button class="btn btn-sm btn-red" id="endb">■ ${t("end")}</button></div>
     </section>
     <div class="cock-grid">
       <div class="stack">${focus}
@@ -337,7 +337,9 @@ async function viewSession() {
   tick(); if (!s.paused_at) timerTick = every(tick, 1000);
   // RNG for mixed strategies: new 1-100 every 5 s, runs even when the session is paused.
   if (grind) {
-    const roll = () => paintRng($("#rngn"), $("#rngbar"));
+    // Antho winks and throws his cup on every new roll, then rests on his grin until the next one.
+    const v = $("#rngv"); if (v) v.playbackRate = 1.6;
+    const roll = () => { if (paintRng($("#rngn"), $("#rngbar")) && v) { v.currentTime = 0; v.play().catch(() => {}); } };
     roll(); rngTick = every(roll, 200);
   }
   const notesNow = () => $("[name=notes]").value;
@@ -643,10 +645,11 @@ function rngNow() {
 function paintRng(numEl, barEl) {
   if (!numEl) return;
   const n = String(rngNow());
-  if (numEl.textContent === n && numEl.dataset.slot == RNG.slot) return;
+  if (numEl.textContent === n && numEl.dataset.slot == RNG.slot) return false;
   numEl.textContent = n; numEl.dataset.slot = RNG.slot;
   // Restart the 5 s drain, offset so it ends exactly when the next number lands.
   barEl.style.animation = "none"; void barEl.offsetWidth; barEl.style.animation = `rngdrain 5s linear ${-(Date.now() % 5000)}ms`;
+  return true;
 }
 
 /* Pop out bar: timer, weekly hours, RNG and pause in an always-on-top window (Document Picture-in-Picture,

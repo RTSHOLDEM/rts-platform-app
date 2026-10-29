@@ -727,3 +727,8 @@ mark { background: color-mix(in srgb, #f0b429 30%, transparent); color: var(--te
 .shot img { display: block; height: 64px; max-width: 120px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line-2); }
 .shot button { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; border: 0; background: var(--red); color: #fff; font: 700 13px/20px var(--body); cursor: pointer; padding: 0; }
 #hform textarea[name=note] { width: 100%; resize: vertical; }
+
+/* Antho lance le rando: his wink + cup toss plays on every new roll */
+.rng { grid-template-columns: auto auto auto; }
+.rng-antho { grid-row: 1 / span 2; width: 46px; height: 46px; border-radius: 10px; object-fit: cover; background: #0b0b0d; border: 1px solid var(--line-2); }
+.rng:has(.rng-antho) .rng-bar { grid-column: 2 / -1; }
