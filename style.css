@@ -523,6 +523,17 @@ svg.px .f2 { display: none; }
   .cock-grid .scroll-card { flex: 1; min-height: 0; max-height: none; }
   .cock-grid .focus { max-height: 38%; overflow: auto; flex: none; }
 }
+.hlist { margin-top: 10px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface-2); }
+.hlist summary { cursor: pointer; padding: 9px 12px; font-size: 13px; color: var(--muted); list-style: none; }
+.hlist summary::-webkit-details-marker { display: none; }
+.hlist summary::after { content: "▾"; float: right; }
+.hlist[open] summary::after { content: "▴"; }
+.hlist .hrow { margin: 0; padding: 6px 12px; border-top: 1px solid var(--line); font-size: 13px; }
+.hlist[open] { max-height: 180px; overflow: auto; }
+@media (min-width: 1001px) and (min-height: 640px) {
+  #oform { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  #oform textarea { flex: 1; min-height: 80px; resize: none; }
+}
 .cock-grid select { width: 100%; margin: 0 0 10px; padding: 10px 12px; font-size: 14px; background: var(--surface-2); color: var(--text); border: 1px solid var(--line-2); border-radius: 10px; color-scheme: dark; }
 .cock-grid .drop { padding: 30px 16px; }
 .scroll-card { max-height: 230px; overflow: auto; }

@@ -291,7 +291,9 @@ async function viewSession() {
             <div class="drop" id="drop">${t("dropHere")}<input type="file" id="hfile" accept="image/*" multiple hidden></div>
             <textarea name="hh" rows="4" class="sensitive mono" placeholder="${t("pasteHH")}"></textarea>
             <input name="note" placeholder="${t("handNotePh")}">
-            <button class="btn btn-sm btn-red">${t("saveHand")}</button><p class="saved" id="hsaved"></p></form>`
+            <button class="btn btn-sm btn-red">${t("saveHand")}</button><p class="saved" id="hsaved"></p>
+            <details class="hlist"><summary>${t("handsSession")} · ${mineHere.length}</summary>
+              ${mineHere.map((h) => `<p class="hrow">${h.image_path || h.image_data ? "🖼" : "📋"} <span class="sensitive">${esc((h.note || h.hh || t("screenshot")).slice(0, 60))}</span></p>`).join("") || `<p class="muted small">${t("noHandsYet")}</p>`}</details></form>`
         : `<form class="card" id="cform"><div class="card-head"><h3>${t("addConclusion")}</h3><span class="tag">${cardsHere.length}</span></div>
             <p class="muted small">${t("conclusionAsk")}</p>
             <input name="situation" required placeholder="${t("situation")} · SB vs BTN, 3BP, K72r">
@@ -300,9 +302,7 @@ async function viewSession() {
             <button class="btn btn-sm btn-red">${t("saveConclusion")}</button></form>`}
       </div>
       <div class="stack">
-        ${grind ? `<div class="card scroll-card"><div class="card-head"><h3>${t("handsSession")}</h3></div>
-          ${mineHere.map((h) => `<p class="hrow">${h.image_path || h.image_data ? "🖼" : "📋"} <span class="sensitive">${esc((h.note || h.hh || t("screenshot")).slice(0, 60))}</span></p>`).join("") || `<p class="muted small">${t("noHandsYet")}</p>`}</div>
-          ${oppForm(notes)}`
+        ${grind ? oppForm(notes)
         : `<div class="card scroll-card"><div class="card-head"><h3>${t("conclusions")}</h3></div>
           ${cardsHere.map((c) => `<p class="hrow"><b>${esc(c.situation)}</b><br><span class="muted sensitive">${esc(c.conclusion)}</span></p>`).join("") || `<p class="muted small">${t("noCardsYet")}</p>`}</div>`}
       </div>
