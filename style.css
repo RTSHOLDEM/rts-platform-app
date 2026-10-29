@@ -732,3 +732,4 @@ mark { background: color-mix(in srgb, #f0b429 30%, transparent); color: var(--te
 .rng { grid-template-columns: auto auto auto; }
 .rng-antho { grid-row: 1 / span 2; width: 46px; height: 46px; border-radius: 10px; object-fit: cover; background: #0b0b0d; border: 1px solid var(--line-2); }
 .rng:has(.rng-antho) .rng-bar { grid-column: 2 / -1; }
+.rng small { line-height: 1.25; letter-spacing: .08em; }
