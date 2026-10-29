@@ -253,15 +253,18 @@ function bindFocus() {
 /* Opponent notes: player only (RLS), typed during the session, kept for every future session. */
 function oppForm(notes) {
   return `<form class="card" id="oform"><div class="card-head"><h3>${t("oppNotes")}</h3><a class="small-link" href="#/notes">${t("allNotes")} (${notes.length}) →</a></div>
-    <input name="nick" list="nicks" required autocomplete="off" placeholder="${t("oppNick")}" class="sensitive">
-    <datalist id="nicks">${notes.map((n) => `<option value="${esc(n.nick)}">`).join("")}</datalist>
+    <select name="pick" class="sensitive"><option value="">+ ${t("newOpp")}</option>${[...notes].sort((a, b) => a.nick.localeCompare(b.nick)).map((n) => `<option value="${esc(n.nick)}">${esc(n.nick)}</option>`).join("")}</select>
+    <input name="nick" required autocomplete="off" placeholder="${t("oppNick")}" class="sensitive">
     <textarea name="note" rows="3" placeholder="${t("oppNote")}" class="sensitive"></textarea>
     <button class="btn btn-sm btn-red">${t("saveNote")}</button><p class="saved" id="osaved"></p></form>`;
 }
 function bindOpp(notes) {
   const f = $("#oform"); if (!f) return;
-  f.nick.oninput = () => { const n = notes.find((x) => x.nick.toLowerCase() === f.nick.value.trim().toLowerCase()); if (n) f.note.value = n.note; };
-  f.onsubmit = async (ev) => { ev.preventDefault(); const nick = f.nick.value.trim(); if (!nick) return; await db.saveNote({ nick, note: f.note.value.trim() }); $("#osaved").textContent = `${nick} · ${t("saved")}`; f.reset(); };
+  // Pick a known opponent from the dropdown (note loads, nickname box hides) or "+ New opponent" to type one.
+  const pick = () => { const n = notes.find((x) => x.nick === f.pick.value); f.nick.hidden = !!n; f.nick.value = n ? n.nick : ""; f.note.value = n ? n.note : ""; };
+  f.pick.onchange = pick;
+  f.nick.oninput = () => { const n = notes.find((x) => x.nick.toLowerCase() === f.nick.value.trim().toLowerCase()); if (n) { f.pick.value = n.nick; pick(); } };
+  f.onsubmit = async (ev) => { ev.preventDefault(); const nick = f.nick.value.trim(); if (!nick) return; await db.saveNote({ nick, note: f.note.value.trim() }); route(); };
 }
 
 async function viewSession() {
@@ -276,10 +279,10 @@ async function viewSession() {
       <div class="ct-side"><span class="eyebrow">${KIND_ICON[s.kind]} ${t(grind ? "grindCockpit" : "studyCockpit")}</span><small class="muted">${s.paused_at ? "⏸ " + t("paused") : t("startedAt") + " " + hhmm(s.started_at)}</small></div>
       <div class="ct-mid"><div class="midclock" id="sclock">${clock(elapsed(s))}</div>
         <div class="ct-week"><div class="xpbar big"><i id="wbar"></i></div><small class="muted" id="wtxt"></small></div></div>
-      <div class="ct-side right"><button class="btn btn-sm" id="pause">${s.paused_at ? "▶ " + t("resume") : "⏸ " + t("pause")}</button><button class="btn btn-sm btn-red" id="endb">■ ${t("end")}</button></div>
+      <div class="ct-side right">${grind ? `<div class="rng" title="RNG 1-100, new roll every 3 s"><small>RNG</small><b id="rngn">--</b><span class="rng-bar"><i id="rngbar"></i></span></div>` : ""}<button class="btn btn-sm" id="pause">${s.paused_at ? "▶ " + t("resume") : "⏸ " + t("pause")}</button><button class="btn btn-sm btn-red" id="endb">■ ${t("end")}</button></div>
     </section>
     <div class="cock-grid">
-      <div class="stack">${grind ? `<div class="card rng"><div class="card-head"><h3>RNG</h3><small class="muted">1-100 · 3 s</small></div><div class="rng-n" id="rngn">--</div><div class="rng-bar"><i id="rngbar"></i></div></div>` : ""}${focus}
+      <div class="stack">${focus}
         <form class="card" id="nform"><div class="card-head"><h3>${t(grind ? "sessionNotes" : "studyNotes")}</h3><span class="saved" id="nsaved"></span></div>
           <label class="ta"><textarea name="notes" rows="${grind ? 5 : 7}" class="sensitive" placeholder="${t("sessionNotesPh")}">${esc(s.notes)}</textarea></label></form>
       </div>
