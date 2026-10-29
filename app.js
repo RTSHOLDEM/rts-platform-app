@@ -279,7 +279,7 @@ async function viewSession() {
       <div class="ct-side"><span class="eyebrow">${KIND_ICON[s.kind]} ${t(grind ? "grindCockpit" : "studyCockpit")}</span><small class="muted">${s.paused_at ? "⏸ " + t("paused") : t("startedAt") + " " + hhmm(s.started_at)}</small></div>
       <div class="ct-mid"><div class="midclock" id="sclock">${clock(elapsed(s))}</div>
         <div class="ct-week"><div class="xpbar big"><i id="wbar"></i></div><small class="muted" id="wtxt"></small></div></div>
-      <div class="ct-side right">${grind ? `<div class="rng" title="RNG 1-100, new roll every 3 s"><small>RNG</small><b id="rngn">--</b><span class="rng-bar"><i id="rngbar"></i></span></div>` : ""}${grind && "documentPictureInPicture" in window ? `<button class="btn btn-sm" id="popb" title="${t("popOutTip")}">⧉ ${t("popOut")}</button>` : ""}<button class="btn btn-sm" id="pause">${s.paused_at ? "▶ " + t("resume") : "⏸ " + t("pause")}</button><button class="btn btn-sm btn-red" id="endb">■ ${t("end")}</button></div>
+      <div class="ct-side right">${grind ? `<div class="rng" title="RNG 1-100, new roll every 5 s"><small>RNG</small><b id="rngn">--</b><span class="rng-bar"><i id="rngbar"></i></span></div>` : ""}${grind && "documentPictureInPicture" in window ? `<button class="btn btn-sm" id="popb" title="${t("popOutTip")}">⧉ ${t("popOut")}</button>` : ""}<button class="btn btn-sm" id="pause">${s.paused_at ? "▶ " + t("resume") : "⏸ " + t("pause")}</button><button class="btn btn-sm btn-red" id="endb">■ ${t("end")}</button></div>
     </section>
     <div class="cock-grid">
       <div class="stack">${focus}
@@ -319,7 +319,7 @@ async function viewSession() {
     $("#wtxt") && ($("#wtxt").textContent = `${fmtH(wk)} / ${target} h · ${t("weekHours").toLowerCase()}`);
   };
   tick(); if (!s.paused_at) timerTick = setInterval(tick, 1000);
-  // RNG for mixed strategies: new 1-100 every 3 s, runs even when the session is paused.
+  // RNG for mixed strategies: new 1-100 every 5 s, runs even when the session is paused.
   if (grind) {
     const roll = () => paintRng($("#rngn"), $("#rngbar"));
     roll(); rngTick = setInterval(roll, 200);
@@ -580,10 +580,10 @@ const timer = {
 };
 let timerTick = null, rngTick = null;
 
-/* RNG: one number per 3 s slot, shared by the cockpit and the pop out bar (same number on both). */
+/* RNG: one number per 5 s slot, shared by the cockpit and the pop out bar (same number on both). */
 const RNG = { slot: -1, n: 0 };
 function rngNow() {
-  const slot = Math.floor(Date.now() / 3000);
+  const slot = Math.floor(Date.now() / 5000);
   if (slot !== RNG.slot) { RNG.slot = slot; RNG.n = 1 + (crypto.getRandomValues(new Uint32Array(1))[0] % 100); }
   return RNG.n;
 }
@@ -592,8 +592,8 @@ function paintRng(numEl, barEl) {
   const n = String(rngNow());
   if (numEl.textContent === n && numEl.dataset.slot == RNG.slot) return;
   numEl.textContent = n; numEl.dataset.slot = RNG.slot;
-  // Restart the 3 s drain, offset so it ends exactly when the next number lands.
-  barEl.style.animation = "none"; void barEl.offsetWidth; barEl.style.animation = `rngdrain 3s linear ${-(Date.now() % 3000)}ms`;
+  // Restart the 5 s drain, offset so it ends exactly when the next number lands.
+  barEl.style.animation = "none"; void barEl.offsetWidth; barEl.style.animation = `rngdrain 5s linear ${-(Date.now() % 5000)}ms`;
 }
 
 /* Pop out bar: timer, weekly hours, RNG and pause in an always-on-top window (Document Picture-in-Picture,
