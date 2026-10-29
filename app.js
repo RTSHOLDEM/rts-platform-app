@@ -150,8 +150,10 @@ function forMe(e) {
 
 async function viewHome() {
   if (!has(ME, "player")) return viewHomeStaff();
+  const my = RENDER;
   const [mine, goals, all, open, g] = await Promise.all([db.journal(ME.id, daysAgo(400)), db.goals(ME.id),
     db.events(new Date(Date.now() - 864e5).toISOString(), addDays(14) + "T23:59"), db.openSession(ME.id), gameStats(ME)]);
+  if (my !== RENDER) return; // a newer screen started while this one loaded
   ME._goal = goals.find((x) => x.label === monthStart());
   const s = stats(mine, ME), target = teamOf(ME).week_hours || 35, wk = weekHours(mine) + (open ? elapsed(open) / 36e5 : 0);
   const wkHands = mine.filter((e) => e.day >= weekStart()).reduce((a, e) => a + Number(e.hands || 0), 0);
@@ -209,7 +211,7 @@ async function viewHome() {
       <button class="btn btn-red" value="save">${t("save")}${s.filledToday ? "" : " · +20 XP"}</button></form></dialog>`;
   $$("[data-start]").forEach((b) => b.onclick = async () => { b.disabled = true; await db.startSession(b.dataset.start); hqMove(b.dataset.start === "grind" ? "grind" : "study"); location.hash = "#/session"; });
   const since = $("[data-since]");
-  if (since && !open.paused_at) timerTick = setInterval(() => { since.textContent = clock(elapsed(open)); }, 1000);
+  if (since && !open.paused_at) timerTick = every(() => { since.textContent = clock(elapsed(open)); }, 1000);
   const dlg = $("#eod"), ta = dlg.querySelector("textarea");
   dictateButton(ta);
   $$("[data-prompt]").forEach((b) => b.onclick = () => { ta.value += (ta.value.trim() ? "\n\n" : "") + t(b.dataset.prompt) + " "; ta.focus(); });
@@ -269,10 +271,13 @@ function bindOpp(notes) {
 }
 
 async function viewSession() {
+  const my = RENDER;
   const s = await db.openSession(ME.id);
+  if (my !== RENDER) return;
   if (!s) { location.hash = "#/"; return; }
   const grind = s.kind === "grind";
   const [focus, hands, cards, notes, mine] = await Promise.all([focusList(ME.id, true), db.hands(), db.cards(), db.notes().catch(() => []), db.journal(ME.id, weekStart())]);
+  if (my !== RENDER) return; // a newer screen started while this one loaded: never draw or start a stale clock
   const mineHere = hands.filter((h) => h.session_id === s.id), cardsHere = cards.filter((c) => c.session_id === s.id);
   const target = teamOf(ME).week_hours || 35, before = weekHours(mine);
   $("#main").innerHTML = `
@@ -319,11 +324,11 @@ async function viewSession() {
     $("#wbar") && ($("#wbar").style.width = Math.min(100, (wk / target) * 100) + "%");
     $("#wtxt") && ($("#wtxt").textContent = `${fmtH(wk)} / ${target} h · ${t("weekHours").toLowerCase()}`);
   };
-  tick(); if (!s.paused_at) timerTick = setInterval(tick, 1000);
+  tick(); if (!s.paused_at) timerTick = every(tick, 1000);
   // RNG for mixed strategies: new 1-100 every 5 s, runs even when the session is paused.
   if (grind) {
     const roll = () => paintRng($("#rngn"), $("#rngbar"));
-    roll(); rngTick = setInterval(roll, 200);
+    roll(); rngTick = every(roll, 200);
   }
   const notesNow = () => $("[name=notes]").value;
   const saveNotes = async () => { await db.saveSession({ id: s.id, notes: notesNow() }); $("#nsaved").textContent = t("saved"); };
@@ -599,6 +604,13 @@ const timer = {
   set(v) { try { v ? localStorage.setItem(TIMER_KEY, JSON.stringify(v)) : localStorage.removeItem(TIMER_KEY); } catch {} },
 };
 let timerTick = null, rngTick = null;
+
+/* Screen timers. route() bumps RENDER and stops them all; a screen that finishes loading after a newer one
+   started returns without drawing. Before this, two cockpit loads in a row left two clocks writing to one display
+   (old session 50 min / new one 42 s, alternating, 2026-10-29). */
+let RENDER = 0;
+const TICKS = [];
+function every(fn, ms) { const id = setInterval(fn, ms); TICKS.push(id); return id; }
 
 /* RNG: one number per 5 s slot, shared by the cockpit and the pop out bar (same number on both). */
 const RNG = { slot: -1, n: 0 };
@@ -1486,6 +1498,7 @@ function shell() {
 async function route() {
   if (!ME) return;
   clearInterval(timerTick); clearInterval(rngTick);
+  TICKS.splice(0).forEach(clearInterval); RENDER++;
   if (!(location.hash || "").startsWith("#/session")) closePop();
   document.onpaste = null;
   const [path] = (location.hash || "#/").split("?");
