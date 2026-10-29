@@ -197,6 +197,7 @@ async function viewHome() {
           <a href="https://app.gtowizard.com" target="_blank" rel="noopener"><span>🧙</span>GTO Wizard</a>
           <a href="#/replayer"><span>▶</span>Replayer</a>
           <a href="#/library"><span>📖</span>${t("library")}</a>
+          ${isAdmin() ? `<a href="#/sizing"><span>%</span>MonPetitSizing</a>` : ""}
         </div>
       </aside>
     </div>
@@ -370,6 +371,25 @@ async function viewSession() {
 }
 
 /* All opponent notes, searchable, editable. Player only. */
+/* MonPetitSizing (Mac): download + setup. Direction only until the poker sites confirm sizing tools are allowed
+   (the storage rule in supabase/010_tools.sql enforces it too). */
+async function viewSizing() {
+  if (!isAdmin()) { location.hash = "#/"; return; }
+  $("#main").innerHTML = `
+    <span class="eyebrow">${t("tools")}</span><h1 class="h-long">MonPetitSizing</h1>
+    <p class="muted">${t("sizingIntro")}</p>
+    <div class="card sizing-card">
+      <p><button class="btn btn-red" id="dlsz">⬇ ${t("sizingDl")}</button> <small class="muted">Mac · Apple + Intel · 0.2 MB</small></p>
+      <ol class="steps">${[1, 2, 3, 4, 5].map((i) => `<li>${t("sizingStep" + i)}</li>`).join("")}</ol>
+      <p class="muted small">${t("sizingSites")}</p>
+      <p class="muted small">⚠ ${t("sizingRules")}</p>
+    </div>`;
+  $("#dlsz").onclick = async () => {
+    const url = await db.toolUrl("MonPetitSizing.zip");
+    if (url) location.href = url; else $("#dlsz").textContent = t("error");
+  };
+}
+
 async function viewNotes() {
   const notes = await db.notes();
   $("#main").innerHTML = `${head(t("oppNotes"), t("oppNotes"), t("oppNotesSub"))}
@@ -1109,6 +1129,7 @@ async function viewLibrary() {
     <div class="grid menu">
       <a class="card menu-item" href="https://app.gtowizard.com" target="_blank" rel="noopener"><b>GTO Wizard</b><span>Solver, trainer</span></a>
       <a class="card menu-item" href="#/replayer"><b>RTS Replayer</b><span>Hand histories</span></a>
+      ${isAdmin() ? `<a class="card menu-item" href="#/sizing"><b>MonPetitSizing</b><span>${t("sizingSub")}</span></a>` : ""}
     </div>`;
   const go = () => {
     const p = { ...q }; delete p.q;
@@ -1474,7 +1495,7 @@ async function route() {
   $("#main").innerHTML = `<p class="muted loading">${t("loading")}</p>`;
   const views = { "": viewHome, journal: viewJournal, p: () => viewPlayer(b, c), coaching: viewCoaching, c: () => viewCoachingOne(b), quiz: () => viewQuiz(b),
     review: viewReview, library: viewLibrary, s: () => viewSituation(b), submit: viewSubmit, calendar: viewCalendar, team: viewTeam, admin: viewAdmin, ceo: viewCeo,
-    session: viewSession, hands: viewHands, replayer: () => viewReplayer(b), study: viewStudy, recall: viewRecall, account: viewAccount, hero: viewHero, hq: viewHQ, notes: viewNotes };
+    session: viewSession, hands: viewHands, replayer: () => viewReplayer(b), study: viewStudy, recall: viewRecall, account: viewAccount, hero: viewHero, hq: viewHQ, notes: viewNotes, sizing: viewSizing };
   try { await (views[a] || viewHome)(); }
   catch (err) { $("#main").innerHTML = `<p class="card">${t("error")} : ${esc(err.message)}</p>`; console.error(err); }
   window.scrollTo(0, 0);

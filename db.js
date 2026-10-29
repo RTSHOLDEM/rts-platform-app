@@ -105,6 +105,7 @@ function liveDb() {
       return rows(sb.from("hands").insert({ ...h, player_id: me.id }).select());
     },
     async setHand(id, v) { return rows(sb.from("hands").update(v).eq("id", id)); },
+    async toolUrl(name) { const { data, error } = await sb.storage.from("tools").createSignedUrl(name, 600, { download: true }); return error ? null : data.signedUrl; },
     async handImage(path) { const { data, error } = await sb.storage.from("hands").createSignedUrl(path, 600); return error ? null : data.signedUrl; },
     async cards() { return rows(sb.from("study_cards").select("*").order("created_at", { ascending: false })); },
     async addCard(c) { const me = await db.me(); return rows(sb.from("study_cards").insert({ ...c, player_id: me.id }).select()); },
@@ -214,6 +215,7 @@ function demoDb() {
     async publishSituation(id) { S.situations.find((s) => s.id === id).status = "live"; save(); },
     async finances(pid) { const m = me(), x = byId(pid); return m.id === pid || m.roles.includes("admin") || m.manages.includes(x.team) ? dFinances(pid) : []; },
     async contractUrl() { return null; },
+    async toolUrl() { return null; },
     async saveProfile(p) {
       if (!isOps(me())) throw new Error("Not allowed");
       if (p.id && byId(p.id)) Object.assign(byId(p.id), p);
