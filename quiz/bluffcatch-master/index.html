@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Quiz Bluffcatch Master</title>
+<link rel="icon" href="../../img/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap">
+<style>
+/* Same look as the Supreme flat quiz: white, thin lines, RTS red as accent.
+   Fivo for titles (no digits in Fivo: its "1" looks like "l"), Instrument Serif italic for accents, Inter for text. */
+@font-face { font-family: "Fivo"; src: url("../../fonts/fivo-sans-modern-heavy.otf") format("opentype"); font-weight: 800; font-display: swap; }
+:root {
+  --bg: #ffffff; --surface: #ffffff; --surface-2: #f6f6f4; --line: #e8e8e5; --line-2: #d9d9d5;
+  --ink: #0b0b0c; --muted: #6b6b72; --soft-ink: #2b2b2f;
+  --red: #e00505; --red-dark: #b80404; --red-soft: rgba(253, 6, 6, .06);
+  --ok: #17924f; --ok-soft: rgba(23, 146, 79, .08);
+  --head: "Fivo", "Inter", system-ui, sans-serif;
+  --serif: "Instrument Serif", Georgia, serif;
+  --body: "Inter", system-ui, -apple-system, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 400 16.5px/1.6 var(--body); -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 780px; margin: 0 auto; padding-inline: 16px; }
+
+header.hero { padding-block: 40px 34px; border-bottom: 1px solid var(--line); background: radial-gradient(ellipse 85% 100% at 50% 0%, rgba(253,6,6,.16), rgba(253,6,6,.05) 55%, transparent 80%); text-align: center; }
+.logo { height: 26px; width: auto; display: block; margin: 0 auto 30px; }
+.eyebrow { font: 500 12px/1 var(--body); letter-spacing: .24em; text-transform: uppercase; color: var(--red); }
+h1 { font-family: var(--head); font-weight: 800; text-transform: uppercase; font-size: clamp(36px, 8vw, 62px); line-height: .98; margin: 18px 0 16px; letter-spacing: .005em; text-wrap: balance; }
+h1 em, h2 em { font-family: var(--serif); font-style: italic; font-weight: 400; text-transform: none; color: var(--red); letter-spacing: 0; }
+.lede { margin: 0 auto; max-width: 54ch; color: var(--muted); }
+.cards-deco { display: flex; gap: 6px; margin-top: 22px; flex-wrap: wrap; justify-content: center; }
+
+.pc { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; height: 44px; padding: 0 6px; border-radius: 5px; background: #fff; color: #111; border: 1px solid #d9d9d5; box-shadow: 0 1px 2px rgba(0,0,0,.06); font-family: var(--body); font-weight: 700; font-size: 16px; }
+.pc.r { color: #d10505; }
+.pc.sm { min-width: 30px; height: 36px; font-size: 14.5px; }
+.pc.q { color: var(--muted); border-style: dashed; }
+
+nav.tabs { display: flex; gap: 8px; margin-top: 26px; justify-content: center; flex-wrap: wrap; }
+nav.tabs button { font: 600 14px/1 var(--body); letter-spacing: .04em; padding: 13px 24px; border-radius: 999px; border: 1px solid var(--line-2); background: transparent; color: var(--ink); cursor: pointer; transition: background .2s, border-color .2s; }
+nav.tabs button:hover { border-color: var(--red); }
+nav.tabs button[aria-selected="true"] { background: var(--red); border-color: var(--red); color: #fff; }
+nav.tabs button:disabled { color: var(--muted); border-style: dashed; cursor: not-allowed; }
+nav.tabs button:disabled:hover { border-color: var(--line-2); }
+button:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+
+main { padding-block: 34px 64px; }
+h2 { font-family: var(--head); font-weight: 800; text-transform: uppercase; font-size: clamp(28px, 5vw, 40px); line-height: 1; margin: 0 0 12px; }
+.sub { color: var(--muted); margin: 0 0 22px; }
+
+.session { border-top: 1px solid var(--line); padding-block: 24px; display: grid; grid-template-columns: 104px 1fr; gap: 18px; }
+.session:first-of-type { border-top: 0; }
+.date { font: 600 12px/1.4 var(--body); color: var(--red); letter-spacing: .14em; padding-top: 4px; }
+.session h3 { font: 600 19px/1.3 var(--body); letter-spacing: -.01em; margin: 0 0 10px; }
+.session ul { margin: 0; padding-left: 18px; display: grid; gap: 7px; color: var(--soft-ink); }
+.session li::marker { color: var(--red); }
+.next { margin-top: 18px; border: 1px solid var(--red); background: var(--red-soft); border-radius: 14px; padding: 16px 18px; }
+.next b { color: var(--red); }
+.start-btn { margin-top: 24px; font: 600 14px/1 var(--body); letter-spacing: .04em; padding: 17px 34px; border-radius: 999px; border: 0; background: var(--red); color: #fff; cursor: pointer; }
+.start-btn:hover { background: var(--red-dark); }
+.final .start-btn { margin-top: 18px; }
+
+.scorebar { position: sticky; top: 0; z-index: 5; background: rgba(255,255,255,.9); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); padding-block: 12px; border-bottom: 1px solid var(--line); margin-bottom: 18px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.score { font: 700 15px var(--body); font-variant-numeric: tabular-nums; }
+.meter { flex: 1 1 160px; height: 6px; background: var(--line-2); border-radius: 99px; overflow: hidden; display: flex; }
+.meter i { display: block; height: 100%; }
+.meter .g { background: var(--ok); } .meter .b { background: var(--red); }
+.reset { font: 600 13px var(--body); background: transparent; border: 1px solid var(--line-2); color: var(--muted); padding: 8px 14px; border-radius: 999px; cursor: pointer; }
+.reset:hover { border-color: var(--red); color: var(--ink); }
+
+.part { font: 500 12px/1.3 var(--body); letter-spacing: .24em; text-transform: uppercase; color: var(--red); margin: 34px 0 14px; }
+.q { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin-bottom: 14px; }
+.q .num { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.q p.stem { font-weight: 600; margin: 6px 0 12px; }
+.q .line { font-size: 14px; color: var(--muted); margin: 0 0 12px; }
+.q .spot { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 0 0 14px; font-size: 13px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+.opts { display: grid; gap: 8px; }
+.opt { display: flex; gap: 12px; align-items: flex-start; text-align: left; width: 100%; font: 400 15.5px/1.45 var(--body); color: var(--ink); background: var(--surface-2); border: 1px solid var(--line-2); border-radius: 12px; padding: 12px 14px; cursor: pointer; }
+.opt:hover:not(:disabled) { border-color: var(--red); }
+.opt .box { flex: 0 0 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--muted); display: grid; place-items: center; font-size: 11px; font-weight: 700; color: var(--muted); margin-top: 1px; }
+.opt:disabled { cursor: default; }
+.opt.correct { background: var(--ok-soft); border-color: var(--ok); }
+.opt.correct .box { background: var(--ok); border-color: var(--ok); color: #fff; }
+.opt.wrong { background: var(--red-soft); border-color: var(--red); }
+.opt.wrong .box { background: var(--red); border-color: var(--red); color: #fff; }
+.opt.dim { opacity: .45; }
+.why { margin-top: 12px; padding: 12px 14px; border-left: 2px solid var(--red); background: var(--surface-2); border-radius: 0 10px 10px 0; font-size: 15px; color: var(--soft-ink); }
+.why b { color: var(--ink); }
+.why .src { display: block; margin-top: 6px; font-size: 12.5px; color: var(--muted); }
+
+.final { border: 1px solid var(--red); background: var(--red-soft); border-radius: 16px; padding: 24px; margin-top: 24px; text-align: center; }
+.final h3 { font: 700 26px/1.2 var(--body); margin: 0 0 6px; }
+.final p { margin: 0; color: var(--soft-ink); }
+footer { color: var(--muted); font-size: 13px; padding-block: 0 40px; border-top: 1px solid var(--line); padding-top: 20px; }
+
+@media (max-width: 560px) { .session { grid-template-columns: 1fr; gap: 6px; } }
+@media (prefers-reduced-motion: no-preference) { .opt { transition: border-color .15s, background .15s; } .meter i { transition: width .25s; } }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <img class="logo" src="logo-dark.svg" alt="RTS">
+    <div class="eyebrow">Team Master · Bluffcatch</div>
+    <h1>Les piliers du <em>bluffcatch</em></h1>
+    <p class="lede">14 spots : 2 par pilier et 2 sur la méthode. Clique sur ta réponse, l'explication s'affiche. Le récap se débloque une fois le quiz terminé.</p>
+    <div class="cards-deco" aria-hidden="true">
+      <span class="pc">K♠</span><span class="pc r">9♥</span><span class="pc">4♣</span><span class="pc">7♠</span><span class="pc r">2♦</span>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" id="tab-quiz" aria-selected="true" data-view="quiz">Quiz</button>
+      <button role="tab" id="tab-recap" aria-selected="false" data-view="recap" disabled>🔒 Récap</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="view-recap" hidden>
+    <h2>Les 6 <em>piliers</em></h2>
+    <p class="sub">Une idée centrale : on part à la recherche des déséquilibres. Chaque pilier penche call, fold, ou reste neutre. Puis on les oppose et on les pèse.</p>
+
+    <div class="session">
+      <div class="date">PILIERS 1 À 3</div>
+      <div>
+        <h3>Ce qu'il a, ce que la carte change</h3>
+        <ul>
+          <li><b>P1 Composition du range adverse</b> : y a-t-il des bluffs dans son range sur cette line ? (cbet range, x/r non fréquencés). C'est le pilier numéro un : sans bluffs, fold.</li>
+          <li><b>P2 Carte ou runout qui fait peur</b> : il pense avoir de la fold equity, donc il bluffe plus. Board qui se paire = très bonne carte de catch. Flush ou quinte qui rentre = la pire.</li>
+          <li><b>P3 Ratio bluff / value</b> : incapable de value thin sur les runouts qui font peur = value restreinte, trop de bluffs. Compte en combos. Reg : 25 à 75 % pot underbluffé, au-dessus du pot overbluffé. Récréatif : l'inverse.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="session">
+      <div class="date">PILIERS 4 À 6</div>
+      <div>
+        <h3>Ce qu'il croit, ce qu'il risque, où il bluffe</h3>
+        <ul>
+          <li><b>P4 Perception de notre range</b> : perçu wide, faible ou cappé, il bluffe. Perçu strong (TP+), il bluffe moins.</li>
+          <li><b>P5 Risk / reward</b> : notre R/R et le sien. Quel risque prend-il à bluffer ? Bluffs à grosse équité + value dominante = fold dès la turn. EV proche de zéro sans read = fold.</li>
+          <li><b>P6 Lignes alternatives</b> : où partent ses bluffs et sa value dans les autres sizes ? Si ses bluffs partent ailleurs, ne catch pas. Bonus : draws naturels, nutsbusto, les nuts partent ailleurs.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="session">
+      <div class="date">MÉTHODE</div>
+      <div>
+        <h3>En 30 secondes, en jeu</h3>
+        <ul>
+          <li>P1 à P6 : déséquilibre oui ou non. Si oui, <b>+ call</b> ou <b>+ fold</b>. Puis on oppose et on pèse : on ne compte pas les piliers.</li>
+          <li>Un seul red flag suffit à ne pas catcher. Les bloqueurs ne remplacent jamais l'absence de bluffs.</li>
+          <li>Overbluff des SDV (board complet, OR mergé, sizes small) : léger overcall. Underbluff des SDV (board incomplet, OR uncapped, raise middle/big) : léger overfold. Jamais extrémiste.</li>
+          <li>Règle d'or : tout reg peut bluffer tout spot, tout reg peut fuck call tout spot.</li>
+          <li>Review : toutes tes rivers callées sans les nuts, gagnées ET perdues.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="next"><b>Entraînement :</b> applique les piliers vite sur solver, puis en 30 secondes en jeu. Suppose d'abord, vérifie ensuite.</div>
+    <button class="start-btn" id="go-quiz">Revoir mes réponses</button>
+  </section>
+
+  <section id="view-quiz">
+    <div class="scorebar">
+      <span class="score" id="score">0 / 14</span>
+      <div class="meter" aria-hidden="true"><i class="g" id="m-g" style="width:0%"></i><i class="b" id="m-b" style="width:0%"></i></div>
+      <button class="reset" id="reset">Recommencer</button>
+    </div>
+    <div id="quiz"></div>
+    <div class="final" id="final" hidden>
+      <h3 id="final-title"></h3>
+      <p id="final-text"></p>
+      <button class="start-btn" id="go-recap">Voir le récap</button>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap">Basé sur les slides « RTS Elite : Bluffcatch » et « L'art du bluffcatch », et les coachings RTS. NL1000 6max, 100 bb sauf mention.</footer>
+
+<script>
+const PARTS = [
+ {
+  "title": "Pilier 1 · Composition du range adverse",
+  "qs": [
+   {
+    "stem": "Le pilier 1 (composition du range adverse) pose UNE seule question. Laquelle ?",
+    "line": "",
+    "board": [],
+    "opts": [
+     "Va-t-il réellement jouer ses bluffs dans cette line ?",
+     "Y a-t-il des bluffs dans son range sur cette line ?",
+     "Combien de value thin est-il capable de miser ?",
+     "Comment perçoit-il notre range ?"
+    ],
+    "a": 1,
+    "why": "P1 = existence de bluffs dans son range, rien d'autre. Savoir s'il les joue relève du risk/reward (P5) et des lignes alternatives (P6). Et c'est le pilier numéro 1 : sans bluffs dans son range, inutile d'aller plus loin, fold.",
+    "src": "Alexis, Z077 2025-08-27 24:18 · Adrien, Z097 2025-09-16"
+   },
+   {
+    "stem": "Tu as A♣T♣. Read : ce reg check-raise ce flop environ 2 fois plus que la théorie, avec beaucoup d'offsuit sans tirage (overcards, backdoors), puis il barrel la turn quasi range. River K♦, il mise 33 bb. Décision et raison principale ?",
+    "line": "CO vs BB, 100 bb · CO open 2,5 · BB call · flop CO cbet 1,8 bb, BB x/r 6 bb, CO call · turn BB bet 13 bb (75 %), CO call · river BB bet 33 bb (75 %)",
+    "board": [
+     "T♦",
+     "8♠",
+     "3♣",
+     "2♥",
+     "K♦"
+    ],
+    "opts": [
+     "Fold : x/r flop + 2 barrels d'un reg, c'est de la value",
+     "Fold : le K♦ renforce son range de value",
+     "Call : ses x/r non fréquencés (trop d'offsuit + backdoors) remplissent son range de bluffs",
+     "Raise all-in pour la value"
+    ],
+    "a": 2,
+    "why": "Le poids des x/r non fréquencés (slides L'art du bluffcatch) : x/r avec trop d'offsuit + BDFD + random, puis bet range turn = range qui arrive river avec trop de bluffs (P1). Le K est en plus une carte qui fait peur (P2). R/R : à 75 % pot tu dois avoir raison 30 % du temps seulement.",
+    "src": "Slides L'art du bluffcatch (2023), le poids des x/r non fréquencés"
+   }
+  ]
+ },
+ {
+  "title": "Pilier 2 · Carte ou runout qui fait peur",
+  "qs": [
+   {
+    "stem": "Tu es BB avec Q♦8♦ et tu as callé flop et turn. Quelle river est la PIRE pour ton bluffcatch ?",
+    "line": "BB vs BTN, 100 bb · BTN open 2,5 · BB call · flop BTN cbet 33 %, BB call · turn BTN bet 75 %, BB call · river BTN bet 75 %",
+    "board": [
+     "Q♥",
+     "9♥",
+     "4♣",
+     "6♠",
+     "?"
+    ],
+    "opts": [
+     "4♦ (le board se paire)",
+     "2♠ (brique)",
+     "K♠ (overcard)",
+     "J♥ (flush + quintes KT, T8 complétées)"
+    ],
+    "a": 3,
+    "why": "Les cartes qui complètent flush ou quinte sont les pires textures de bluffcatch : trop de value ajoutée, ses draws deviennent value et il lui reste peu de bluffs. À l'inverse, une river qui paire le board est une excellente carte de catch : peu de value ajoutée, la carte fait peur, donc il bluffe.",
+    "src": "Enzo, Z531 2026-08-20 09:25"
+   },
+   {
+    "stem": "Contre quel profil le pilier 2 (carte qui fait peur) doit-il peser LE PLUS dans ta décision ?",
+    "line": "",
+    "board": [],
+    "opts": [
+     "Un reg solide NL1000",
+     "Un récréatif faible",
+     "Un reg blueliner",
+     "Un joueur très GTO, peu de tells"
+    ],
+    "a": 1,
+    "why": "Plus l'adversaire est faible, plus il bluffe la carte qui fait peur sans regarder les interactions de ranges : on pondère P2 plus fort. Un reg, lui, regarde si la carte est vraiment dans son range avant de la bluffer.",
+    "src": "Adrien, Z096 2025-09-16"
+   }
+  ]
+ },
+ {
+  "title": "Pilier 3 · Ratio bluff / value",
+  "qs": [
+   {
+    "stem": "River, même spot, même bloc de catchers. Contre un REG, quel size est en moyenne le plus OVERbluffé ?",
+    "line": "",
+    "board": [],
+    "opts": [
+     "33 % pot",
+     "50 % pot",
+     "75 % pot",
+     "150 % pot"
+    ],
+    "a": 3,
+    "why": "Contre un reg, 25 à 75 % pot est underbluffé et au-dessus du pot est overbluffé. Contre un récréatif, c'est l'inverse : sous le pot overbluffé (66 à 75 % = le size le plus bluffé), au-dessus du pot underbluffé.",
+    "src": "Enzo, Z599 2026-10-08 07:00 · Enzo, Z131 2025-10-16 09:42"
+   },
+   {
+    "stem": "River, il mise 150 % pot. Après bloqueurs, tu comptes 14 combos de value et 7 combos de bluff. Décision ?",
+    "line": "River overbet 150 % pot",
+    "board": [],
+    "opts": [
+     "Call : 7 bluffs, c'est assez",
+     "Fold : il te faut 37,5 % de bluffs, il n'en a que 33 %",
+     "Call : il te faut 30 % de bluffs",
+     "Raise pour le mettre en difficulté"
+    ],
+    "a": 1,
+    "why": "Call de 1,5 pour gagner 2,5 : il te faut 1,5 / 4 = 37,5 %. Ses bluffs : 7 / 21 = 33 %. Fold. Le même ratio face à 75 % pot (besoin 30 %) serait un call. Toujours compter ses combos de bluff contre sa value, en combos, avant de décider.",
+    "src": "Coaching HU 2026-06-24 00:17"
+   }
+  ]
+ },
+ {
+  "title": "Pilier 4 · Perception de notre range",
+  "qs": [
+   {
+    "stem": "Tu as A♥9♣ au BTN. Tu as check-back la turn. River K♦, le BB overbet 150 % pot. Quel pilier pousse le plus au call ?",
+    "line": "BTN vs BB, 100 bb · BTN open 2,5 · BB call · flop BB check, BTN cbet 33 %, BB call · turn check, check · river BB bet 150 %",
+    "board": [
+     "A♠",
+     "7♦",
+     "3♣",
+     "5♥",
+     "K♦"
+    ],
+    "opts": [
+     "P4 : ton check-back turn cappe ton range, il le sait et attaque",
+     "P2 : le K♦ fait peur",
+     "P3 : il ne peut pas value thin",
+     "P6 : ses bluffs partent dans un autre size"
+    ],
+    "a": 0,
+    "why": "Range perçu cappé ou faible = il est tenté de bluffer gros. Un overbet 150 % quand ton range paraît faible, sans envie d'être callé, est souvent un bluff : hero call. Si tu étais perçu strong (TP+), il bluffe moins.",
+    "src": "Coaching HU 2026-07-01 01:19 · Slides RTS Elite : Bluffcatch, P4"
+   },
+   {
+    "stem": "Cette semaine tu as hero call ce reg 3 fois sur de gros pots, il a vu tes cartes. Quel ajustement sur ses PROCHAINS gros bets ?",
+    "line": "",
+    "board": [],
+    "opts": [
+     "Il va bluffer plus pour se venger : call plus large",
+     "Rien ne change, les regs jouent la théorie",
+     "Snap-call toujours la même main pour rester cohérent",
+     "Il te voit caller : il bluffe moins les gros pots, fold plus tes catchers marginaux"
+    ],
+    "a": 3,
+    "why": "Un hero call perdu n'est pas une perte sèche : le vilain qui te voit caller cesse de bluffer les gros pots. Et ne snap-call pas toujours la même main : un adversaire attentif s'adapte après 3 ou 4 snap-calls.",
+    "src": "Coaching HU 2026-06-24 00:45"
+   }
+  ]
+ },
+ {
+  "title": "Pilier 5 · Risk / reward",
+  "qs": [
+   {
+    "stem": "River, le solver mixe ton combo call / fold à 50/50 (EV call ≈ EV fold). Pas de read sur le vilain. Que fais-tu ?",
+    "line": "",
+    "board": [],
+    "opts": [
+     "Call pur : un fold te rend exploitable",
+     "Raise pour équilibrer",
+     "Fold : trop folder ici coûte peu, call seulement avec une raison exploitante précise",
+     "Call : en cas de doute on paie"
+    ],
+    "a": 2,
+    "why": "Avec un bluffcatch d'EV théorique proche de zéro, trop folder coûte peu. On ne call que si l'on a une raison exploitante précise. Un bluffcatch mal maîtrisé fait perdre bien plus de winrate qu'il n'en rapporte.",
+    "src": "Alexis, Z077 2025-08-27 24:18"
+   },
+   {
+    "stem": "Tu as A♦9♠ au BB. Turn 2♠, le BTN overbet 125 % pot. Ses bluffs : tirages cœur, QT, KQ, T8, 87. Sa value : Jx, overpaires, sets. Décision ?",
+    "line": "BB vs BTN, 100 bb · BTN open 2,5 · BB call · flop BB check, BTN cbet 33 %, BB call · turn BB check, BTN bet 125 %",
+    "board": [
+     "J♥",
+     "9♥",
+     "4♣",
+     "2♠"
+    ],
+    "opts": [
+     "Fold dès la turn",
+     "Call turn, on décide river",
+     "Check-raise all-in",
+     "Call turn puis call toutes les rivers"
+    ],
+    "a": 0,
+    "why": "Quand la value domine et que ses bluffs ont beaucoup d'équité, on fold le bluffcatch dès la turn plutôt que de payer puis de catcher river. Ses bluffs s'améliorent souvent river, et toi tu paies 2 streets pour un catcher.",
+    "src": "Adrien, Z134 2025-10-17 26:03"
+   }
+  ]
+ },
+ {
+  "title": "Pilier 6 · Lignes alternatives",
+  "qs": [
+   {
+    "stem": "Tu es l'OR (BTN), uncapped. Board complet (flush et quinte possibles), tu as peu de bluffs naturels, ton range river est mergé (beaucoup de thin value). Tu mises small river, le BB relance. Ajustement ?",
+    "line": "BTN (OR) vs BB · River : BTN bet small (thin value), BB raise",
+    "board": [],
+    "opts": [
+     "Léger overcall : overbluff des SDV, sans overcall range",
+     "Overfold : un raise river est toujours de la value",
+     "Overcall range : il bluffe toujours ici",
+     "Fold tout sauf les nuts"
+    ],
+    "a": 0,
+    "why": "Overbluff des SDV : board complet, OR mergé avec beaucoup de thin value, sizes small, le défenseur a l'impression de se faire milk et transforme ses SDV en bluff. Léger overcall, pas overcall range. L'inverse (OR uncapped, board incomplet avec bluffs naturels, raise middle/big ou all-in non nuts) = underbluff des SDV : léger overfold. Règle d'or : tout reg peut bluffer tout spot, tout reg peut fuck call tout spot.",
+    "src": "Slides RTS Elite : Bluffcatch (2025), overbluffs et underbluffs des SDV"
+   },
+   {
+    "stem": "Ce reg n'utilise que 2 sizes river : 33 % et 125 %. Tes notes : ses bluffs river partent presque tous dans le 125 %, son 33 % = thin value + paires bloquantes. Il mise 33 %, tu as un catcher du bas de range. Décision ?",
+    "line": "River bet 33 %",
+    "board": [],
+    "opts": [
+     "Call : 33 % donne une super cote",
+     "Fold : ses bluffs partent dans l'autre size, défends plutôt large contre son 125 %",
+     "Raise : il est cappé",
+     "Call : il ne peut pas avoir de value avec un petit size"
+    ],
+    "a": 1,
+    "why": "P6 : cherche où partent ses bluffs et sa value dans les autres lines. Si ses bluffs partent ailleurs, ne catch pas. Contre un joueur qui sur-utilise un size, call à fond ses gros bets et ne call pas excessivement son petit size.",
+    "src": "Slides L'art du bluffcatch (2023), incohérence · Coaching HU 2026-09-02 00:50"
+   }
+  ]
+ },
+ {
+  "title": "Méthode",
+  "qs": [
+   {
+    "stem": "Tu passes les piliers en 30 sec : P2, P4 et P5 penchent call, et tu as de bons bloqueurs. Mais P1 : sur cette line, son range n'a quasi aucun bluff. Décision ?",
+    "line": "",
+    "board": [],
+    "opts": [
+     "Call : 3 piliers contre 1",
+     "Call : les bloqueurs compensent",
+     "Fold : P1 est éliminatoire, les bloqueurs ne remplacent pas l'absence de bluffs",
+     "Raise en bluff"
+    ],
+    "a": 2,
+    "why": "On pèse les piliers, on ne les compte pas. P1 est le pilier numéro un : sans bluffs dans son range, fold. Un seul pilier en red flag suffit à ne pas bluffcatcher : on l'écoute au lieu de le compenser. Les bloqueurs ne remplacent jamais l'absence de bluffs.",
+    "src": "Adrien, Z097 2025-09-16 · Adrien, Z090 2025-09-09 · Alexis, Z400 2026-05-07 22:31"
+   },
+   {
+    "stem": "Tu reviews tes bluffcatchs dans PT4. Quel filtre ?",
+    "line": "",
+    "board": [],
+    "opts": [
+     "Les hero calls gagnés",
+     "Les pots perdus de plus de 50 bb",
+     "Toutes les rivers callées sans les nuts, gagnées ET perdues",
+     "Les pots gagnés au showdown après un call river"
+    ],
+    "a": 2,
+    "why": "Reviewer ses bluffcatchs = regarder chaque call river sans les nuts, gagné ou perdu. Ne regarder que les pots gagnés (ou perdus) donne une image fausse de tes fréquences : on catch sans les nuts bien plus souvent qu'on ne le croit.",
+    "src": "Alexis, décision 2026-10-27 (filtre PT4 d'AD)"
+   }
+  ]
+ }
+];
+const L = "ABCD";
+const TOTAL = PARTS.reduce((n, p) => n + p.qs.length, 0);
+const KEY = "rts-bluffcatch-master-quiz-v1";
+let answers = {};
+try { answers = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { answers = {}; }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(answers)); } catch (e) {} };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function cardHTML(c) {
+  if (c === "?") return `<span class="pc sm q">?</span>`;
+  return `<span class="pc sm${/[♥♦]/.test(c) ? " r" : ""}">${c}</span>`;
+}
+
+// Options keep the PDF order (A to D), so "answer C" means the same thing on the page and in the PDF.
+function render() {
+  const root = document.getElementById("quiz");
+  root.innerHTML = "";
+  let n = 0;
+  PARTS.forEach(part => {
+    const h = document.createElement("div");
+    h.className = "part";
+    h.textContent = part.title;
+    root.appendChild(h);
+    part.qs.forEach(q => {
+      const id = n++;
+      const picked = answers[id];
+      const done = picked !== undefined;
+      const el = document.createElement("div");
+      el.className = "q";
+      el.innerHTML = `<div class="num">Question ${id + 1} / ${TOTAL}</div><p class="stem">${esc(q.stem)}</p>` +
+        (q.board.length ? `<div class="spot">Board ${q.board.map(cardHTML).join("")}</div>` : "") +
+        (q.line ? `<p class="line">${esc(q.line)}</p>` : "");
+      const opts = document.createElement("div");
+      opts.className = "opts";
+      q.opts.forEach((o, i) => {
+        const b = document.createElement("button");
+        b.className = "opt";
+        let mark = L[i];
+        if (done) {
+          b.disabled = true;
+          if (i === q.a) { b.classList.add("correct"); mark = "✓"; }
+          else if (i === picked) { b.classList.add("wrong"); mark = "✕"; }
+          else b.classList.add("dim");
+        }
+        b.innerHTML = `<span class="box">${mark}</span><span>${esc(o)}</span>`;
+        b.addEventListener("click", () => { answers[id] = i; save(); render(); });
+        opts.appendChild(b);
+      });
+      el.appendChild(opts);
+      if (done) {
+        const w = document.createElement("div");
+        w.className = "why";
+        w.innerHTML = `<b>${picked === q.a ? "Bien joué." : "Pas tout à fait."}</b> ${esc(q.why)}<span class="src">Source : ${esc(q.src)}</span>`;
+        el.appendChild(w);
+      }
+      root.appendChild(el);
+    });
+  });
+  updateScore();
+}
+
+function updateScore() {
+  let good = 0, bad = 0, i = 0;
+  PARTS.forEach(p => p.qs.forEach(q => {
+    if (answers[i] !== undefined) (answers[i] === q.a ? good++ : bad++);
+    i++;
+  }));
+  document.getElementById("score").textContent = `${good} / ${TOTAL}` + (good + bad < TOTAL ? ` · ${TOTAL - good - bad} restantes` : "");
+  document.getElementById("m-g").style.width = (good / TOTAL * 100) + "%";
+  document.getElementById("m-b").style.width = (bad / TOTAL * 100) + "%";
+  const fin = document.getElementById("final");
+  if (good + bad === TOTAL) {
+    fin.hidden = false;
+    const r = good / TOTAL;
+    const t = r >= .85 ? "Acquis." : r >= .6 ? "Presque." : "À revoir.";
+    const txt = r >= .85 ? "Les 6 piliers sont acquis. Le récap est débloqué : garde-le sous la main en session."
+      : r >= .6 ? "La base est là. Le récap est débloqué : relis-le sur les questions ratées avant la séance."
+      : "Le récap est débloqué : relis-le, puis refais le quiz avant la prochaine séance.";
+    document.getElementById("final-title").textContent = `${good} / ${TOTAL} · ${t}`;
+    document.getElementById("final-text").textContent = txt;
+  } else fin.hidden = true;
+  // The recap unlocks only once every question is answered.
+  const tab = document.getElementById("tab-recap");
+  tab.disabled = fin.hidden;
+  tab.textContent = tab.disabled ? "🔒 Récap" : "Récap";
+  if (tab.disabled && !document.getElementById("view-recap").hidden) show("quiz");
+}
+
+function show(view) {
+  if (view === "recap" && document.getElementById("tab-recap").disabled) view = "quiz";
+  document.getElementById("view-recap").hidden = view !== "recap";
+  document.getElementById("view-quiz").hidden = view !== "quiz";
+  document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.view === view));
+  window.scrollTo({ top: 0 });
+}
+document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => show(b.dataset.view)));
+document.getElementById("go-quiz").addEventListener("click", () => show("quiz"));
+document.getElementById("go-recap").addEventListener("click", () => show("recap"));
+document.getElementById("reset").addEventListener("click", () => { answers = {}; save(); render(); window.scrollTo({ top: 0 }); });
+render();
+</script>
+</body>
+</html>
