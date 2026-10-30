@@ -126,7 +126,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 0 40px; border-top
     <img class="logo" src="logo-dark.svg" alt="RTS">
     <div class="eyebrow">Team Master · Bluffcatch</div>
     <h1>Les piliers du <em>bluffcatch</em></h1>
-    <p class="lede">17 questions : les 6 piliers, le spot K73 et ses variations. Clique sur ta réponse, l'explication s'affiche. Le récap se débloque une fois le quiz terminé.</p>
+    <p class="lede">16 questions : les 6 piliers, le spot K73 et ses variations. Clique sur ta réponse, l'explication s'affiche. Le récap se débloque une fois le quiz terminé.</p>
     <div class="cards-deco" aria-hidden="true">
       <span class="pc">K♠</span><span class="pc r">9♥</span><span class="pc">4♣</span><span class="pc">7♠</span><span class="pc r">2♦</span>
     </div>
@@ -149,11 +149,11 @@ footer { color: var(--muted); font-size: 13px; padding-block: 0 40px; border-top
       <div>
         <h3>Une carte qui fait peur sans rien lui donner</h3>
         <ul>
-          <li>Il 3-bet ses 54s : la turn 6 ne lui donne aucune quinte. Elle fait peur (P2), ses gutshots 65s / 64s touchent une paire et continuent.</li>
+          <li>Il 3-bet surtout ses 65s et 54s et n'a pas les off : la turn 6 ne lui donne quasi aucune quinte. Elle fait peur (P2), ses gutshots (64s surtout) touchent une paire et continuent.</li>
           <li>River 9 : tout rate, sa paire de 6 ne gagne quasi jamais. Il ne la give up pas, il la transfo. <b>Call.</b></li>
-          <li>River 4 : ses gutshots deviennent quinte et double paire. <b>Fold.</b></li>
-          <li>Il check-call ses gutshots au lieu de les x/r : ses bluffs partent dans une autre line (P6). <b>Fold.</b></li>
-          <li>Sur K75, la 6 complète 98o qu'il défend vs 2,3x : les combos off changent tout (P3). <b>Fold.</b></li>
+          <li>La turn qui lui donne le plus de quintes est la 5 (64s). Mais dans les trois cas, peu de quintes : tout part du préflop.</li>
+          <li>Ton catcher : celui qui ne bloque pas ses bluffs. K4 bloque 64s, KJ ne bloque rien.</li>
+          <li>Sur K75, la 6 complète bien plus de quintes (98 suited et off, 43s, 84s). <b>Plus sélectif sur tes catchers</b>, et la grosse décision se prend à la turn.</li>
         </ul>
       </div>
     </div>
@@ -176,7 +176,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 0 40px; border-top
 
   <section id="view-quiz">
     <div class="scorebar">
-      <span class="score" id="score">0 / 17</span>
+      <span class="score" id="score">0 / 16</span>
       <div class="meter" aria-hidden="true"><i class="g" id="m-g" style="width:0%"></i><i class="b" id="m-b" style="width:0%"></i></div>
       <button class="reset" id="reset">Recommencer</button>
     </div>
@@ -272,7 +272,7 @@ const PARTS = [
   "title": "Partie 2 · Le spot K73",
   "qs": [
    {
-    "stem": "Tu as K♥J♣ au BTN. Préflop, le BB 3-bet toujours ses 54s : jamais en call. River 9♠, il jam. Décision ?",
+    "stem": "Tu as K♥J♣ au BTN. Préflop, le BB 3-bet surtout ses 65s et 54s, et il n'a pas les off. River 9♠, il jam. Décision ?",
     "line": "BTN vs BB, 100 bb · BTN open 2,3 · BB call · flop BB check, BTN cbet 1,7 bb, BB x/r 8 bb, BTN call · turn BB bet 16 bb (75 %), BTN call · river BB jam 73,7 bb",
     "board": [
      "K♠",
@@ -282,18 +282,17 @@ const PARTS = [
      "9♠"
     ],
     "opts": [
-     "Fold : on aura de meilleurs catchers",
-     "Fold pur : la pression est trop grande, il a beaucoup de value, et ses bluffs ont touché des paires qu'il va give up",
+     "Fold : il a beaucoup de value, et ses bluffs ont touché des paires qu'il va give up",
      "Call : il n'a pas tant de value que ça et il a beaucoup de bluffs potentiels",
-     "Mix 50/50 : le spot est neutre"
+     "Call randomisé : on mixe call et fold"
     ],
-    "a": 2,
-    "why": "La clé : pas de 54s dans son range (il les 3-bet), donc la 6 ne lui donne AUCUNE quinte. Elle fait peur (P2) sans rien lui apporter. Son x/r flop contient ses gutshots 65s et 64s : à la turn ils touchent une paire de 6 + gutshot et continuent. River 9 : tout rate. Sa paire de 6 ne gagne quasi jamais contre ta range qui a payé x/r et turn : il ne la give up pas, il la transfo. Sa value : sets 77 et 33, K7, K3, 73s. P1 + call. Jam 73,7 bb dans 53,1 bb : il te faut environ 37 %.",
+    "a": 1,
+    "why": "La clé : pas de 54s dans son range (il les 3-bet), donc la 6 ne lui donne quasi aucune quinte. Elle fait peur (P2) sans rien lui apporter. Ses gutshots du x/r (64s surtout, quelques 65s) touchent une paire de 6 + gutshot à la turn et continuent. River 9 : tout rate. Sa paire de 6 ne gagne quasi jamais contre ta range qui a payé x/r et turn : il ne la give up pas, il la transfo. Sa value : sets 77 et 33, K7, K3, 73s. P1 + call. Jam 73,7 bb dans 53,1 bb : il te faut environ 37 %.",
     "src": "Spot d'Alexis, coaching Master"
    },
    {
-    "stem": "Même spot : K♠7♦3♣, il x/r 8 bb, tu call avec K♥J♣. Quelle turn ajoute le MOINS de quintes à son range ?",
-    "line": "BTN vs BB, 100 bb · BB 3-bet ses 54s préflop · flop BB x/r 8 bb, BTN call · turn ?",
+    "stem": "Même spot : K♠7♦3♣, il x/r 8 bb, tu call avec K♥J♣. Il 3-bet surtout ses 65s et 54s préflop, et n'a pas les off. Quelle turn lui donne le PLUS de quintes ?",
+    "line": "BTN vs BB, 100 bb · BB 3-bet surtout 65s et 54s préflop, pas d'offsuit · flop BB x/r 8 bb, BTN call · turn ?",
     "board": [
      "K♠",
      "7♦",
@@ -304,51 +303,11 @@ const PARTS = [
      "4♥",
      "5♥",
      "6♥",
-     "Les trois se valent : chacune complète une quinte"
-    ],
-    "a": 2,
-    "why": "La 4 complète 65s, la 5 complète 64s : deux gutshots qu'il x/r au flop. La 6 ne complète que 54s, qu'il 3-bet préflop. La 6 a l'air de la pire carte, c'est la meilleure pour ton catch. La composition de son range (P1) part du préflop.",
-    "src": "Variation du spot d'Alexis"
-   },
-   {
-    "stem": "Même spot, même turn 6♥, mais la river est 4♠ et il jam. Décision avec K♥J♣ ?",
-    "line": "BTN vs BB, 100 bb · flop BB x/r 8 bb, BTN call · turn BB bet 16 bb, BTN call · river BB jam 73,7 bb",
-    "board": [
-     "K♠",
-     "7♦",
-     "3♣",
-     "6♥",
-     "4♠"
-    ],
-    "opts": [
-     "Fold : la 4 transforme ses gutshots en value (65s quinte, 64s double paire)",
-     "Call : mêmes bluffs qu'avec la 9",
-     "Call : la 4 est une brique",
-     "Call : il overbluffe toujours la river"
-    ],
-    "a": 0,
-    "why": "Avec la 9, ses 65s et 64s ratent et deviennent ses bluffs. Avec la 4, 65s fait la quinte, 64s la double paire, 85s aussi la quinte. Ses principaux bluffs passent en value : son ratio bluff / value s'écroule. Même line, river différente, conclusion inverse.",
-    "src": "Variation du spot d'Alexis"
-   },
-   {
-    "stem": "Même spot, river 9♠, il jam. Mais ce reg ne x/r JAMAIS ses gutshots sur ce flop : il les check-call. Son x/r = sets, K7, K3, 73s, quelques Kx. Décision avec K♥J♣ ?",
-    "line": "BTN vs BB, 100 bb · flop BB x/r 8 bb, BTN call · turn BB bet 16 bb, BTN call · river BB jam 73,7 bb",
-    "board": [
-     "K♠",
-     "7♦",
-     "3♣",
-     "6♥",
-     "9♠"
-    ],
-    "opts": [
-     "Call : la line est la même",
-     "Fold : ses bluffs partent dans une autre line (check-call flop), il n'arrive ici qu'avec de la value",
-     "Call : la 6 lui fait toujours peur",
-     "Call : tu bloques ses Kx"
+     "Les trois se valent exactement"
     ],
     "a": 1,
-    "why": "P6 : ses gutshots partent dans une autre line (check-call), son x/r est vidé de ses bluffs. Donc P1 : il n'arrive plus avec des bluffs. Même board, même line, mais un adversaire qui construit son range autrement : fold.",
-    "src": "Variation du spot d'Alexis · Slides RTS Elite : Bluffcatch, P6"
+    "why": "La 5 fait rentrer 64s, qu'il flat et x/r au flop. La 4 ne complète que 65s et la 6 que 54s : il les 3-bet surtout préflop. Et pas d'offsuit dans son range de flat, donc dans les trois cas il a peu de quintes. Ce qui compte : ses combos de quinte partent du préflop (P1).",
+    "src": "Variation du spot d'Alexis"
    },
    {
     "stem": "Même spot avec la river 9♠ et le jam. Tu as décidé de défendre tes Kx. Lequel est le PIRE catcher ?",
@@ -364,10 +323,10 @@ const PARTS = [
      "K♥Q♣",
      "K♥J♣",
      "K♣T♣",
-     "K♦5♦"
+     "K♦4♦"
     ],
     "a": 3,
-    "why": "Ses meilleurs bluffs sont 65s et 64s. K♦5♦ enlève 6♦5♦ : 1 de ses 3 combos de 65s. Moins de bluffs dans son range (P1). KQ, KJ et KT ne bloquent rien de ses bluffs. Une fois que les piliers disent call, choisis tes catchers par ce qu'ils bloquent.",
+    "why": "Son principal bluff est 64s (il 3-bet surtout 65s et 54s). K♦4♦ enlève 6♦4♦ : 1 de ses 3 combos de 64s. Moins de bluffs dans son range (P1). KQ, KJ et KT ne bloquent rien de ses bluffs. Une fois que les piliers disent call, choisis tes catchers par ce qu'ils bloquent.",
     "src": "Variation du spot d'Alexis"
    }
   ]
@@ -376,7 +335,7 @@ const PARTS = [
   "title": "Partie 3 · Autres boards",
   "qs": [
    {
-    "stem": "Même line, autre board. Le BB défend 98o en call vs open 2,3x. Tu as K♥J♣. River 2♠, il jam. Décision ?",
+    "stem": "Même line, autre board. Tu as K♥J♣. River 2♠, il jam. Décision ?",
     "line": "BTN vs BB, 100 bb · BTN open 2,3 · BB call · flop BB check, BTN cbet 1,7 bb, BB x/r 8 bb, BTN call · turn BB bet 16 bb (75 %), BTN call · river BB jam 73,7 bb",
     "board": [
      "K♠",
@@ -386,34 +345,13 @@ const PARTS = [
      "2♠"
     ],
     "opts": [
-     "Fold : la 6 complète 98 (suited ET off), 43s et 84s : sa value explose",
+     "Fold : sa value explose, il n'a plus de bluffs",
      "Call : même spot que K73, mêmes bluffs",
-     "Call : la 6 fait peur, il bluffe",
-     "Call : une river brique ne change rien"
+     "Call mixé, et beaucoup plus sélectif sur tes catchers"
     ],
-    "a": 0,
-    "why": "Ici la 6 complète des combos qu'il a vraiment : 98o (12 combos off qu'il défend vs 2,3x), 98s, 43s, 84s. Plus les doubles paires 76 et 65. Ses gutshots du flop sont devenus de la value. Même line, même turn qu'à K73, conclusion inverse : tout se joue dans la composition de son range (P1) et ses combos off (P3). Sur un open plus gros, il défend moins d'offsuit : vérifie ses ranges.",
+    "a": 2,
+    "why": "Ici la 6 complète beaucoup plus de quintes : 98 (suited ET off), 43s, 84s, plus les doubles paires 76 et 65. Il peut encore bluffer, donc pas forcément fold 100 %, mais on devient beaucoup plus précautionneux et sélectif sur les catchers. La vraie grosse décision se prend à la turn. Même line qu'à K73, mais la composition de son range (P1) et ses combos off (P3) changent tout.",
     "src": "Variation du spot d'Alexis"
-   },
-   {
-    "stem": "Tu es BB avec K♦9♦. Read : ce reg cbet range ce flop et ne value bet jamais river plus thin que deux paires. Il mise 16 bb river. Quels piliers penchent call ?",
-    "line": "BB vs BTN, 100 bb · BTN open 2,3 · BB call · flop BB check, BTN cbet 1,7 bb (range), BB call · turn BB check, BTN bet 6,4 bb (75 %), BB call · river BB check, BTN bet 16 bb (75 %)",
-    "board": [
-     "K♠",
-     "7♦",
-     "2♣",
-     "A♥",
-     "4♠"
-    ],
-    "opts": [
-     "Aucun : un triple barrel de reg, c'est de la value",
-     "P1, P2 et P3 : il cbet range (beaucoup d'air), l'As lui donne de la FE, il ne value pas thin sous la double paire",
-     "Seulement P4 : ton range est perçu faible",
-     "P6 : ses bluffs partent dans un autre size"
-    ],
-    "a": 1,
-    "why": "P1 : cbet range = il arrive avec beaucoup d'air. P2 : l'As fait peur à tes Kx, il pense avoir de la FE. P3 : AQ, AJ checkent river, sa value commence à deux paires : range value restreinte. À 75 % pot, il te faut 30 %.",
-    "src": "Slides RTS Elite : Bluffcatch, P1 à P3"
    }
   ]
  },
@@ -421,7 +359,7 @@ const PARTS = [
   "title": "Partie 4 · Peser et décider",
   "qs": [
    {
-    "stem": "Tu passes les piliers en 30 sec : P2, P4 et P5 penchent call. Mais P1 : sur cette line, son range n'a quasi aucun bluff. Décision ?",
+    "stem": "Tu passes les piliers en 30 sec : P2 (scaritude du runout), P4 (perception de notre range) et P5 (risk / reward) penchent call. Mais P1 (composition de son range) : sur cette line, il n'a quasi aucun bluff. Décision ?",
     "line": "",
     "board": [],
     "opts": [
@@ -446,6 +384,34 @@ const PARTS = [
     ],
     "a": 3,
     "why": "Notre R/R : call de 1,5 pour gagner 2,5, il te faut 1,5 / 4 = 37,5 %. Ses bluffs : 7 / 21 = 33 %. Fold. Le même ratio face à 75 % pot (il te faut 30 %) serait un call.",
+    "src": "Slides RTS Elite : Bluffcatch, P5"
+   },
+   {
+    "stem": "River, il mise 50 % pot. Après bloqueurs, tu comptes 16 combos de value et 4 combos de bluff. Décision ?",
+    "line": "River bet 50 % pot",
+    "board": [],
+    "opts": [
+     "Call : il te faut 33 % de bluffs, 4 combos suffisent",
+     "Fold : il te faut 25 % de bluffs, il n'en a que 20 %",
+     "Call : petit size, toujours call",
+     "Call : il te faut 20 %"
+    ],
+    "a": 1,
+    "why": "Call de 0,5 pour gagner 1,5 : il te faut 0,5 / 2 = 25 %. Ses bluffs : 4 / 20 = 20 %. Fold. Formule : bluffs nécessaires = size / (pot + 2 × size).",
+    "src": "Slides RTS Elite : Bluffcatch, P5"
+   },
+   {
+    "stem": "River, il overbet 2x pot. Après bloqueurs, tu comptes 12 combos de value et 9 combos de bluff. Décision ?",
+    "line": "River overbet 200 % pot",
+    "board": [],
+    "opts": [
+     "Fold : il te faut 50 % de bluffs",
+     "Fold : un overbet 2x, c'est toujours de la value",
+     "Call : il te faut 40 % de bluffs, il en a 43 %",
+     "Fold : il te faut 67 % de bluffs"
+    ],
+    "a": 2,
+    "why": "Call de 2 pour gagner 3 : il te faut 2 / 5 = 40 %. Ses bluffs : 9 / 21 = 43 %. Call, de peu. Plus le size grossit, plus il lui faut de bluffs : 33 % pot = 20 %, 50 % = 25 %, 75 % = 30 %, pot = 33 %, 150 % = 37,5 %, 2x = 40 %.",
     "src": "Slides RTS Elite : Bluffcatch, P5"
    },
    {
@@ -495,7 +461,7 @@ const PARTS = [
 ];
 const L = "ABCD";
 const TOTAL = PARTS.reduce((n, p) => n + p.qs.length, 0);
-const KEY = "rts-bluffcatch-master-quiz-v3";
+const KEY = "rts-bluffcatch-master-quiz-v4";
 let answers = {};
 try { answers = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { answers = {}; }
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(answers)); } catch (e) {} };
