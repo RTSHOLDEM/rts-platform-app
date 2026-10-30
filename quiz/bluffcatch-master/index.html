@@ -97,6 +97,15 @@ h2 { font-family: var(--head); font-weight: 800; text-transform: uppercase; font
 .final p { margin: 0; color: var(--soft-ink); }
 footer { color: var(--muted); font-size: 13px; padding-block: 0 40px; border-top: 1px solid var(--line); padding-top: 20px; }
 
+.pillars { border: 1px solid var(--line); border-radius: 16px; padding: 22px 20px 8px; margin-bottom: 34px; background: var(--surface-2); }
+.pillars h2 { font-size: clamp(24px, 4.4vw, 32px); margin-bottom: 4px; }
+.pillars .sub { margin-bottom: 14px; font-size: 14.5px; }
+.pil { display: grid; grid-template-columns: 40px 1fr; gap: 12px; padding-block: 12px; border-top: 1px solid var(--line); }
+.pil .n { font: 700 15px/1.4 var(--body); color: var(--red); }
+.pil b { display: block; font-weight: 600; }
+.pil span { color: var(--soft-ink); font-size: 15px; }
+.method { margin: 6px 0 14px; padding: 12px 14px; border-left: 2px solid var(--red); background: var(--surface); border-radius: 0 10px 10px 0; font-size: 15px; color: var(--soft-ink); }
+
 @media (max-width: 560px) { .session { grid-template-columns: 1fr; gap: 6px; } }
 @media (prefers-reduced-motion: no-preference) { .opt { transition: border-color .15s, background .15s; } .meter i { transition: width .25s; } }
 </style>
@@ -108,7 +117,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 0 40px; border-top
     <img class="logo" src="logo-dark.svg" alt="RTS">
     <div class="eyebrow">Team Master · Bluffcatch</div>
     <h1>Les piliers du <em>bluffcatch</em></h1>
-    <p class="lede">14 spots : 2 par pilier et 2 sur la méthode. Clique sur ta réponse, l'explication s'affiche. Le récap se débloque une fois le quiz terminé.</p>
+    <p class="lede">18 questions : les 6 piliers, ton spot K73 et ses variations. Clique sur ta réponse, l'explication s'affiche. Le récap se débloque une fois le quiz terminé.</p>
     <div class="cards-deco" aria-hidden="true">
       <span class="pc">K♠</span><span class="pc r">9♥</span><span class="pc">4♣</span><span class="pc">7♠</span><span class="pc r">2♦</span>
     </div>
@@ -120,55 +129,45 @@ footer { color: var(--muted); font-size: 13px; padding-block: 0 40px; border-top
 </header>
 
 <main class="wrap">
+  <section class="pillars" aria-label="Les 6 piliers"><h2>Les 6 <em>piliers</em></h2><p class='sub'>Slides RTS Elite : Bluffcatch. Garde-les sous les yeux pendant le quiz.</p><div class='pil'><div class='n'>P1</div><div><b>Composition du range adverse</b><span>Est-ce qu&#x27;il arrive avec beaucoup de bluffs ? Cbet range ?</span></div></div><div class='pil'><div class='n'>P2</div><div><b>Scaritude de la carte / du runout</b><span>La carte « qui fait peur » laisse villain penser qu&#x27;il aura de la FE.</span></div></div><div class='pil'><div class='n'>P3</div><div><b>Ratio bluff / value</b><span>Incapacité à value thin sur les runouts qui font peur : range value restreinte, proportion de bluffs trop importante. Ou mauvaise considération du ratio : incohérence de line, présence de combos off.</span></div></div><div class='pil'><div class='n'>P4</div><div><b>Perception de notre range</b><span>Range perçu assez wide, faible ? Ou au contraire perçu strong (TP+) ?</span></div></div><div class='pil'><div class='n'>P5</div><div><b>Risk / reward</b><span>Quel est notre R/R ? Quel risque prend-il à bluff / overbluff ce spot ? Son idée de la perception qu&#x27;on a de son range, présence ou non de draws naturels. Se dit-il que son range paraît strong ? Qu&#x27;il ne représente rien ?</span></div></div><div class='pil'><div class='n'>P6</div><div><b>Lines alternatives</b><span>Existe-t-il d&#x27;autres lines dans lesquelles il peut envoyer ses values ou ses bluffs ? Dilution des jeux strongs, bluffs partis dans d&#x27;autres sizes.</span></div></div><div class='method'><b>Méthode :</b> Partir à la recherche des déséquilibres. P1 à P6 : déséquilibre ? oui / non (neutre). Si oui : + call ou + fold. Puis opposer ces déséquilibres, et tout au long de l&#x27;analyse prendre du recul : à quel point P1 est plus important que P2 ? En 30 secondes, en jeu.</div></section>
+
   <section id="view-recap" hidden>
-    <h2>Les 6 <em>piliers</em></h2>
-    <p class="sub">Une idée centrale : on part à la recherche des déséquilibres. Chaque pilier penche call, fold, ou reste neutre. Puis on les oppose et on les pèse.</p>
+    <h2>Ce qu'il faut <em>retenir</em></h2>
+    <p class="sub">Même line, même turn, conclusion inverse : tout part de la composition de son range, et elle commence au préflop.</p>
 
     <div class="session">
-      <div class="date">PILIERS 1 À 3</div>
+      <div class="date">LE SPOT K73</div>
       <div>
-        <h3>Ce qu'il a, ce que la carte change</h3>
+        <h3>Une carte qui fait peur sans rien lui donner</h3>
         <ul>
-          <li><b>P1 Composition du range adverse</b> : y a-t-il des bluffs dans son range sur cette line ? (cbet range, x/r non fréquencés). C'est le pilier numéro un : sans bluffs, fold.</li>
-          <li><b>P2 Carte ou runout qui fait peur</b> : il pense avoir de la fold equity, donc il bluffe plus. Board qui se paire = très bonne carte de catch. Flush ou quinte qui rentre = la pire.</li>
-          <li><b>P3 Ratio bluff / value</b> : incapable de value thin sur les runouts qui font peur = value restreinte, trop de bluffs. Compte en combos. Reg : 25 à 75 % pot underbluffé, au-dessus du pot overbluffé. Récréatif : l'inverse.</li>
+          <li>Il 3-bet ses 54s : la turn 6 ne lui donne aucune quinte. Elle fait peur (P2), ses gutshots 65s / 64s touchent une paire et continuent.</li>
+          <li>River 9 : tout rate, sa paire de 6 ne gagne quasi jamais. Il ne la give up pas, il la transfo. <b>Call.</b></li>
+          <li>River 4 : ses gutshots deviennent quinte et double paire. <b>Fold.</b></li>
+          <li>Il check-call ses gutshots au lieu de les x/r : ses bluffs partent dans une autre line (P6). <b>Fold.</b></li>
+          <li>Sur K75, la 6 complète 98o qu'il défend vs 2,3x : les combos off changent tout (P3). <b>Fold.</b></li>
         </ul>
       </div>
     </div>
 
     <div class="session">
-      <div class="date">PILIERS 4 À 6</div>
+      <div class="date">PILIER 6</div>
       <div>
-        <h3>Ce qu'il croit, ce qu'il risque, où il bluffe</h3>
+        <h3>Overbluffs et underbluffs des SDV</h3>
         <ul>
-          <li><b>P4 Perception de notre range</b> : perçu wide, faible ou cappé, il bluffe. Perçu strong (TP+), il bluffe moins.</li>
-          <li><b>P5 Risk / reward</b> : notre R/R et le sien. Quel risque prend-il à bluffer ? Bluffs à grosse équité + value dominante = fold dès la turn. EV proche de zéro sans read = fold.</li>
-          <li><b>P6 Lignes alternatives</b> : où partent ses bluffs et sa value dans les autres sizes ? Si ses bluffs partent ailleurs, ne catch pas. Bonus : draws naturels, nutsbusto, les nuts partent ailleurs.</li>
+          <li>Underbluff : OR uncapped, board pas complet (bluffs naturels), relance middle/big ou all-in non nuts. Regs CS, blueliners, ou qui nous savent aggro. <b>Léger overfold.</b></li>
+          <li>Overbluff : board complet, OR mergé avec beaucoup de thin value, sizes small, il se sent milk. Regs aggro, et en 400+ tout type de reg. <b>Léger overcall.</b></li>
+          <li>Tout reg peut bluffer tout spot. Tout reg peut fuck call tout spot. Considérer sans être extrémiste.</li>
         </ul>
       </div>
     </div>
 
-    <div class="session">
-      <div class="date">MÉTHODE</div>
-      <div>
-        <h3>En 30 secondes, en jeu</h3>
-        <ul>
-          <li>P1 à P6 : déséquilibre oui ou non. Si oui, <b>+ call</b> ou <b>+ fold</b>. Puis on oppose et on pèse : on ne compte pas les piliers.</li>
-          <li>Un seul red flag suffit à ne pas catcher. Les bloqueurs ne remplacent jamais l'absence de bluffs.</li>
-          <li>Overbluff des SDV (board complet, OR mergé, sizes small) : léger overcall. Underbluff des SDV (board incomplet, OR uncapped, raise middle/big) : léger overfold. Jamais extrémiste.</li>
-          <li>Règle d'or : tout reg peut bluffer tout spot, tout reg peut fuck call tout spot.</li>
-          <li>Review : toutes tes rivers callées sans les nuts, gagnées ET perdues.</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="next"><b>Entraînement :</b> applique les piliers vite sur solver, puis en 30 secondes en jeu. Suppose d'abord, vérifie ensuite.</div>
+    <div class="next"><b>Entraînement :</b> applique les piliers vite sur solver, puis en 30 secondes en jeu.</div>
     <button class="start-btn" id="go-quiz">Revoir mes réponses</button>
   </section>
 
   <section id="view-quiz">
     <div class="scorebar">
-      <span class="score" id="score">0 / 14</span>
+      <span class="score" id="score">0 / 18</span>
       <div class="meter" aria-hidden="true"><i class="g" id="m-g" style="width:0%"></i><i class="b" id="m-b" style="width:0%"></i></div>
       <button class="reset" id="reset">Recommencer</button>
     </div>
@@ -181,104 +180,264 @@ footer { color: var(--muted); font-size: 13px; padding-block: 0 40px; border-top
   </section>
 </main>
 
-<footer class="wrap">Basé sur les slides « RTS Elite : Bluffcatch » et « L'art du bluffcatch », et les coachings RTS. NL1000 6max, 100 bb sauf mention.</footer>
+<footer class="wrap">Basé sur les slides « RTS Elite : Bluffcatch » d'Alexis et ses spots de coaching. NL1000 6max, 100 bb sauf mention.</footer>
 
 <script>
 const PARTS = [
  {
-  "title": "Pilier 1 · Composition du range adverse",
+  "title": "Partie 1 · Les piliers",
   "qs": [
    {
-    "stem": "Le pilier 1 (composition du range adverse) pose UNE seule question. Laquelle ?",
+    "stem": "Le pilier 1 (composition du range adverse) pose UNE question. Laquelle ?",
     "line": "",
     "board": [],
     "opts": [
      "Va-t-il réellement jouer ses bluffs dans cette line ?",
-     "Y a-t-il des bluffs dans son range sur cette line ?",
+     "Est-ce qu'il arrive ici avec beaucoup de bluffs ?",
      "Combien de value thin est-il capable de miser ?",
      "Comment perçoit-il notre range ?"
     ],
     "a": 1,
-    "why": "P1 = existence de bluffs dans son range, rien d'autre. Savoir s'il les joue relève du risk/reward (P5) et des lignes alternatives (P6). Et c'est le pilier numéro 1 : sans bluffs dans son range, inutile d'aller plus loin, fold.",
-    "src": "Alexis, Z077 2025-08-27 24:18 · Adrien, Z097 2025-09-16"
+    "why": "P1 = est-ce qu'il arrive avec beaucoup de bluffs (cbet range, x/r larges...). S'il les joue vraiment, c'est le risk/reward (P5) et les lines alternatives (P6). Sa value thin, c'est P3. Notre range perçu, c'est P4.",
+    "src": "Slides RTS Elite : Bluffcatch, rappel des piliers"
    },
    {
-    "stem": "Tu as A♣T♣. Read : ce reg check-raise ce flop environ 2 fois plus que la théorie, avec beaucoup d'offsuit sans tirage (overcards, backdoors), puis il barrel la turn quasi range. River K♦, il mise 33 bb. Décision et raison principale ?",
-    "line": "CO vs BB, 100 bb · CO open 2,5 · BB call · flop CO cbet 1,8 bb, BB x/r 6 bb, CO call · turn BB bet 13 bb (75 %), CO call · river BB bet 33 bb (75 %)",
-    "board": [
-     "T♦",
-     "8♠",
-     "3♣",
-     "2♥",
-     "K♦"
-    ],
+    "stem": "Lequel de ces éléments n'est PAS un des 6 piliers ?",
+    "line": "",
+    "board": [],
     "opts": [
-     "Fold : x/r flop + 2 barrels d'un reg, c'est de la value",
-     "Fold : le K♦ renforce son range de value",
-     "Call : ses x/r non fréquencés (trop d'offsuit + backdoors) remplissent son range de bluffs",
-     "Raise all-in pour la value"
+     "La scaritude de la carte ou du runout",
+     "La perception de notre range",
+     "Les bloqueurs de notre main",
+     "Les lines alternatives"
     ],
     "a": 2,
-    "why": "Le poids des x/r non fréquencés (slides L'art du bluffcatch) : x/r avec trop d'offsuit + BDFD + random, puis bet range turn = range qui arrive river avec trop de bluffs (P1). Le K est en plus une carte qui fait peur (P2). R/R : à 75 % pot tu dois avoir raison 30 % du temps seulement.",
-    "src": "Slides L'art du bluffcatch (2023), le poids des x/r non fréquencés"
+    "why": "Les 6 piliers : composition du range adverse, scaritude du runout, ratio bluff / value, perception de notre range, risk / reward, lines alternatives. Les bloqueurs servent à choisir quel catcher payer, une fois que les piliers ont dit call.",
+    "src": "Slides RTS Elite : Bluffcatch, rappel des piliers"
+   },
+   {
+    "stem": "Le pilier 3 (ratio bluff / value) penche + call quand :",
+    "line": "",
+    "board": [],
+    "opts": [
+     "Il ne sait pas value thin sur les runouts qui font peur, ou sa line est incohérente : trop de bluffs pour sa value",
+     "Il a beaucoup de tirages au flop",
+     "Tu as un bon bloqueur de ses nuts",
+     "Il mise petit à la river"
+    ],
+    "a": 0,
+    "why": "P3 : incapacité à value thin sur les runouts qui font peur = range value restreinte, donc proportion de bluffs trop importante. Ou mauvaise considération du ratio : incohérence de line, présence de combos off (= il ne voit pas ce déséquilibre).",
+    "src": "Slides RTS Elite : Bluffcatch, P3"
+   },
+   {
+    "stem": "Le pilier 4 (perception de notre range) penche + call quand notre range est perçu :",
+    "line": "",
+    "board": [],
+    "opts": [
+     "Strong (TP+)",
+     "Polarisé nuts ou air",
+     "Ça ne change rien, seul son range compte",
+     "Assez wide, faible ou cappé"
+    ],
+    "a": 3,
+    "why": "Range perçu wide, faible ou cappé : il pense avoir de la FE, il bluffe plus. Range perçu strong (TP+) : il bluffe moins, P4 penche fold.",
+    "src": "Slides RTS Elite : Bluffcatch, P4"
+   },
+   {
+    "stem": "Le pilier 5 (risk / reward) : quelle question n'en fait PAS partie ?",
+    "line": "",
+    "board": [],
+    "opts": [
+     "Quel risque prend-il à bluff / overbluff ce spot ?",
+     "Quel est le kicker de ma main ?",
+     "Se dit-il que son range paraît strong, ou qu'il ne représente rien ?",
+     "Y a-t-il des draws naturels ?"
+    ],
+    "a": 1,
+    "why": "P5 : notre R/R, le risque qu'il prend à bluffer, son idée de la perception qu'on a de son range, la présence ou non de draws naturels, se dit-il que son range paraît strong ou qu'il ne représente rien. Le kicker n'est pas un pilier.",
+    "src": "Slides RTS Elite : Bluffcatch, P5"
+   },
+   {
+    "stem": "Le pilier 6 (lines alternatives) te demande :",
+    "line": "",
+    "board": [],
+    "opts": [
+     "Quelle line aurais-tu dû jouer à la turn ?",
+     "Combien de fois t'a-t-il déjà bluffé ?",
+     "Quel size utilises-tu d'habitude ici ?",
+     "Existe-t-il d'autres lines ou sizes où il envoie ses values ou ses bluffs ?"
+    ],
+    "a": 3,
+    "why": "P6 : si ses jeux strongs ou ses bluffs partent dans d'autres lines (autre size, check-call au lieu de x/r...), la line qu'il joue s'en trouve diluée ou vidée. C'est de là que vient le concept des overbluffs / underbluffs des SDV.",
+    "src": "Slides RTS Elite : Bluffcatch, P6"
    }
   ]
  },
  {
-  "title": "Pilier 2 · Carte ou runout qui fait peur",
+  "title": "Partie 2 · Le spot K73",
   "qs": [
    {
-    "stem": "Tu es BB avec Q♦8♦ et tu as callé flop et turn. Quelle river est la PIRE pour ton bluffcatch ?",
-    "line": "BB vs BTN, 100 bb · BTN open 2,5 · BB call · flop BTN cbet 33 %, BB call · turn BTN bet 75 %, BB call · river BTN bet 75 %",
+    "stem": "Tu as K♥J♣ au BTN. Préflop, le BB 3-bet toujours ses 54s : jamais en call. River 9♠, il jam. Décision ?",
+    "line": "BTN vs BB, 100 bb · BTN open 2,3 · BB call · flop BB check, BTN cbet 1,7 bb, BB x/r 8 bb, BTN call · turn BB bet 16 bb (75 %), BTN call · river BB jam 73,7 bb",
     "board": [
-     "Q♥",
-     "9♥",
-     "4♣",
-     "6♠",
+     "K♠",
+     "7♦",
+     "3♣",
+     "6♥",
+     "9♠"
+    ],
+    "opts": [
+     "Fold : on aura de meilleurs catchers",
+     "Fold pur : la pression est trop grande, il a beaucoup de value, et ses bluffs ont touché des paires qu'il va give up",
+     "Call : il n'a pas tant de value que ça et il a beaucoup de bluffs potentiels",
+     "Mix 50/50 : le spot est neutre"
+    ],
+    "a": 2,
+    "why": "La clé : pas de 54s dans son range (il les 3-bet), donc la 6 ne lui donne AUCUNE quinte. Elle fait peur (P2) sans rien lui apporter. Son x/r flop contient ses gutshots 65s et 64s : à la turn ils touchent une paire de 6 + gutshot et continuent. River 9 : tout rate. Sa paire de 6 ne gagne quasi jamais contre ta range qui a payé x/r et turn : il ne la give up pas, il la transfo. Sa value : sets 77 et 33, K7, K3, 73s. P1 + call. Jam 73,7 bb dans 53,1 bb : il te faut environ 37 %.",
+    "src": "Spot d'Alexis, coaching Master"
+   },
+   {
+    "stem": "Même spot : K♠7♦3♣, il x/r 8 bb, tu call avec K♥J♣. Quelle turn ajoute le MOINS de quintes à son range ?",
+    "line": "BTN vs BB, 100 bb · BB 3-bet ses 54s préflop · flop BB x/r 8 bb, BTN call · turn ?",
+    "board": [
+     "K♠",
+     "7♦",
+     "3♣",
      "?"
     ],
     "opts": [
-     "4♦ (le board se paire)",
-     "2♠ (brique)",
-     "K♠ (overcard)",
-     "J♥ (flush + quintes KT, T8 complétées)"
+     "4♥",
+     "5♥",
+     "6♥",
+     "Les trois se valent : chacune complète une quinte"
     ],
-    "a": 3,
-    "why": "Les cartes qui complètent flush ou quinte sont les pires textures de bluffcatch : trop de value ajoutée, ses draws deviennent value et il lui reste peu de bluffs. À l'inverse, une river qui paire le board est une excellente carte de catch : peu de value ajoutée, la carte fait peur, donc il bluffe.",
-    "src": "Enzo, Z531 2026-08-20 09:25"
+    "a": 2,
+    "why": "La 4 complète 65s, la 5 complète 64s : deux gutshots qu'il x/r au flop. La 6 ne complète que 54s, qu'il 3-bet préflop. La 6 a l'air de la pire carte, c'est la meilleure pour ton catch. La composition de son range (P1) part du préflop.",
+    "src": "Variation du spot d'Alexis"
    },
    {
-    "stem": "Contre quel profil le pilier 2 (carte qui fait peur) doit-il peser LE PLUS dans ta décision ?",
-    "line": "",
-    "board": [],
+    "stem": "Même spot, même turn 6♥, mais la river est 4♠ et il jam. Décision avec K♥J♣ ?",
+    "line": "BTN vs BB, 100 bb · flop BB x/r 8 bb, BTN call · turn BB bet 16 bb, BTN call · river BB jam 73,7 bb",
+    "board": [
+     "K♠",
+     "7♦",
+     "3♣",
+     "6♥",
+     "4♠"
+    ],
     "opts": [
-     "Un reg solide NL1000",
-     "Un récréatif faible",
-     "Un reg blueliner",
-     "Un joueur très GTO, peu de tells"
+     "Fold : la 4 transforme ses gutshots en value (65s quinte, 64s double paire)",
+     "Call : mêmes bluffs qu'avec la 9",
+     "Call : la 4 est une brique",
+     "Call : il overbluffe toujours la river"
+    ],
+    "a": 0,
+    "why": "Avec la 9, ses 65s et 64s ratent et deviennent ses bluffs. Avec la 4, 65s fait la quinte, 64s la double paire, 85s aussi la quinte. Ses principaux bluffs passent en value : son ratio bluff / value s'écroule. Même line, river différente, conclusion inverse.",
+    "src": "Variation du spot d'Alexis"
+   },
+   {
+    "stem": "Même spot, river 9♠, il jam. Mais ce reg ne x/r JAMAIS ses gutshots sur ce flop : il les check-call. Son x/r = sets, K7, K3, 73s, quelques Kx. Décision avec K♥J♣ ?",
+    "line": "BTN vs BB, 100 bb · flop BB x/r 8 bb, BTN call · turn BB bet 16 bb, BTN call · river BB jam 73,7 bb",
+    "board": [
+     "K♠",
+     "7♦",
+     "3♣",
+     "6♥",
+     "9♠"
+    ],
+    "opts": [
+     "Call : la line est la même",
+     "Fold : ses bluffs partent dans une autre line (check-call flop), il n'arrive ici qu'avec de la value",
+     "Call : la 6 lui fait toujours peur",
+     "Call : tu bloques ses Kx"
     ],
     "a": 1,
-    "why": "Plus l'adversaire est faible, plus il bluffe la carte qui fait peur sans regarder les interactions de ranges : on pondère P2 plus fort. Un reg, lui, regarde si la carte est vraiment dans son range avant de la bluffer.",
-    "src": "Adrien, Z096 2025-09-16"
+    "why": "P6 : ses gutshots partent dans une autre line (check-call), son x/r est vidé de ses bluffs. Donc P1 : il n'arrive plus avec des bluffs. Même board, même line, mais un adversaire qui construit son range autrement : fold.",
+    "src": "Variation du spot d'Alexis · Slides RTS Elite : Bluffcatch, P6"
+   },
+   {
+    "stem": "Même spot avec la river 9♠ et le jam. Tu as décidé de défendre tes Kx. Lequel est le PIRE catcher ?",
+    "line": "BTN vs BB, 100 bb · river BB jam 73,7 bb",
+    "board": [
+     "K♠",
+     "7♦",
+     "3♣",
+     "6♥",
+     "9♠"
+    ],
+    "opts": [
+     "K♥Q♣",
+     "K♥J♣",
+     "K♣T♣",
+     "K♦5♦"
+    ],
+    "a": 3,
+    "why": "Ses meilleurs bluffs sont 65s et 64s. K♦5♦ enlève 6♦5♦ : 1 de ses 3 combos de 65s. Moins de bluffs dans son range (P1). KQ, KJ et KT ne bloquent rien de ses bluffs. Une fois que les piliers disent call, choisis tes catchers par ce qu'ils bloquent.",
+    "src": "Variation du spot d'Alexis"
    }
   ]
  },
  {
-  "title": "Pilier 3 · Ratio bluff / value",
+  "title": "Partie 3 · Autres boards",
   "qs": [
    {
-    "stem": "River, même spot, même bloc de catchers. Contre un REG, quel size est en moyenne le plus OVERbluffé ?",
+    "stem": "Même line, autre board. Le BB défend 98o en call vs open 2,3x. Tu as K♥J♣. River 2♠, il jam. Décision ?",
+    "line": "BTN vs BB, 100 bb · BTN open 2,3 · BB call · flop BB check, BTN cbet 1,7 bb, BB x/r 8 bb, BTN call · turn BB bet 16 bb (75 %), BTN call · river BB jam 73,7 bb",
+    "board": [
+     "K♠",
+     "7♦",
+     "5♣",
+     "6♥",
+     "2♠"
+    ],
+    "opts": [
+     "Fold : la 6 complète 98 (suited ET off), 43s et 84s : sa value explose",
+     "Call : même spot que K73, mêmes bluffs",
+     "Call : la 6 fait peur, il bluffe",
+     "Call : une river brique ne change rien"
+    ],
+    "a": 0,
+    "why": "Ici la 6 complète des combos qu'il a vraiment : 98o (12 combos off qu'il défend vs 2,3x), 98s, 43s, 84s. Plus les doubles paires 76 et 65. Ses gutshots du flop sont devenus de la value. Même line, même turn qu'à K73, conclusion inverse : tout se joue dans la composition de son range (P1) et ses combos off (P3). Sur un open plus gros, il défend moins d'offsuit : vérifie ses ranges.",
+    "src": "Variation du spot d'Alexis"
+   },
+   {
+    "stem": "Tu es BB avec K♦9♦. Read : ce reg cbet range ce flop et ne value bet jamais river plus thin que deux paires. Il mise 16 bb river. Quels piliers penchent call ?",
+    "line": "BB vs BTN, 100 bb · BTN open 2,3 · BB call · flop BB check, BTN cbet 1,7 bb (range), BB call · turn BB check, BTN bet 6,4 bb (75 %), BB call · river BB check, BTN bet 16 bb (75 %)",
+    "board": [
+     "K♠",
+     "7♦",
+     "2♣",
+     "A♥",
+     "4♠"
+    ],
+    "opts": [
+     "Aucun : un triple barrel de reg, c'est de la value",
+     "P1, P2 et P3 : il cbet range (beaucoup d'air), l'As lui donne de la FE, il ne value pas thin sous la double paire",
+     "Seulement P4 : ton range est perçu faible",
+     "P6 : ses bluffs partent dans un autre size"
+    ],
+    "a": 1,
+    "why": "P1 : cbet range = il arrive avec beaucoup d'air. P2 : l'As fait peur à tes Kx, il pense avoir de la FE. P3 : AQ, AJ checkent river, sa value commence à deux paires : range value restreinte. À 75 % pot, il te faut 30 %.",
+    "src": "Slides RTS Elite : Bluffcatch, P1 à P3"
+   }
+  ]
+ },
+ {
+  "title": "Partie 4 · Peser et décider",
+  "qs": [
+   {
+    "stem": "Tu passes les piliers en 30 sec : P2, P4 et P5 penchent call. Mais P1 : sur cette line, son range n'a quasi aucun bluff. Décision ?",
     "line": "",
     "board": [],
     "opts": [
-     "33 % pot",
-     "50 % pot",
-     "75 % pot",
-     "150 % pot"
+     "Call : 3 piliers contre 1",
+     "Call : tes bloqueurs compensent",
+     "Raise en bluff",
+     "Fold : on pèse les piliers, on ne les compte pas, et sans bluffs P1 écrase le reste"
     ],
     "a": 3,
-    "why": "Contre un reg, 25 à 75 % pot est underbluffé et au-dessus du pot est overbluffé. Contre un récréatif, c'est l'inverse : sous le pot overbluffé (66 à 75 % = le size le plus bluffé), au-dessus du pot underbluffé.",
-    "src": "Enzo, Z599 2026-10-08 07:00 · Enzo, Z131 2025-10-16 09:42"
+    "why": "On oppose les déséquilibres et on prend du recul : à quel point P1 est plus important que P2 ? S'il n'arrive pas avec des bluffs, les autres piliers n'ont rien à exploiter. Fold.",
+    "src": "Slides RTS Elite : Bluffcatch, méthode"
    },
    {
     "stem": "River, il mise 150 % pot. Après bloqueurs, tu comptes 14 combos de value et 7 combos de bluff. Décision ?",
@@ -286,98 +445,30 @@ const PARTS = [
     "board": [],
     "opts": [
      "Call : 7 bluffs, c'est assez",
-     "Fold : il te faut 37,5 % de bluffs, il n'en a que 33 %",
      "Call : il te faut 30 % de bluffs",
-     "Raise pour le mettre en difficulté"
-    ],
-    "a": 1,
-    "why": "Call de 1,5 pour gagner 2,5 : il te faut 1,5 / 4 = 37,5 %. Ses bluffs : 7 / 21 = 33 %. Fold. Le même ratio face à 75 % pot (besoin 30 %) serait un call. Toujours compter ses combos de bluff contre sa value, en combos, avant de décider.",
-    "src": "Coaching HU 2026-06-24 00:17"
-   }
-  ]
- },
- {
-  "title": "Pilier 4 · Perception de notre range",
-  "qs": [
-   {
-    "stem": "Tu as A♥9♣ au BTN. Tu as check-back la turn. River K♦, le BB overbet 150 % pot. Quel pilier pousse le plus au call ?",
-    "line": "BTN vs BB, 100 bb · BTN open 2,5 · BB call · flop BB check, BTN cbet 33 %, BB call · turn check, check · river BB bet 150 %",
-    "board": [
-     "A♠",
-     "7♦",
-     "3♣",
-     "5♥",
-     "K♦"
-    ],
-    "opts": [
-     "P4 : ton check-back turn cappe ton range, il le sait et attaque",
-     "P2 : le K♦ fait peur",
-     "P3 : il ne peut pas value thin",
-     "P6 : ses bluffs partent dans un autre size"
-    ],
-    "a": 0,
-    "why": "Range perçu cappé ou faible = il est tenté de bluffer gros. Un overbet 150 % quand ton range paraît faible, sans envie d'être callé, est souvent un bluff : hero call. Si tu étais perçu strong (TP+), il bluffe moins.",
-    "src": "Coaching HU 2026-07-01 01:19 · Slides RTS Elite : Bluffcatch, P4"
-   },
-   {
-    "stem": "Cette semaine tu as hero call ce reg 3 fois sur de gros pots, il a vu tes cartes. Quel ajustement sur ses PROCHAINS gros bets ?",
-    "line": "",
-    "board": [],
-    "opts": [
-     "Il va bluffer plus pour se venger : call plus large",
-     "Rien ne change, les regs jouent la théorie",
-     "Snap-call toujours la même main pour rester cohérent",
-     "Il te voit caller : il bluffe moins les gros pots, fold plus tes catchers marginaux"
+     "Raise pour le mettre en difficulté",
+     "Fold : il te faut 37,5 % de bluffs, il n'en a que 33 %"
     ],
     "a": 3,
-    "why": "Un hero call perdu n'est pas une perte sèche : le vilain qui te voit caller cesse de bluffer les gros pots. Et ne snap-call pas toujours la même main : un adversaire attentif s'adapte après 3 ou 4 snap-calls.",
-    "src": "Coaching HU 2026-06-24 00:45"
-   }
-  ]
- },
- {
-  "title": "Pilier 5 · Risk / reward",
-  "qs": [
+    "why": "Notre R/R : call de 1,5 pour gagner 2,5, il te faut 1,5 / 4 = 37,5 %. Ses bluffs : 7 / 21 = 33 %. Fold. Le même ratio face à 75 % pot (il te faut 30 %) serait un call.",
+    "src": "Slides RTS Elite : Bluffcatch, P5"
+   },
    {
-    "stem": "River, le solver mixe ton combo call / fold à 50/50 (EV call ≈ EV fold). Pas de read sur le vilain. Que fais-tu ?",
+    "stem": "River, le solver mixe ton combo call / fold à 50/50 (EV call ≈ EV fold). Pas de read. Que fais-tu ?",
     "line": "",
     "board": [],
     "opts": [
      "Call pur : un fold te rend exploitable",
+     "Fold : trop folder ici coûte peu, call seulement avec un déséquilibre précis",
      "Raise pour équilibrer",
-     "Fold : trop folder ici coûte peu, call seulement avec une raison exploitante précise",
      "Call : en cas de doute on paie"
     ],
-    "a": 2,
-    "why": "Avec un bluffcatch d'EV théorique proche de zéro, trop folder coûte peu. On ne call que si l'on a une raison exploitante précise. Un bluffcatch mal maîtrisé fait perdre bien plus de winrate qu'il n'en rapporte.",
-    "src": "Alexis, Z077 2025-08-27 24:18"
+    "a": 1,
+    "why": "Avec un bluffcatch d'EV théorique proche de zéro, trop folder coûte peu. Les piliers servent justement à trouver un déséquilibre : sans déséquilibre, pas de raison de payer.",
+    "src": "Alexis, coaching 2025-08-27"
    },
    {
-    "stem": "Tu as A♦9♠ au BB. Turn 2♠, le BTN overbet 125 % pot. Ses bluffs : tirages cœur, QT, KQ, T8, 87. Sa value : Jx, overpaires, sets. Décision ?",
-    "line": "BB vs BTN, 100 bb · BTN open 2,5 · BB call · flop BB check, BTN cbet 33 %, BB call · turn BB check, BTN bet 125 %",
-    "board": [
-     "J♥",
-     "9♥",
-     "4♣",
-     "2♠"
-    ],
-    "opts": [
-     "Fold dès la turn",
-     "Call turn, on décide river",
-     "Check-raise all-in",
-     "Call turn puis call toutes les rivers"
-    ],
-    "a": 0,
-    "why": "Quand la value domine et que ses bluffs ont beaucoup d'équité, on fold le bluffcatch dès la turn plutôt que de payer puis de catcher river. Ses bluffs s'améliorent souvent river, et toi tu paies 2 streets pour un catcher.",
-    "src": "Adrien, Z134 2025-10-17 26:03"
-   }
-  ]
- },
- {
-  "title": "Pilier 6 · Lignes alternatives",
-  "qs": [
-   {
-    "stem": "Tu es l'OR (BTN), uncapped. Board complet (flush et quinte possibles), tu as peu de bluffs naturels, ton range river est mergé (beaucoup de thin value). Tu mises small river, le BB relance. Ajustement ?",
+    "stem": "Tu es l'OR (BTN), uncapped. Board complet (flush et quinte possibles), peu de bluffs naturels, ton range river est mergé (beaucoup de thin value). Tu mises small, le BB relance. Ajustement ?",
     "line": "BTN (OR) vs BB · River : BTN bet small (thin value), BB raise",
     "board": [],
     "opts": [
@@ -387,8 +478,8 @@ const PARTS = [
      "Fold tout sauf les nuts"
     ],
     "a": 0,
-    "why": "Overbluff des SDV : board complet, OR mergé avec beaucoup de thin value, sizes small, le défenseur a l'impression de se faire milk et transforme ses SDV en bluff. Léger overcall, pas overcall range. L'inverse (OR uncapped, board incomplet avec bluffs naturels, raise middle/big ou all-in non nuts) = underbluff des SDV : léger overfold. Règle d'or : tout reg peut bluffer tout spot, tout reg peut fuck call tout spot.",
-    "src": "Slides RTS Elite : Bluffcatch (2025), overbluffs et underbluffs des SDV"
+    "why": "Overbluff des SDV : board complet, OR mergé avec beaucoup de thin value, size small, le défenseur a l'impression de se faire milk et transfo ses SDV. Léger overcall, pas overcall range. L'inverse (OR uncapped, board pas complet donc bluffs naturels, relance middle/big ou all-in non nuts) = underbluff des SDV : léger overfold. Tout reg peut bluffer tout spot, tout reg peut fuck call tout spot.",
+    "src": "Slides RTS Elite : Bluffcatch, overbluffs et underbluffs des SDV"
    },
    {
     "stem": "Ce reg n'utilise que 2 sizes river : 33 % et 125 %. Tes notes : ses bluffs river partent presque tous dans le 125 %, son 33 % = thin value + paires bloquantes. Il mise 33 %, tu as un catcher du bas de range. Décision ?",
@@ -396,53 +487,20 @@ const PARTS = [
     "board": [],
     "opts": [
      "Call : 33 % donne une super cote",
-     "Fold : ses bluffs partent dans l'autre size, défends plutôt large contre son 125 %",
      "Raise : il est cappé",
+     "Fold : ses bluffs partent dans l'autre size, défends plutôt large contre son 125 %",
      "Call : il ne peut pas avoir de value avec un petit size"
     ],
-    "a": 1,
-    "why": "P6 : cherche où partent ses bluffs et sa value dans les autres lines. Si ses bluffs partent ailleurs, ne catch pas. Contre un joueur qui sur-utilise un size, call à fond ses gros bets et ne call pas excessivement son petit size.",
-    "src": "Slides L'art du bluffcatch (2023), incohérence · Coaching HU 2026-09-02 00:50"
-   }
-  ]
- },
- {
-  "title": "Méthode",
-  "qs": [
-   {
-    "stem": "Tu passes les piliers en 30 sec : P2, P4 et P5 penchent call, et tu as de bons bloqueurs. Mais P1 : sur cette line, son range n'a quasi aucun bluff. Décision ?",
-    "line": "",
-    "board": [],
-    "opts": [
-     "Call : 3 piliers contre 1",
-     "Call : les bloqueurs compensent",
-     "Fold : P1 est éliminatoire, les bloqueurs ne remplacent pas l'absence de bluffs",
-     "Raise en bluff"
-    ],
     "a": 2,
-    "why": "On pèse les piliers, on ne les compte pas. P1 est le pilier numéro un : sans bluffs dans son range, fold. Un seul pilier en red flag suffit à ne pas bluffcatcher : on l'écoute au lieu de le compenser. Les bloqueurs ne remplacent jamais l'absence de bluffs.",
-    "src": "Adrien, Z097 2025-09-16 · Adrien, Z090 2025-09-09 · Alexis, Z400 2026-05-07 22:31"
-   },
-   {
-    "stem": "Tu reviews tes bluffcatchs dans PT4. Quel filtre ?",
-    "line": "",
-    "board": [],
-    "opts": [
-     "Les hero calls gagnés",
-     "Les pots perdus de plus de 50 bb",
-     "Toutes les rivers callées sans les nuts, gagnées ET perdues",
-     "Les pots gagnés au showdown après un call river"
-    ],
-    "a": 2,
-    "why": "Reviewer ses bluffcatchs = regarder chaque call river sans les nuts, gagné ou perdu. Ne regarder que les pots gagnés (ou perdus) donne une image fausse de tes fréquences : on catch sans les nuts bien plus souvent qu'on ne le croit.",
-    "src": "Alexis, décision 2026-10-27 (filtre PT4 d'AD)"
+    "why": "P6 : ses bluffs partent dans un autre size, son 33 % en est vidé. Une bonne cote ne sert à rien s'il n'y a pas de bluffs à catcher (P1). À l'inverse, son 125 % concentre ses bluffs : c'est là que tu défends.",
+    "src": "Slides RTS Elite : Bluffcatch, P6"
    }
   ]
  }
 ];
 const L = "ABCD";
 const TOTAL = PARTS.reduce((n, p) => n + p.qs.length, 0);
-const KEY = "rts-bluffcatch-master-quiz-v1";
+const KEY = "rts-bluffcatch-master-quiz-v2";
 let answers = {};
 try { answers = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { answers = {}; }
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(answers)); } catch (e) {} };
