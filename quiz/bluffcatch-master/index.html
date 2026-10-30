@@ -126,7 +126,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 0 40px; border-top
     <img class="logo" src="logo-dark.svg" alt="RTS">
     <div class="eyebrow">Team Master · Bluffcatch</div>
     <h1>Les piliers du <em>bluffcatch</em></h1>
-    <p class="lede">18 questions : les 6 piliers, le spot K73 et ses variations. Clique sur ta réponse, l'explication s'affiche. Le récap se débloque une fois le quiz terminé.</p>
+    <p class="lede">17 questions : les 6 piliers, le spot K73 et ses variations. Clique sur ta réponse, l'explication s'affiche. Le récap se débloque une fois le quiz terminé.</p>
     <div class="cards-deco" aria-hidden="true">
       <span class="pc">K♠</span><span class="pc r">9♥</span><span class="pc">4♣</span><span class="pc">7♠</span><span class="pc r">2♦</span>
     </div>
@@ -176,7 +176,7 @@ footer { color: var(--muted); font-size: 13px; padding-block: 0 40px; border-top
 
   <section id="view-quiz">
     <div class="scorebar">
-      <span class="score" id="score">0 / 18</span>
+      <span class="score" id="score">0 / 17</span>
       <div class="meter" aria-hidden="true"><i class="g" id="m-g" style="width:0%"></i><i class="b" id="m-b" style="width:0%"></i></div>
       <button class="reset" id="reset">Recommencer</button>
     </div>
@@ -251,20 +251,6 @@ const PARTS = [
     "a": 3,
     "why": "Range perçu wide, faible ou cappé : il pense avoir de la FE, il bluffe plus. Range perçu strong (TP+) : il bluffe moins, P4 penche fold.",
     "src": "Slides RTS Elite : Bluffcatch, P4"
-   },
-   {
-    "stem": "Le pilier 5 (risk / reward) : quelle question n'en fait PAS partie ?",
-    "line": "",
-    "board": [],
-    "opts": [
-     "Quel risque prend-il à bluff / overbluff ce spot ?",
-     "Quel est le kicker de ma main ?",
-     "Se dit-il que son range paraît strong, ou qu'il ne représente rien ?",
-     "Y a-t-il des draws naturels ?"
-    ],
-    "a": 1,
-    "why": "P5 : notre R/R, le risque qu'il prend à bluffer, son idée de la perception qu'on a de son range, la présence ou non de draws naturels, se dit-il que son range paraît strong ou qu'il ne représente rien. Le kicker n'est pas un pilier.",
-    "src": "Slides RTS Elite : Bluffcatch, P5"
    },
    {
     "stem": "Le pilier 6 (lines alternatives) te demande :",
@@ -509,7 +495,7 @@ const PARTS = [
 ];
 const L = "ABCD";
 const TOTAL = PARTS.reduce((n, p) => n + p.qs.length, 0);
-const KEY = "rts-bluffcatch-master-quiz-v2";
+const KEY = "rts-bluffcatch-master-quiz-v3";
 let answers = {};
 try { answers = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { answers = {}; }
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(answers)); } catch (e) {} };
