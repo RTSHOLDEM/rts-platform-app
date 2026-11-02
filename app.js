@@ -451,6 +451,76 @@ async function viewGoals() {
   };
 }
 
+/* ---------- My progress: objectives, results and every 1-on-1 call (mentor, monthly review, coach), month by month ----------
+   One place for the player. Staff open the same view from the player page (drafts, transcript and Approve on top). */
+const CALL_KIND = { mentor: "pgkMentor", review: "pgkReview", coach: "pgkCoach" };
+const callBy = (c) => c.by_label || (person(c.mentor_id) ? nm(person(c.mentor_id)) : "");
+async function progressHtml(p) {
+  const now = new Date(), since = iso(new Date(now.getFullYear(), now.getMonth() - 11, 1)), own = p.id === ME.id, staff = !own && isStaff();
+  const [calls, goals, jr, evs] = await Promise.all([db.mentorings(p.id), db.goals(p.id), db.journal(p.id, since),
+    own ? db.events(now.toISOString(), new Date(+now + 60 * 864e5).toISOString()).catch(() => []) : []]);
+  const ym = (d) => String(d || "").slice(0, 7), cur = ym(today()), tm = teamOf(p);
+  const months = [...new Set([cur, ...calls.map((c) => ym(c.day)), ...goals.map((g) => ym(g.label)).filter((m) => /^\d{4}-\d{2}$/.test(m)), ...jr.map((e) => ym(e.day))])]
+    .filter((m) => m >= ym(since)).sort().reverse();
+  const canTick = (c) => c.status === "validated" && (own || staff);
+  const step = (c, x, i) => `<label class="pg-step ${(c.steps_done || []).includes(i) ? "done" : ""}"><input type="checkbox" data-step="${esc(c.id)}:${i}" ${(c.steps_done || []).includes(i) ? "checked" : ""} ${canTick(c) ? "" : "disabled"}><span class="sensitive">${esc(x)}</span></label>`;
+  const list = (l) => `<ul class="sensitive">${l.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
+  const callCard = (c) => `<article class="card call">
+      <div class="card-head"><h3>${fmtDay(c.day)}${callBy(c) ? " · " + esc(callBy(c)) : ""}</h3>
+        <span><span class="tag">${t(CALL_KIND[c.kind] || "pgkMentor")}</span>${c.status === "draft" ? ` <span class="tag warn">${t("draftClaude")}</span>` : ""}</span></div>
+      <div class="grid two tight">
+        ${(c.conclusions || []).length ? `<div><p class="sub">${t("pgConclusions")}</p>${list(c.conclusions)}</div>` : ""}
+        ${(c.feedback || []).length ? `<div><p class="sub">${t("feedback")}</p>${list(c.feedback)}</div>` : ""}
+        ${(c.next_steps || []).length ? `<div><p class="sub">${t("nextSteps")}</p>${c.next_steps.map((x, i) => step(c, x, i)).join("")}</div>` : ""}
+      </div>
+      ${c.transcript && !own ? `<details><summary>${t("transcript")}</summary><p class="transcript sensitive">${esc(c.transcript)}</p></details>` : ""}
+      ${staff ? `<details class="pg-edit"><summary class="small-link">✎ ${t("pgEdit")}</summary><form data-edit="${esc(c.id)}">
+        ${[["conclusions", "pgConclusions"], ["feedback", "feedback"], ["next_steps", "nextSteps"]].map(([k, l]) => `<label class="ta">${t(l)} <small class="muted">(${t("pgOnePerLine")})</small><textarea name="${k}" rows="4" class="sensitive">${esc((c[k] || []).join("\n"))}</textarea></label>`).join("")}
+        <button class="btn btn-sm">${t("save")}</button></form></details>` : ""}
+      ${c.status === "draft" && staff ? `<button class="btn btn-sm btn-ghost-red" data-approve="${esc(c.id)}">${t("approve")}</button>` : ""}
+    </article>`;
+  const open = calls.filter((c) => c.status === "validated").flatMap((c) => (c.next_steps || []).map((x, i) => [c, x, i]).filter(([, , i]) => !(c.steps_done || []).includes(i)));
+  const next = evs.find((e) => e.kind === "mentoring");
+  const month = (m, first) => {
+    const g = goals.find((x) => ym(x.label) === m), js = jr.filter((e) => ym(e.day) === m), cs = calls.filter((c) => ym(c.day) === m);
+    const sum = (k) => js.reduce((a, e) => a + Number(e[k] || 0), 0), hours = sum("play_h") + sum("study_h"), hands = sum("hands");
+    const [y, mo] = m.split("-").map(Number), days = m === cur ? now.getDate() : new Date(y, mo, 0).getDate(), perWeek = hours / Math.max(1, days / 7);
+    const weekT = g?.week_h_target ?? tm.week_hours, handsT = g?.hands_target ?? tm.month_hands;
+    const stat = (label, v, target, shown, fmt = (x) => x) => `<div class="pg-stat"><span class="sub">${label}</span><b>${shown}${target ? ` <small class="muted">/ ${fmt(target)}</small>` : ""}</b>${target ? xpBar(v, +target) : ""}</div>`;
+    return `<details class="pg-month" ${first || cs.length && m === months.find((x) => calls.some((c) => ym(c.day) === x)) ? "open" : ""}>
+      <summary><h2>${fmtMonth(m + "-01")}</h2><span class="muted small">${cs.length} ${t("pgCalls").toLowerCase()} · ${fmtH(hours)} · ${fmtNum(hands)} ${t("hands").toLowerCase()}</span></summary>
+      <div class="card pg-goals">
+        <div class="card-head"><h3>${t("objectives")}</h3><span>${g ? `<span class="tag ${g.status === "confirmed" ? "ok" : "warn"}">${g.status === "confirmed" ? t("confirmed") : t("proposed")}</span>` : `<span class="muted small">${t("pgTeamDefault")}</span>`}
+          ${own && m === cur ? ` <a class="small-link" href="#/goals">✎ ${t("pgEdit")}</a>` : ""}</span></div>
+        <div class="pg-stats">${stat(t("goalWeekH"), perWeek, weekT, fmtH(perWeek))}${stat(t("goalHands"), hands, handsT, fmtNum(hands), fmtNum)}
+          ${stat(t("goalPlayH"), sum("play_h"), g?.play_h_target, fmtH(sum("play_h")))}${stat(t("goalStudyH"), sum("study_h"), g?.study_h_target, fmtH(sum("study_h")))}</div>
+        ${(g?.items || []).length ? `<p class="sub">${t("goalOther")}</p>${list(g.items)}` : ""}
+      </div>
+      ${cs.length ? cs.map(callCard).join("") : `<p class="muted small pg-none">${t("pgNoCalls")}</p>`}
+    </details>`;
+  };
+  return `${next || open.length ? `<div class="grid two pg-top">
+      ${open.length ? `<div class="card"><div class="card-head"><h3>${t("pgOpenSteps")}</h3><span class="tag">${open.length}</span></div>
+        ${open.map(([c, x, i]) => `<div class="pg-open">${step(c, x, i)}<small class="muted">${esc(callBy(c))} · ${fmtDay(c.day)}</small></div>`).join("")}</div>` : ""}
+      ${next ? `<div class="card"><div class="card-head"><h3>${t("pgNextCall")}</h3></div><p><b>${KIND_ICON.mentoring} ${esc(next.title)}</b></p><p class="muted">${when(next)}</p></div>` : ""}
+    </div>` : ""}
+    ${months.map((m, i) => month(m, i === 0)).join("")}`;
+}
+function bindProgress() {
+  $$("[data-step]").forEach((cb) => cb.onchange = async () => { const [id, i] = cb.dataset.step.split(":"); cb.disabled = true; await db.tickStep(id, +i, cb.checked); route(); });
+  $$("[data-approve]").forEach((b) => b.onclick = async () => { await db.saveMentoring({ id: b.dataset.approve, status: "validated" }); route(); });
+  $$("[data-edit]").forEach((f) => f.onsubmit = async (ev) => {
+    ev.preventDefault(); const lines = (k) => String(f[k].value || "").split("\n").map((x) => x.trim()).filter(Boolean);
+    await db.editCall({ id: f.dataset.edit, conclusions: lines("conclusions"), feedback: lines("feedback"), next_steps: lines("next_steps") }); route();
+  });
+}
+async function viewProgress() {
+  const my = RENDER, body = await progressHtml(ME);
+  if (my !== RENDER) return;
+  $("#main").innerHTML = `${head(t("progress"), t("progress"), t("progressSub"))}${body}`;
+  bindProgress();
+}
+
 async function viewNotes() {
   const notes = await db.notes();
   $("#main").innerHTML = `${head(t("oppNotes"), t("oppNotes"), t("oppNotesSub"))}
@@ -852,7 +922,7 @@ async function viewPlayer(id, tab = "overview") {
   if (!p) { $("#main").innerHTML = empty(t("notFound")); return; }
   const tabs = ["overview", "journal", "mentoring", "coaching"].concat(seesMoney(p) ? ["money", "contract"] : []);
   if (!tabs.includes(tab)) tab = "overview";
-  const label = { overview: t("overview"), journal: t("journal"), mentoring: t("mentoring"), coaching: t("coaching"), money: t("money"), contract: t("contract") };
+  const label = { overview: t("overview"), journal: t("journal"), mentoring: t("progressTab"), coaching: t("coaching"), money: t("money"), contract: t("contract") };
   const mentor = person(p.mentor_id);
   const body = await PLAYER_TABS[tab](p);
   $("#main").innerHTML = `
@@ -928,17 +998,7 @@ const PLAYER_TABS = {
       <div class="grid two tight">${[["played", "played"], ["learned", "learned"], ["did_well", "didWell"], ["mistakes", "mistakes"]].filter(([k]) => e[k]).map(([k, l]) => `<p><span class="sub">${t(l)}</span><span class="sensitive">${esc(e[k])}</span></p>`).join("")}</div>
     </article>`).join("") : empty("—");
   },
-  async mentoring(p) {
-    const ms = await db.mentorings(p.id);
-    const canApprove = p.mentor_id === ME.id || isAdmin();
-    return ms.length ? ms.map((m) => `<article class="card session">
-      <div class="card-head"><h3>${t("mentoring")} · ${fmtDay(m.day)}</h3><span class="tag ${m.status === "validated" ? "ok" : "warn"}">${m.status === "validated" ? t("validated") : t("draftClaude")}</span></div>
-      <div class="grid two tight"><div><p class="sub">${t("feedback")}</p><ul class="sensitive">${(m.feedback || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>
-      <div><p class="sub">${t("nextSteps")}</p><ul class="sensitive">${(m.next_steps || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div></div>
-      ${m.transcript ? `<details><summary>${t("transcript")}</summary><p class="transcript sensitive">${esc(m.transcript)}</p></details>` : ""}
-      ${m.status === "draft" && canApprove ? `<button class="btn btn-sm btn-ghost-red" data-approve="${esc(m.id)}">${t("approve")}</button>` : ""}
-    </article>`).join("") : empty(t("noMentoring"));
-  },
+  mentoring: (p) => progressHtml(p),
   async coaching(p) {
     const [cs, att, ex, done, qz, ans, deck, qs] = await Promise.all([db.coachings(), db.attendance(p.id), db.exercises(), db.exerciseDone(p.id), db.quizzes(), db.answers(p.id), db.deck(p.id), db.questions()]);
     const attended = cs.filter((c) => att.includes(c.id)).sort((a, b) => (a.day < b.day ? -1 : 1));
@@ -1012,9 +1072,7 @@ const PLAYER_BIND = {
       $("#rsaved").textContent = t("copied");
     });
   },
-  mentoring() {
-    $$("[data-approve]").forEach((b) => b.onclick = async () => { await db.saveMentoring({ id: b.dataset.approve, status: "validated" }); route(); });
-  },
+  mentoring: bindProgress,
   coaching() {
     $$("[data-ex]").forEach((c) => c.onchange = () => db.setExercise(c.dataset.ex, c.checked));
   },
@@ -1555,7 +1613,7 @@ function shell() {
   document.body.classList.remove("is-login");
   document.body.classList.toggle("ops", ME?.team_id === "supreme");
   const demo = db.mode === "demo";
-  const links = [["", "home"], ["hq", "hq"]].concat(has(ME, "player") ? [["journal", "journal"], ["hands", "nbTab"], ["goals", "goals"], ["study", "study"]] : []).concat([["library", "library"], ["coaching", "coaching"], ["replayer", "replayer"], ["calendar", "calendar"]])
+  const links = [["", "home"], ["hq", "hq"]].concat(has(ME, "player") ? [["journal", "journal"], ["hands", "nbTab"], ["progress", "progress"], ["study", "study"]] : []).concat([["library", "library"], ["coaching", "coaching"], ["replayer", "replayer"], ["calendar", "calendar"]])
     .concat(isStaff() ? [["team", "team"]] : []).concat(isOps() ? [["admin", "admin"]] : []).concat(isAdmin() ? [["ceo", "ceo"]] : []).concat([["account", "account"]]);
   $("#app").innerHTML = `
     <header class="top"><div class="wrap">
@@ -1586,12 +1644,12 @@ async function route() {
   document.onpaste = null;
   const [path] = (location.hash || "#/").split("?");
   const [, a = "", b, c] = path.split("/");
-  const navKey = a === "p" ? "" : ["c", "quiz", "review"].includes(a) ? "coaching" : ["s", "submit"].includes(a) ? "library" : a === "recall" ? "study" : ["session", "hero"].includes(a) ? "" : a === "notes" ? "hands" : a;
+  const navKey = a === "p" ? "" : ["c", "quiz", "review"].includes(a) ? "coaching" : ["s", "submit"].includes(a) ? "library" : a === "recall" ? "study" : ["session", "hero"].includes(a) ? "" : a === "notes" ? "hands" : a === "goals" ? "progress" : a;
   $$("[data-nav]").forEach((l) => l.classList.toggle("on", l.dataset.nav === navKey));
   $("#main").innerHTML = `<p class="muted loading">${t("loading")}</p>`;
   const views = { "": viewHome, journal: viewJournal, p: () => viewPlayer(b, c), coaching: viewCoaching, c: () => viewCoachingOne(b), quiz: () => viewQuiz(b),
     review: viewReview, library: viewLibrary, s: () => viewSituation(b), submit: viewSubmit, calendar: viewCalendar, team: viewTeam, admin: viewAdmin, ceo: viewCeo,
-    session: viewSession, hands: viewHands, replayer: () => viewReplayer(b), study: viewStudy, recall: viewRecall, account: viewAccount, hero: viewHero, hq: viewHQ, notes: viewNotes, sizing: viewSizing, goals: viewGoals };
+    session: viewSession, hands: viewHands, replayer: () => viewReplayer(b), study: viewStudy, recall: viewRecall, account: viewAccount, hero: viewHero, hq: viewHQ, notes: viewNotes, sizing: viewSizing, goals: viewGoals, progress: viewProgress };
   try { await (views[a] || viewHome)(); }
   catch (err) { $("#main").innerHTML = `<p class="card">${t("error")} : ${esc(err.message)}</p>`; console.error(err); }
   window.scrollTo(0, 0);

@@ -37,6 +37,7 @@ const STRINGS = {
     habit: "Habit tracker",
     // player page
     overview: "Overview", mentoring: "Mentoring", feedback: "Feedback", nextSteps: "Next steps", transcript: "Transcript",
+    progress: "My progress", progressTab: "Progress", progressSub: "Your objectives, your results and every call with your mentor and coaches, month by month.", pgOpenSteps: "Open next steps", pgNextCall: "Next call", pgConclusions: "Conclusions", pgCalls: "Calls", pgNoCalls: "No call this month.", pgEdit: "Edit", pgTeamDefault: "Team default", pgkMentor: "Mentor call", pgkReview: "Monthly review", pgkCoach: "Coach call", pgOnePerLine: "one per line",
     draftClaude: "Claude draft", validated: "Approved", approve: "Approve and share with the player",
     noMentoring: "No mentoring yet. Zoom sessions land here automatically every night.",
     mentor: "Mentor", away: "Holidays", awaySub: "Your streak is frozen and your staff gets no alert.", from: "From", to: "To",
@@ -166,6 +167,7 @@ const STRINGS = {
     copied: "Copié. Colle-le dans ton salon Discord.", reportPrivate: "Privé : toi, ton mentor, tes coachs et RTS. Ton bilan d'équipe reste sur Discord.",
     habit: "Suivi des habitudes",
     overview: "Aperçu", mentoring: "Mentoring", feedback: "Feedback", nextSteps: "Prochaines étapes", transcript: "Transcription",
+    progress: "Ma progression", progressTab: "Progression", progressSub: "Tes objectifs, tes résultats et chaque call avec ton mentor et tes coachs, mois par mois.", pgOpenSteps: "Prochaines étapes en cours", pgNextCall: "Prochain call", pgConclusions: "Conclusions", pgCalls: "Calls", pgNoCalls: "Pas de call ce mois-ci.", pgEdit: "Modifier", pgTeamDefault: "Objectif de l'équipe", pgkMentor: "Call mentor", pgkReview: "Bilan mensuel", pgkCoach: "Call coach", pgOnePerLine: "un par ligne",
     draftClaude: "Brouillon Claude", validated: "Validé", approve: "Valider et partager au joueur",
     noMentoring: "Pas encore de mentoring. Les sessions Zoom arrivent ici automatiquement chaque nuit.",
     mentor: "Mentor", away: "Vacances", awaySub: "Ta série est gelée et ton staff ne reçoit pas d'alerte.", from: "Du", to: "Au",

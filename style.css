@@ -755,3 +755,22 @@ a.wk-num:hover small { color: var(--red); }
 .nb-notes { white-space: pre-wrap; margin: 0 0 12px; }
 .nb-sess .hand { box-shadow: none; }
 .nb-other { margin: 28px 0 10px; }
+
+/* My progress (2026-11-02): month timeline of objectives, results and calls */
+.pg-top { margin-bottom: 18px; }
+.pg-month { margin: 0 0 14px; }
+.pg-month > summary { display: flex; align-items: baseline; gap: 14px; cursor: pointer; list-style: none; padding: 8px 0; }
+.pg-month > summary::-webkit-details-marker { display: none; }
+.pg-month > summary h2 { margin: 0; text-transform: capitalize; }
+.pg-month > summary::before { content: "▸"; color: var(--muted, #888); }
+.pg-month[open] > summary::before { content: "▾"; }
+.pg-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.pg-stat b { display: block; font-size: 1.15em; margin: 2px 0 6px; }
+.pg-step { display: flex; gap: 8px; align-items: flex-start; margin: 4px 0; cursor: pointer; }
+.pg-step input { margin-top: 3px; accent-color: var(--red, #e11); }
+.pg-step.done span { text-decoration: line-through; opacity: .55; }
+.pg-open { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; border-bottom: 1px solid rgba(127,127,127,.15); padding: 4px 0; }
+.pg-none { margin: 4px 0 10px 22px; }
+.call .card-head h3 { text-transform: none; }
+.pg-edit { margin-top: 8px; }
+.pg-edit form { display: grid; gap: 8px; margin-top: 8px; }
