@@ -79,6 +79,8 @@ function dot(s, p) {
 }
 
 /* ---------- small building blocks ---------- */
+/* Where a one-screen page must end: above the dock when it sits at the bottom (phones), the window's bottom when it stands on the right. */
+const dockBottom = () => { const d = $("#dock")?.getBoundingClientRect(); return d && d.height && d.width > d.height ? d.top - 10 : innerHeight - 14; };
 const kpi = (label, value, extra = "") => `<div class="card kpi"><span>${label}</span><b>${value}</b>${extra}</div>`;
 const empty = (msg) => `<p class="muted card">${msg}</p>`;
 const head = (eyebrow, title, sub = "") => `<section class="hello"><p class="eyebrow">${eyebrow}</p><h1>${title}</h1>${sub ? `<p class="muted">${sub}</p>` : ""}</section>`;
@@ -204,7 +206,7 @@ async function viewHome() {
   // Fit the page to the window: the HQ ends just above the dock, so the home never scrolls.
   const fit = () => {
     const el = $(".home1"); if (!el) { removeEventListener("resize", fit); return; }
-    const dock = $("#dock")?.getBoundingClientRect(), bottom = dock && dock.height ? dock.top - 10 : innerHeight - 12;
+    const bottom = dockBottom();
     el.style.height = Math.max(380, bottom - el.getBoundingClientRect().top) + "px";
   };
   fit(); addEventListener("resize", fit);

@@ -1124,3 +1124,71 @@ body[data-g="res"] .finder .btn { margin: 0; }
 .co-find .filters .chips { margin: 0; }
 .co-find select { margin: 0; width: auto; }
 .res-scroll .quizbox { margin-bottom: 12px; }
+/* Dock on the right (Alexis 2026-11-03: "tout à droite de l'écran, pas en dessous"): a vertical glass bar, centred on the right edge.
+   Phones keep it at the bottom. The page column leaves room for it on both sides so the content stays centred. */
+@media (min-width: 1101px) {
+  .wrap { width: min(var(--max), 100% - 200px); }
+  body:not(.is-login) { padding-bottom: 0; }
+  .dockbar { left: auto; right: 16px; bottom: auto; top: 50%; transform: translateY(-50%); flex-direction: column; align-items: center; padding: 10px 8px; }
+  .dk-ses { flex-direction: column; align-items: center; }
+  .dk-sep { width: auto; height: 1px; align-self: stretch; margin: 2px 4px; }
+  .dk { transform-origin: right center; }
+  .dk:hover { transform: translateX(-6px) scale(1.18); }
+  .dk::after, .dk-live::after { bottom: auto; left: auto; right: calc(100% + 12px); top: 50%; transform: translateY(-50%); }
+  .dk-live { flex-direction: column; justify-content: center; gap: 4px; height: auto; width: 58px; padding: 10px 4px; }
+  .dk-live b { font-size: 14px; }
+  .dk-mini { width: 46px; height: 34px; }
+}
+/* Cockpit v3 (Alexis 2026-11-03): one centred column; the year tree is a side drawer, closed until opened; the week on top
+   like an instrument panel (work bar, grind bar, week goals), then the day; the journal folds away. */
+.logbook.cockpit { grid-template-columns: minmax(0, 1fr); }
+.logbook.cockpit.tree-on { grid-template-columns: 250px minmax(0, 1fr); }
+.ck-tree[hidden] { display: none; }
+.ck-mid { max-width: 980px; gap: 12px; }
+.ck-week { display: grid; grid-template-columns: 170px minmax(0, 1fr) 128px; align-items: center; gap: 22px; padding: 16px 20px;
+  border-radius: 16px; border: 1px solid #2c2c33; border-top: 2px solid var(--red); background: linear-gradient(180deg, #141418, #0c0c0e); box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+.ck-wk-l { display: grid; gap: 2px; }
+.ck-eb { font: 600 10px/1 var(--body); letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+.ck-wk-t { font: 400 26px/1.1 var(--serif); color: var(--text); text-decoration: none; }
+.ck-wk-t:hover { color: var(--red); }
+.ck-wk-l small { color: var(--muted); font-size: 12px; }
+.ck-bars { display: grid; gap: 12px; }
+.ck-bar { display: grid; grid-template-columns: 92px minmax(0, 1fr) 110px; align-items: center; gap: 12px; }
+.ck-bar > span { font-size: 13px; color: var(--muted); }
+.ck-bar > b { font: 800 18px/1 var(--head); text-align: right; font-variant-numeric: tabular-nums; }
+.ck-bar > b small { font: 500 12px var(--body); color: var(--muted); }
+.ck-track { height: 12px; border-radius: 999px; background: #1f1f25; overflow: hidden; box-shadow: inset 0 1px 2px rgba(0,0,0,.6); }
+.ck-track i { display: block; height: 100%; border-radius: inherit; transition: width .4s ease; }
+.ck-bar.work .ck-track i { background: linear-gradient(90deg, #d9d9de, #fff); }
+.ck-bar.grind .ck-track i { background: linear-gradient(90deg, #a80303, #fd0606); box-shadow: 0 0 10px rgba(253,6,6,.45); }
+.ck-wk-g { display: grid; justify-items: center; gap: 2px; padding: 10px 8px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--surface); color: var(--text); text-decoration: none; cursor: pointer; font: inherit; }
+.ck-wk-g:hover, .ck-wk-g.on { border-color: var(--red); background: var(--red-soft); }
+.ck-wk-g b { font: 800 22px/1 var(--head); }
+.ck-wk-g small { font-size: 11px; color: var(--muted); }
+.ck-hl { display: flex; gap: 8px; }
+.ck-yr { margin: 0; padding: 8px 14px; font-weight: 600; }
+.ck-yr.on { border-color: var(--red); color: var(--red); }
+.ck-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ck-jr { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.ck-jr > summary { list-style: none; display: flex; align-items: center; gap: 12px; padding: 12px 16px; cursor: pointer; }
+.ck-jr > summary::-webkit-details-marker { display: none; }
+.ck-jr > summary::before { content: none; }
+.ck-jr > summary .ck-tg { margin-left: auto; }
+.ck-jr[open] > summary .ck-tg { transform: rotate(90deg); }
+.ck-jr > summary:hover { background: var(--surface-2); border-radius: 14px; }
+.ck-jr .ck-journal { margin: 0 10px 10px; }
+@media (max-width: 1100px) { .ck-week { grid-template-columns: 1fr; } .ck-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1101px) {
+  .ck-mid { gap: 16px; padding-top: 6px; }
+  .ck-week { padding: 22px 26px; }
+  .ck-wk-t { font-size: 32px; }
+  .ck-track { height: 14px; }
+  .ck-bar > b { font-size: 22px; }
+  .ck-t { padding: 20px 20px 16px; gap: 6px; }
+  .ck-t b { font-size: 34px; }
+  .ck-tl { font-size: 13px; }
+  .ck-head h2 { font-size: 34px; }
+}
+.ck-d small { text-transform: none; }
+.ck-journal #jsaved { float: right; }
+@media (min-width: 1101px) { .res-scroll { margin-bottom: 0; } }

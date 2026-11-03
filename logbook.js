@@ -13,6 +13,7 @@ Object.assign(STRINGS.en, {
   noSessionDay: "No session this day.", hoursWeek: "Hours this week", openSteps: "open next steps", seeCalls: "See my calls",
   totalPlay: "Play", totalStudy: "Study", totalHands: "Hands", daysLogged: "days logged", journalSaved: "Journal saved ✓",
   toReviewT: "To review", reviewedT: "Reviewed", allT: "All", noHandsT: "No hand here.", hhText: "Hand history", openFull: "Full size",
+  ckYear: "Year", ckWork: "Work", ckJournalSub: "Only if you want to write.", ckWritten: "written",
   ckToday: "Today", ckAdd: "Add", ckEdit: "Edit", ckAddT: "Add", ckDone: "Done that day", ckHandsDay: "Hands that day", ckCoachCal: "From the calendar",
   ckCoaching: "Coaching", ckWeekGoals: "Week goals", ckAddSes: "Add a session I did", ckAddGo: "Add", ckNoCoach: "No coaching that day.",
   ckCoachSub: "Your team's coachings from the calendar count by themselves. Add here a coaching that is not in the calendar.", ckHandsSub: "Set the total for this period: the days you already filled stay as they are.",
@@ -34,6 +35,7 @@ Object.assign(STRINGS.fr, {
   noSessionDay: "Aucune session ce jour-là.", hoursWeek: "Heures cette semaine", openSteps: "prochaines étapes ouvertes", seeCalls: "Voir mes calls",
   totalPlay: "Jeu", totalStudy: "Étude", totalHands: "Mains", daysLogged: "jours remplis", journalSaved: "Journal enregistré ✓",
   toReviewT: "À revoir", reviewedT: "Revues", allT: "Toutes", noHandsT: "Aucune main ici.", hhText: "Historique", openFull: "Plein écran",
+  ckYear: "Année", ckWork: "Travail", ckJournalSub: "Seulement si tu veux écrire.", ckWritten: "écrit",
   ckToday: "Aujourd'hui", ckAdd: "Ajouter", ckEdit: "Modifier", ckAddT: "Ajouter", ckDone: "Fait ce jour-là", ckHandsDay: "Mains du jour", ckCoachCal: "Du calendrier",
   ckCoaching: "Coaching", ckWeekGoals: "Objectifs semaine", ckAddSes: "Ajouter une session faite", ckAddGo: "Ajouter", ckNoCoach: "Pas de coaching ce jour-là.",
   ckCoachSub: "Les coachings de ton équipe du calendrier comptent tout seuls. Ajoute ici un coaching qui n'y est pas.", ckHandsSub: "Mets le total de la période : les jours déjà remplis ne bougent pas.",
@@ -168,6 +170,8 @@ const isoWeekN = (d) => { const x = new Date(d + "T12:00:00"); x.setDate(x.getDa
 const monthOnly = (m) => { const s = new Date(m + "-15T12:00:00").toLocaleDateString(LANG === "fr" ? "fr-FR" : "en-GB", { month: "long" }); return s[0].toUpperCase() + s.slice(1); };
 const CK_PANE = { get: () => { try { return sessionStorage.getItem("ck-pane") || ""; } catch { return ""; } }, set: (v) => { try { sessionStorage.setItem("ck-pane", v); } catch {} } };
 
+const CK_OPEN = { get: (k) => { try { return sessionStorage.getItem("ck-" + k) === "1"; } catch { return false; } },
+  set: (k, v) => { try { sessionStorage.setItem("ck-" + k, v ? "1" : ""); } catch {} } };
 async function viewLog() {
   if (!has(ME, "player")) { location.hash = "#/"; return; }
   const my = RENDER, q = Object.fromEntries(new URLSearchParams(location.hash.split("?")[1] || ""));
@@ -204,8 +208,8 @@ async function viewLog() {
       return `<details class="ck-q" ${qq === selQ || qq === tQ ? "open" : ""}><summary>${tog}<a href="#/log?q=${qq}" class="${on("q", qq)} ${qq > qOf(T) ? "fut" : ""}">Q${n}</a></summary>
       ${qMonths(qq).map((m) => `<details class="ck-m" ${(m === selM && sel.k !== "q") || m === tM ? "open" : ""}><summary>${tog}<a href="#/log?m=${m}" class="${on("m", m)} ${m > T.slice(0, 7) ? "fut" : ""}">${monthOnly(m)}</a><small>${m > T.slice(0, 7) ? "" : fmtH(hrs(sumDays(monthDays(m))))}</small></summary>
         ${monthWeeks(m).map((w) => `<details class="ck-w ${w === tW ? "now" : ""}" ${w === selW || w === tW ? "open" : ""}><summary>${tog}<a href="#/log?w=${w}" class="${on("w", w)} ${w > T ? "fut" : ""}">${t("weekN")} ${isoWeekN(w)}</a><small>${w > T ? "" : fmtH(hrs(sumDays(weekDays(w))))}</small></summary>
-          <div class="ck-days">${all7(w).map((d) => d > T ? `<span class="ck-d fut">${longDay(d)}</span>`
-            : `<a href="#/log?d=${d}" class="ck-d ${on("d", d)} ${d === T ? "today" : ""}">${longDay(d)}${hrs(dayN(d)) ? `<small>${fmtH(hrs(dayN(d)))}</small>` : ""}</a>`).join("")}</div></details>`).join("")}
+          <div class="ck-days">${all7(w).map((d) => d > T ? `<span class="ck-d fut">${shortDay(d)}</span>`
+            : `<a href="#/log?d=${d}" class="ck-d ${on("d", d)} ${d === T ? "today" : ""}">${shortDay(d)}${hrs(dayN(d)) ? `<small>${fmtH(hrs(dayN(d)))}</small>` : ""}</a>`).join("")}</div></details>`).join("")}
         </details>`).join("")}</details>`; }).join("")}</details>`).join("");
 
   // shared pieces
@@ -226,7 +230,14 @@ async function viewLog() {
       <p class="muted small">${t("ckHandsSub")}</p></form>`;
   const wkLabel = selW || mondayOf(sel.k === "q" ? T : anchor), wG = wq.find((g) => g.period === "week" && g.label === wkLabel), qG = wq.find((g) => g.period === "quarter" && g.label === selQ), mG = mGoal(selM);
   const wkHrs = hrs(sumDays(weekDays(wkLabel))), wkT = mG?.week_h_target || weekTarget(ME);
-  const weekHrsStat = `<div class="pg-stat"><span class="sub">${t("hoursWeek")}</span><b>${fmtH(wkHrs)} <small class="muted">/ ${wkT} h</small></b>${xpBar(wkHrs, wkT)}</div>`;
+  // Top of the Cockpit (Alexis 2026-11-03): the week first, one bar for all the work, one for the grind, and the week goals.
+  const wkPlay = sumDays(weekDays(wkLabel)).play, wkGi = wG?.items || [], wkDone = wkGi.filter((x) => x.startsWith("✓ ")).length;
+  const barRow = (cls, label, v, tgt, showT) => `<div class="ck-bar ${cls}"><span>${label}</span><div class="ck-track"><i style="width:${Math.min(100, tgt ? (v / tgt) * 100 : 0)}%"></i></div><b>${fmtH(v)}${showT ? ` <small>/ ${tgt} h</small>` : ""}</b></div>`;
+  const goalsBtn = sel.k === "d" ? `<button type="button" class="ck-wk-g ${CK_PANE.get() === "goals" ? "on" : ""}" data-pane="goals">` : `<a class="ck-wk-g" href="#/log?w=${wkLabel}">`;
+  const wkPanel = `<div class="ck-week"><div class="ck-wk-l"><span class="ck-eb">${t("hoursWeek")}</span><a class="ck-wk-t" href="#/log?w=${wkLabel}">${t("weekN")} ${isoWeekN(wkLabel)}</a>
+      <small>${fmtDay(wkLabel)} → ${fmtDay(addDays(6, new Date(wkLabel + "T12:00:00")))}</small></div>
+    <div class="ck-bars">${barRow("work", "⚡ " + t("ckWork"), wkHrs, wkT, true)}${barRow("grind", "♠ " + t("grindW"), wkPlay, wkT, false)}</div>
+    ${goalsBtn}<span>🎯</span><b>${wkGi.length ? `${wkDone}/${wkGi.length}` : "–"}</b><small>${t("ckWeekGoals")}</small>${sel.k === "d" ? "</button>" : "</a>"}</div>`;
   const openSteps = calls.filter((c) => c.status === "validated").reduce((a, c) => a + (c.next_steps || []).filter((_, i) => !(c.steps_done || []).includes(i)).length, 0);
   const stepsLink = openSteps ? `<a class="small-link ck-steps" href="#/calls"><b>${openSteps}</b> ${t("openSteps")} →</a>` : "";
 
@@ -298,19 +309,19 @@ async function viewLog() {
       coaching: () => `${sesList("coaching")}${coach.length ? `<h4 class="ck-sub">${t("ckCoachCal")}</h4>` : ""}${coach.map((x) => `<p class="hrow">🎓 <b>${hhmm(x.starts_at)}</b> · ${esc(evTitle(x))} <span class="muted">· ${dur(Number(x.minutes || 60))}</span></p>`).join("")}
         <p class="muted small">${t("ckCoachSub")} <a class="small-link" href="#/calendar">${t("calendar")} →</a></p>`,
       hands: () => `<form class="ck-addf ck-hands" data-hands="${d}"><h4>🃏 ${t("ckHandsDay")}</h4><div class="ck-row">${stepper("n", Number(e.hands || 0), 500, 0, 9999999, "n")}<button class="btn btn-red">${t("save")}</button></div></form>`,
-      goals: () => `${weekHrsStat}${gi.map((x, i) => `<label class="pg-step ${x.startsWith("✓ ") ? "done" : ""}"><input type="checkbox" data-gtick="week|${wkLabel}|${i}" ${x.startsWith("✓ ") ? "checked" : ""}><span>${esc(x.replace(/^✓ /, ""))}</span></label>`).join("") || `<p class="muted small">${t("noGoals")}</p>`}
+      goals: () => `${gi.map((x, i) => `<label class="pg-step ${x.startsWith("✓ ") ? "done" : ""}"><input type="checkbox" data-gtick="week|${wkLabel}|${i}" ${x.startsWith("✓ ") ? "checked" : ""}><span>${esc(x.replace(/^✓ /, ""))}</span></label>`).join("") || `<p class="muted small">${t("noGoals")}</p>`}
         <p class="row-btns"><a class="small-link" href="#/log?w=${wkLabel}">✎ ${t("pgEdit")}</a>${stepsLink}</p>`,
     };
     return `<div class="ck-strip">${tile("grind", "♠", t("grindW"), fmtH(Number(e.play_h || 0)))}${tile("study", "📚", t("studyW"), fmtH(Number(e.study_h || 0)))}
-        ${tile("coaching", "🎓", t("ckCoaching"), fmtH(coachAll / 60))}${tile("hands", "🃏", t("hands"), fmtNum(Number(e.hands || 0)))}
-        ${tile("goals", "🎯", t("ckWeekGoals"), gi.length ? `${gDone}/${gi.length}` : "–", `${fmtH(wkHrs)} / ${wkT} h`, "✓ " + t("ckEdit"))}</div>
+        ${tile("coaching", "🎓", t("ckCoaching"), fmtH(coachAll / 60))}${tile("hands", "🃏", t("hands"), fmtNum(Number(e.hands || 0)))}</div>
       ${panes[pane] ? `<div class="card ck-pane">${panes[pane]()}</div>` : ""}
-      <form class="card journal-page jbook ck-journal" id="jform"><div class="card-head"><h3>✎ ${t("journalW")}</h3><span class="saved" id="jsaved"></span></div>
+      <details class="ck-jr" ${CK_OPEN.get("jr") ? "open" : ""}><summary><span>✎ <b>${t("journalW")}</b></span>${e.mood ? `<span>${MOODS[e.mood - 1]}</span>` : ""}${(e.played || "").trim() ? `<span class="tag ok">✓ ${t("ckWritten")}</span>` : `<small class="muted">${t("ckJournalSub")}</small>`}<span class="ck-tg" aria-hidden="true"></span></summary>
+      <form class="card journal-page jbook ck-journal" id="jform"><span class="saved" id="jsaved"></span>
         <div class="jmood">${MOODS.map((m, i) => `<input type="radio" name="mood" id="m${i + 1}" value="${i + 1}" ${Number(e.mood) === i + 1 ? "checked" : ""}><label for="m${i + 1}">${m}</label>`).join("")}</div>
         <textarea name="text" class="paper sensitive" rows="8" placeholder="${t("journalPh")}">${esc([e.played, e.learned && `${t("pLearned")} ${e.learned}`, e.did_well && `${t("pWell")} ${e.did_well}`, e.mistakes && `${t("pMistake")} ${e.mistakes}`].filter((x) => (x || "").trim()).join("\n\n"))}</textarea>
         <div class="prompts">${["pPlayed", "pLearned", "pWell", "pMistake", "pTomorrow"].map((k) => `<button type="button" class="chip" data-prompt="${k}">+ ${t(k)}</button>`).join("")}</div>
         <div class="chips jtags">${Object.keys(TAGS).map((k) => `<button type="button" class="tagchip ${(e.tags || []).includes(k) ? "on" : ""}" data-tag="${k}">${tag(k)}</button>`).join("")}</div>
-        <button class="btn btn-red" type="submit">${t("save")}${e.day ? "" : " · +20 XP"}</button></form>`;
+        <button class="btn btn-red" type="submit">${t("save")}${e.day ? "" : " · +20 XP"}</button></form></details>`;
   }
   function topicSel(cur) { return `<label>${t("topicL")} <select name="topic">${Object.keys(TOPICS).map((k) => `<option value="${k}" ${k === cur ? "selected" : ""}>${TOPICS[k].icon} ${t("topic_" + k)}</option>`).join("")}</select></label>`; }
 
@@ -322,16 +333,19 @@ async function viewLog() {
   const quick = SES.s ? `<a class="btn btn-sm btn-red" href="#/session">${KIND_ICON[SES.s.kind]} ${t("backCockpit")}</a>`
     : `<button class="btn btn-sm btn-red" data-ckgo="grind">▶ ${t("grindW")}</button><button class="btn btn-sm" data-ckgo="study">▶ ${t("studyW")}</button>`;
 
-  $("#main").innerHTML = `<div class="logbook cockpit">
-      <nav class="card lg-tree ck-tree">${tree}
+  const treeOn = CK_OPEN.get("tree");
+  $("#main").innerHTML = `<div class="logbook cockpit ${treeOn ? "tree-on" : ""}">
+      <nav class="card lg-tree ck-tree" ${treeOn ? "" : "hidden"}>${tree}
         <details class="lg-away">${awayCard().replace('<form class="card" id="aform">', '<summary class="small-link">🏖 ' + t("away") + '</summary><form class="card" id="aform">')}</details></nav>
-      <section class="lg-mid ck-mid"><div class="lg-head ck-head"><span><a class="btn ck-today ${sel.k === "d" && sel.v === T ? "on" : ""}" href="#/log">📍 ${t("ckToday")}</a></span>
+      <section class="lg-mid ck-mid">${wkPanel}<div class="lg-head ck-head"><span class="ck-hl"><button type="button" class="btn ck-yr ${treeOn ? "on" : ""}" id="cktree" aria-pressed="${treeOn}">🗓 ${t("ckYear")}</button><a class="btn ck-today ${sel.k === "d" && sel.v === T ? "on" : ""}" href="#/log">📍 ${t("ckToday")}</a></span>
         <span class="ck-nav"><a class="btn btn-sm" href="#/log?${shift(-1)}">←</a><h2>${title}</h2>${nextOk ? `<a class="btn btn-sm" href="#/log?${shift(1)}">→</a>` : `<span class="btn btn-sm ck-off">→</span>`}</span>
         <span class="ck-quick">${quick}</span></div>${mid}</section></div>`;
   fitToDock(".logbook");
 
   // bindings
   bindSteppers();
+  $("#cktree").onclick = () => { CK_OPEN.set("tree", !treeOn); route(); };
+  $(".ck-jr")?.addEventListener("toggle", (ev) => CK_OPEN.set("jr", ev.target.open));
   bindHands(hands);
   bindSessions(sessions);
   $$("[data-ckgo]").forEach((b) => b.onclick = () => (SES.s ? (location.hash = "#/session") : askDuration(b.dataset.ckgo))); // the session may have loaded after this page
@@ -380,7 +394,7 @@ async function viewLog() {
     route();
   });
   bindAway();
-  $(".ck-tree a.on, .ck-tree .ck-d.on")?.scrollIntoView({ block: "center" });
+  if (treeOn) $(".ck-tree a.on, .ck-tree .ck-d.on")?.scrollIntoView({ block: "center" });
 }
 
 /* Stepper (Alexis 2026-11-03: "une petite molette"): − and + buttons, the mouse wheel turns it too.
@@ -404,7 +418,7 @@ function fitToDock(selector) {
   const fit = () => {
     const el = $(selector); if (!el) { removeEventListener("resize", fit); return; }
     if (innerWidth <= 1100) { el.style.height = ""; return; }
-    const dock = $("#dock")?.getBoundingClientRect(), bottom = dock && dock.height ? dock.top - 10 : innerHeight - 12;
+    const bottom = dockBottom();
     el.style.height = Math.max(380, bottom - el.getBoundingClientRect().top) + "px";
   };
   fit(); addEventListener("resize", fit);
