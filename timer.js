@@ -98,13 +98,13 @@ function askDuration(kind, ask = "", topic = null) { // ask: the HQ room's "are 
   let last = +ls("rts-dur-" + kind, kind === "grind" ? 90 : 60);
   if (!DURATIONS.includes(last)) last = 0;
   const top = topic || ls("rts-topic", "wizard"), vis = hqVis();
+  // Alexis 2026-11-03: just "how long?" (and what, for study). Who sees me is set on the Home online panel, not here.
   const seg = (name, items, on) => `<div class="dur-grid g4">${items.map(([v, label]) => `<label class="dur-b ${v === on ? "on" : ""}"><input type="radio" name="${name}" value="${v}" ${v === on ? "checked" : ""} hidden>${label}</label>`).join("")}</div>`;
   dl.innerHTML = `<form method="dialog" class="dur"><div class="card-head"><h3>${KIND_ICON[kind]} ${ask || t(kind === "grind" ? "durGrind" : "durStudy")}</h3><button class="x" value="cancel" formnovalidate>×</button></div>
     ${kind === "study" ? `<p class="lbl">${t("topicL")}</p>${seg("topic", Object.entries(TOPICS).map(([k, x]) => [k, `<span>${x.icon}</span>${t("topic_" + k)}`]), top in TOPICS ? top : "wizard")}` : ""}
-    <p class="lbl">${t("durL")}</p>
+    ${kind === "study" ? `<p class="lbl">${t("durL")}</p>` : ""}
     <div class="dur-grid g4">${DURATIONS.map((m) => `<label class="dur-b ${m === last ? "on" : ""}"><input type="radio" name="dur" value="${m}" ${m === last ? "checked" : ""} hidden>${fmtMin(m)}</label>`).join("")}
       <label class="dur-b own ${last ? "" : "on"}"><input type="radio" name="dur" value="own" ${last ? "" : "checked"} hidden><input type="number" min="5" max="600" step="5" name="own" placeholder="45" value="${last ? "" : +ls("rts-dur-" + kind, 60)}"> min</label></div>
-    <p class="lbl">${t("visL")}</p>${seg("vis", VIS.map((v) => [v, `<span>${{ all: "🌍", team: "👥", staff: "🎓", incog: "🕶" }[v]}</span>${t("vis_" + v)}`]), vis)}
     <p class="row-btns"><button class="btn btn-red" value="go">▶ ${t("durGo")}</button><button class="btn" value="cancel" formnovalidate>${t("cancel")}</button></p></form>`;
   const f = dl.querySelector("form");
   f.onchange = (e) => { if (e.target.type === "radio") $$(`input[name=${e.target.name}]`, f).forEach((r) => r.parentElement.classList.toggle("on", r.checked)); };

@@ -5,6 +5,8 @@
 Object.assign(STRINGS.en, {
   gtoTip: "Copies the hand and opens GTO Wizard", gtoCopied: "Hand copied. In GTO Wizard: <b>Upload</b> (top right), <b>Cmd+V</b>, <b>Enter</b>.",
   sesEdit: "Change", sesStart: "Start", sesLen: "Length (min)", sesSave: "Save", sesDelAsk: "Delete this session? Its hours come off the journal of that day. Its hands stay saved.", sesDel: "Delete session",
+  resHome: "Overview", resHomeSub: "Everything you keep and everything RTS shares, one click away.", resOpen: "Open", resStepsOpen: "next steps open", resNoSteps: "No step open",
+  resToReview: "to review", resAllReviewed: "All reviewed", resNotesN: "players noted", resQuizN: "quizzes", resLast: "Last", resCardsN: "cards", resDueN: "to recall today", resStratSub: "RTS strategies + your own cards, on one map.",
   logbook: "Cockpit", resources: "Resources", direction: "Direction", resMine: "Mine", resRts: "RTS", myCalls: "My calls", savedHands: "Saved hands",
   coachingsQuiz: "Coachings & quiz", grindW: "Grind", studyW: "Study", journalW: "Journal", weekOf: "Week of", weekN: "Week", goalsW: "Goals", lgPeriodW: "Week", lgPeriodM: "Month", lgPeriodQ: "Quarter", lgDays: "MTWTFSS", lgTotal: "Total",
   goalsWeek: "This week's goals", goalsMonthT: "Month goals", goalsQuarter: "Quarter goals", goalsPh: "One goal per line", noGoals: "No goal yet.",
@@ -24,6 +26,8 @@ Object.assign(STRINGS.en, {
 Object.assign(STRINGS.fr, {
   gtoTip: "Copie la main et ouvre GTO Wizard", gtoCopied: "Main copiée. Dans GTO Wizard : <b>Upload</b> (en haut à droite), <b>Cmd+V</b>, <b>Entrée</b>.",
   sesEdit: "Modifier", sesStart: "Début", sesLen: "Durée (min)", sesSave: "Enregistrer", sesDelAsk: "Supprimer cette session ? Ses heures sont retirées du journal de ce jour. Ses mains restent sauvegardées.", sesDel: "Supprimer la session",
+  resHome: "Vue d'ensemble", resHomeSub: "Tout ce que tu gardes et tout ce que RTS partage, en un clic.", resOpen: "Ouvrir", resStepsOpen: "prochaines étapes ouvertes", resNoSteps: "Aucune étape ouverte",
+  resToReview: "à revoir", resAllReviewed: "Tout est revu", resNotesN: "joueurs notés", resQuizN: "quiz", resLast: "Dernier", resCardsN: "cartes", resDueN: "à réviser aujourd'hui", resStratSub: "Les stratégies RTS + tes propres cartes, sur une seule carte.",
   logbook: "Cockpit", resources: "Ressources", direction: "Direction", resMine: "Les miennes", resRts: "RTS", myCalls: "Mes calls", savedHands: "Mains sauvées",
   coachingsQuiz: "Coachings & quiz", grindW: "Grind", studyW: "Études", journalW: "Journal", weekOf: "Semaine du", weekN: "Semaine", goalsW: "Objectifs", lgPeriodW: "Semaine", lgPeriodM: "Mois", lgPeriodQ: "Trimestre", lgDays: "LMMJVSD", lgTotal: "Total",
   goalsWeek: "Objectifs de la semaine", goalsMonthT: "Objectifs du mois", goalsQuarter: "Objectifs du trimestre", goalsPh: "Un objectif par ligne", noGoals: "Pas encore d'objectif.",
@@ -42,12 +46,13 @@ Object.assign(STRINGS.fr, {
 });
 
 /* ---------- sub navigation: Resources (mine | RTS) and Direction ---------- */
-const GROUP = { log: "log", calls: "res", hands: "res", notes: "res", study: "res", recall: "res", coaching: "res", c: "res", quiz: "res", review: "res",
+const GROUP = { res: "res", log: "log", calls: "res", hands: "res", notes: "res", study: "res", recall: "res", coaching: "res", c: "res", quiz: "res", review: "res",
   library: "res", s: "res", submit: "res", ceo: "dir", admin: "dir", inbox: "dir" };
 function subnavHtml(group, a) {
-  const l = (k, label) => `<a href="#/${k}" class="${a === k || (k === "coaching" && ["c", "quiz", "review"].includes(a)) || (k === "library" && ["s", "submit"].includes(a)) || (k === "study" && a === "recall") ? "on" : ""}">${label}</a>`;
-  if (group === "res") return (has(ME, "player") ? `<span class="sn-g">${t("resMine")}</span>${l("calls", t("myCalls"))}${l("hands", t("savedHands"))}${l("study", t("myCards"))}${l("notes", t("oppNotes"))}<i class="sn-sep"></i>` : "")
-    + `<span class="sn-g">${t("resRts")}</span>${l("coaching", t("coachingsQuiz"))}${l("library", t("library"))}`;
+  const l = (k, label) => `<a href="#/${k}" class="${a === k || (k === "coaching" && ["c", "quiz", "review"].includes(a)) || (k === "study" && ["recall", "s", "submit"].includes(a)) ? "on" : ""}">${label}</a>`;
+  // Resources (Alexis 2026-11-03): an overview first; My cards and Strategies are one page now (the Study hub with a Mine / RTS filter).
+  if (group === "res") return l("res", "◎ " + t("resHome")) + `<i class="sn-sep"></i>` + (has(ME, "player") ? `<span class="sn-g">${t("resMine")}</span>${l("calls", t("myCalls"))}${l("hands", t("savedHands"))}${l("notes", t("oppNotes"))}<i class="sn-sep"></i>` : "")
+    + `<span class="sn-g">${t("resRts")}</span>${l("coaching", t("coachingsQuiz"))}${l("study", t("library"))}`;
   if (group === "dir") return [isAdmin() && l("ceo", t("ceo")), isOps() && l("admin", t("admin")), isAdmin() && l("inbox", t("inbox"))].filter(Boolean).join("");
   return "";
 }
@@ -114,21 +119,42 @@ async function viewHands() {
   $("#main").innerHTML = `${head(t("resMine"), t("savedHands"), t("handsPrivate"))}
     <div class="nb-bar">${[["todo", "toReviewT"], ["done", "reviewedT"], ["all", "allT"]].map(([k, l]) => `<a class="chip ${f === k ? "on" : ""}" href="#/hands?f=${k}">${t(l)} · ${n(k)}</a>`).join("")}
       <span class="grow"></span><a class="btn btn-sm btn-ghost-red" href="#/replayer">▶ RTS Replayer</a></div>
-    <div class="stack hd-days">${days.map((d, i) => {
+    <div class="stack hd-days res-scroll">${days.map((d, i) => {
       const hs = shown.filter((h) => h.created_at.slice(0, 10) === d), ids = [...new Set(hs.map((h) => h.session_id || ""))];
       return `<details class="card hd-day" ${i < 3 ? "open" : ""}><summary><b>${longDay(d)}</b><span class="tag">${hs.length}</span><a class="small-link" href="#/log?d=${d}">${t("logbook")} →</a></summary>
         ${ids.map((id) => { const x = sess(id), l = hs.filter((h) => (h.session_id || "") === id);
           return `${x ? `<p class="hd-sess">${KIND_ICON[x.kind] || "♠"} ${hhmm(x.started_at)}${x.ended_at ? " → " + hhmm(x.ended_at) : ""}${x.minutes ? " · " + dur(x.minutes) : ""}</p>` : ""}${l.map(handRow).join("")}`; }).join("")}</details>`;
     }).join("") || empty(t("noHandsT"))}</div>`;
-  bindHands(hands);
+  fitToDock(".res-scroll"); bindHands(hands);
 }
 
 /* Resources > Mine > My calls: every 1-on-1 call, its conclusions and next steps to tick. */
 async function viewCalls() {
   const my = RENDER, body = await progressHtml(ME, { callsOnly: true });
   if (my !== RENDER) return;
-  $("#main").innerHTML = `${head(t("resMine"), t("myCalls"), "")}${body}`;
-  bindProgress();
+  $("#main").innerHTML = `${head(t("resMine"), t("myCalls"), "")}<div class="res-scroll">${body}</div>`;
+  bindProgress(); fitToDock(".res-scroll");
+}
+
+/* Resources home (Alexis 2026-11-03): one tile per section with what waits there, one screen. */
+async function viewRes() {
+  const my = RENDER, player = has(ME, "player");
+  const [calls, hands, notes, csAll, qz, cards, sits] = await Promise.all([player ? db.mentorings(ME.id).catch(() => []) : [], player ? db.hands().catch(() => []) : [],
+    player ? db.notes().catch(() => []) : [], db.coachings().catch(() => []), db.quizzes().catch(() => []), db.cards().catch(() => []), db.situations().catch(() => [])]);
+  if (my !== RENDER) return;
+  const steps = calls.filter((c) => c.status === "validated").reduce((a, c) => a + (c.next_steps || []).filter((_, i) => !(c.steps_done || []).includes(i)).length, 0);
+  const todo = hands.filter((h) => !h.reviewed).length, cs = csAll.filter(myCoaching).sort((a, b) => (a.day < b.day ? 1 : -1)), last = cs[0];
+  const mine = cards.filter((c) => c.player_id === ME.id), due = mine.filter((c) => c.due && c.due <= today()).length, live = sits.filter((s) => s.status === "live").length;
+  const tile = (href, icon, title, big, sub, hot = false) => `<a class="card res-tile ${hot ? "hot" : ""}" href="${href}"><span class="res-ic">${icon}</span><b class="res-t">${title}</b>
+      <span class="res-n">${big}</span><small class="muted">${sub}</small><span class="res-go">${t("resOpen")} →</span></a>`;
+  $("#main").innerHTML = `${head(t("resources"), t("resHome"), t("resHomeSub"))}
+    ${player ? `<p class="res-g">${t("resMine")}</p><div class="res-grid">
+      ${tile("#/calls", "🤝", t("myCalls"), steps, steps ? t("resStepsOpen") : t("resNoSteps"), steps > 0)}
+      ${tile("#/hands", "🃏", t("savedHands"), todo, todo ? t("resToReview") : t("resAllReviewed"), todo > 0)}
+      ${tile("#/notes", "🗒", t("oppNotes"), notes.length, t("resNotesN"))}</div>` : ""}
+    <p class="res-g">${t("resRts")}</p><div class="res-grid two">
+      ${tile("#/coaching", "🎓", t("coachingsQuiz"), cs.length, `${qz.length} ${t("resQuizN")}${last ? ` · ${t("resLast")} : ${esc(last.title)}` : ""}`)}
+      ${tile("#/study", "♠", t("library"), live + mine.length, due ? `<b class="red">${due} ${t("resDueN")}</b> · ${t("resStratSub")}` : t("resStratSub"), due > 0)}</div>`;
 }
 
 /* ---------- Cockpit (was the Logbook, Alexis 2026-11-03) ----------

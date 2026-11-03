@@ -499,9 +499,10 @@ async function viewNotes() {
   const notes = await db.notes();
   $("#main").innerHTML = `${head(t("oppNotes"), t("oppNotes"), t("oppNotesSub"))}
     <input id="nq" placeholder="${t("searchNotes")}" class="sensitive">
-    <div class="grid notes-grid">${notes.map((n) => `<form class="card onote" data-nick="${esc(n.nick.toLowerCase())}"><div class="card-head"><h3 class="sensitive">${esc(n.nick)}</h3><small class="muted">${fmtDay(n.updated_at.slice(0, 10))}</small></div>
+    <div class="grid notes-grid res-scroll">${notes.map((n) => `<form class="card onote" data-nick="${esc(n.nick.toLowerCase())}"><div class="card-head"><h3 class="sensitive">${esc(n.nick)}</h3><small class="muted">${fmtDay(n.updated_at.slice(0, 10))}</small></div>
       ${kindPick(n.kind)}<textarea name="note" rows="3" class="sensitive">${esc(n.note)}</textarea><input type="hidden" name="nick" value="${esc(n.nick)}">
       <button class="btn btn-sm">${t("save")}</button></form>`).join("") || empty(t("noNotes"))}</div>`;
+  fitToDock(".res-scroll");
   $("#nq").oninput = (e) => $$(".onote").forEach((f) => { f.hidden = !f.dataset.nick.includes(e.target.value.toLowerCase()); });
   $$(".onote").forEach((f) => { bindKind(f); f.onsubmit = async (ev) => { ev.preventDefault(); await db.saveNote({ nick: f.nick.value, note: f.note.value.trim(), kind: kindOf(f) }); ev.submitter.textContent = t("saved"); }; });
 }
@@ -561,46 +562,46 @@ async function viewStudy() {
   const hours = studies.filter((s) => s.started_at >= monthStart()).reduce((a, s) => a + (s.minutes || 0), 0) / 60;
   const SRC = { mine: "✍", import: "📥", team: "🤝", rts: "♠" };
   const sel = (k, opts, all) => `<select data-f="${k}"><option value="">${all}</option>${opts.map(([v, l]) => `<option value="${v}" ${q[k] === v ? "selected" : ""}>${l}</option>`).join("")}</select>`;
-  $("#main").innerHTML = `${head(t("study"), t("studyHub"), t("studyHubSub2"))}
-    <div class="grid kpis">
-      ${kpi(t("studyMonth"), fmtH(hours))}
-      ${kpi(t("myCards"), mine.length)}
-      ${kpi(t("cardsToRecall"), dueN, dueN ? `<button class="btn btn-sm btn-red" data-run="due">${t("recallNow")}</button>` : "")}
-    </div>
+  // Strategies = RTS strategies + my cards on one map (Alexis 2026-11-03: My cards and Strategies were the same thing twice)
+  const drafts = isStaff() ? sits.filter((x) => x.status === "draft") : [];
+  const srcChip = (v, l) => `<a class="tagchip ${(q.src || "") === v ? "on" : ""}" href="${href({ src: v })}">${l} <small>${v ? deck.filter((c) => c.src === v).length : deck.length}</small></a>`;
+  $("#main").innerHTML = `${head(t("resources"), t("library"), `${fmtH(hours)} ${t("studyMonth").toLowerCase()} · ${mine.length} ${t("myCards").toLowerCase()}`)}
     <div class="finder card">
+      <div class="chips">${srcChip("", t("all"))}${srcChip("rts", "♠ " + t("srcRts"))}${srcChip("mine", "✍ " + t("srcMine"))}${srcChip("team", "🤝 " + t("fromTeam"))}${srcChip("import", "📥 " + t("srcImport"))}
+        <span class="grow"></span>${dueN ? `<button class="btn btn-sm btn-red" data-run="due">⟳ ${t("recallNow")} (${dueN})</button>` : ""}<a class="btn btn-sm btn-ghost-red" href="#/submit">${t("submit")}</a></div>
       <input type="search" id="sq" placeholder="${t("searchStudy")}" value="${esc(q.q || "")}">
       <div class="filters">
-        ${sel("src", [["mine", "✍ " + t("srcMine")], ["import", "📥 " + t("srcImport")], ["team", "🤝 " + t("fromTeam")], ["rts", "♠ " + t("srcRts")]], t("allSources"))}
         ${sel("st", STREETS.map((x) => [x, t("st_" + x)]), t("allStreets"))}
         ${sel("pos", ["UTG", "HJ", "CO", "BTN", "SB", "BB"].map((x) => [x, x]), t("allPos"))}
         <label class="check sm"><input type="checkbox" data-f="due" ${q.due ? "checked" : ""}><span>${t("dueOnly")}</span></label>
         <button class="btn btn-sm" id="impbtn">📥 ${t("importNotes")}</button>
       </div>
     </div>
-    <div class="grid lib">
+    <div class="grid lib res-scroll">
       <nav class="card tree"><div class="card-head"><h3>${t("map")}</h3><span class="muted small">${pool.length}</span></div>
         <a class="${q.b ? "" : "on"}" href="${href({ b: "", m: "" })}">${t("everything")} <small>${pool.length}</small></a>
         ${branches.map((b) => `<details ${q.b === b ? "open" : ""}><summary><a href="${href({ b, m: "" })}">${esc(potLabel(b))}</a> <small>${nOf(tree[b])}</small></summary>
           ${Object.keys(tree[b]).sort((x, y) => tree[b][y].length - tree[b][x].length).map((m) => `<a class="${q.b === b && q.m === m ? "on" : ""}" href="${href({ b, m })}">${esc(m)} <small>${tree[b][m].length}</small></a>`).join("")}</details>`).join("")}
       </nav>
       <div class="stack">
-        <div class="study-bar"><p class="crumbs"><a href="${href({ b: "", m: "" })}">${t("studyHub")}</a>${q.b ? ` › ${esc(potLabel(q.b))}` : ""}${q.m ? ` › ${esc(q.m)}` : ""} · ${list.length} ${t("cardsN")}</p>
+        <div class="study-bar"><p class="crumbs"><a href="${href({ b: "", m: "" })}">${t("library")}</a>${q.b ? ` › ${esc(potLabel(q.b))}` : ""}${q.m ? ` › ${esc(q.m)}` : ""} · ${list.length} ${t("cardsN")}</p>
           ${list.length ? `<button class="btn btn-red" data-run="list">▶ ${t("studyThese")} (${Math.min(list.length, 30)})</button>` : ""}</div>
         ${list.slice(0, 60).map((c) => `<article class="card scard ${isDue(c) ? "due" : ""}"><div class="card-head"><h3><span title="${c.src}">${SRC[c.src]}</span> ${esc(c.front)}</h3>
           <span class="tag">${[c.street && t("st_" + c.street), isDue(c) && t("dueTag")].filter(Boolean).join(" · ")}</span></div>
           <details><summary class="small-link">${t("showAnswer")}</summary><p class="sensitive pre">${esc(c.back)}</p></details>
+          ${c.sit_id ? `<a class="small-link" href="#/s/${esc(c.sit_id)}">${t("resOpen")} →</a>` : ""}
           ${c.src === "mine" || c.src === "import" ? `<label class="check sm"><input type="checkbox" data-share="${c.id}" ${c.shared ? "checked" : ""}><span>${t("shared")}</span></label>` : ""}</article>`).join("") || empty(t("noCardsYet"))}
         ${list.length > 60 ? `<p class="muted small">+ ${list.length - 60}</p>` : ""}
+        ${drafts.length ? `<details class="card"><summary><b>${t("toReviewLib")}</b> <small class="muted">${drafts.length}</small></summary><div class="stack">${drafts.map(sitCard).join("")}</div></details>` : ""}
       </div>
     </div>
-    <details class="card"><summary><b>${t("studySessions")}</b> <small class="muted">${studies.length}</small></summary>
-      ${studies.map((s) => `<p class="small"><b>${fmtDay(s.started_at.slice(0, 10))}</b> · ${fmtH((s.minutes || 0) / 60)}${s.notes ? ` · <span class="sensitive">${esc(s.notes.slice(0, 120))}</span>` : ""}</p>`).join("") || `<p class="muted small">${t("noStudy")}</p>`}</details>
     <dialog id="impd" class="card"><div class="card-head"><h3>📥 ${t("importNotes")}</h3><button class="x" data-close>×</button></div>
       <p class="muted small">${t("importSub")}</p>
       <label class="drop"><input type="file" id="impf" multiple accept=".txt,.md,.csv,.tsv,.json,text/*" hidden>📄 ${t("importDrop")}<small>.txt · .md · .csv · Anki .txt · .json</small></label>
       <textarea id="impt" rows="6" placeholder="${t("importPaste")}"></textarea>
       <p id="impprev" class="small"></p><button class="btn btn-red" id="impgo" disabled>${t("importGo")}</button></dialog>
     <dialog id="flash" class="card flash"></dialog>`;
+  fitToDock(".res-scroll");
   $$("[data-share]").forEach((c) => c.onchange = () => db.saveCard({ id: c.dataset.share, shared: c.checked }));
   $("#sq").onchange = (e) => (location.hash = href({ q: e.target.value.trim() }));
   $$("select[data-f]").forEach((s) => s.onchange = () => (location.hash = href({ [s.dataset.f]: s.value })));
@@ -1218,17 +1219,19 @@ async function viewCoaching() {
   const link = (k, v) => { const p = new URLSearchParams({ ...q, [k]: v }); ["q", "coach"].forEach((x) => !p.get(x) && p.delete(x)); return "#/coaching?" + p; };
   $("#main").innerHTML = `
     ${head(t("coaching"), t("coachingsTitle"), t("coachingsSub"))}
-    ${qz.length ? `<details class="card quizbox"><summary><b>${t("quizzes")}</b> <span class="muted small">${qz.length}</span> <a class="btn btn-sm btn-ghost-red" href="#/review">${t("review")}</a></summary>
-      <div class="list">${qz.map((x) => `<a class="card row-link" href="#/quiz/${x.id}"><span class="date">${esc(x.module || "")}</span><b>${esc(x.title)}</b>${x.status === "draft" ? `<span class="tag warn">${t("pendingApproval")}</span>` : `<span class="tag ok">${t("live")}</span>`}</a>`).join("")}</div></details>` : ""}
-    <div class="finder card">
+    <div class="finder card co-find">
       <input type="search" id="cq" placeholder="${t("searchCoaching")}" value="${esc(q.q || "")}">
       <div class="filters">
         <div class="chips">${[["", t("all")], ...teams.map((x) => [x, x])].map(([v, l]) => `<a class="tagchip ${(q.team || "") === v ? "on" : ""}" href="${link("team", v)}">${esc(l)}</a>`).join("")}</div>
         <select id="ccoach"><option value="">${t("allCoaches")}</option>${coaches.map((x) => `<option ${q.coach === x ? "selected" : ""}>${esc(x)}</option>`).join("")}</select>
+        <span class="muted small">${found.length} ${t("sessionsN")}</span>
       </div>
-      <p class="muted small">${found.length} ${t("sessionsN")}</p>
     </div>
-    ${Object.entries(byMonth).map(([m, l]) => `<p class="sub">${fmtMonth(m)}</p><div class="list">${l.map((c) => replayRow(c, att.includes(c.id))).join("")}</div>`).join("") || empty(t("noCoaching"))}`;
+    <div class="res-scroll">
+    ${qz.length ? `<details class="card quizbox" open><summary><b>${t("quizzes")}</b> <span class="muted small">${qz.length}</span> <a class="btn btn-sm btn-ghost-red" href="#/review">${t("review")}</a></summary>
+      <div class="list">${qz.map((x) => `<a class="card row-link" href="#/quiz/${x.id}"><span class="date">${esc(x.module || "")}</span><b>${esc(x.title)}</b>${x.status === "draft" ? `<span class="tag warn">${t("pendingApproval")}</span>` : `<span class="tag ok">${t("live")}</span>`}</a>`).join("")}</div></details>` : ""}
+    ${Object.entries(byMonth).map(([m, l]) => `<p class="sub">${fmtMonth(m)}</p><div class="list">${l.map((c) => replayRow(c, att.includes(c.id))).join("")}</div>`).join("") || empty(t("noCoaching"))}</div>`;
+  fitToDock(".res-scroll");
   const go = (k, v) => (location.hash = link(k, v));
   $("#cq").addEventListener("keydown", (e) => { if (e.key === "Enter") go("q", e.target.value.trim()); });
   $("#ccoach").onchange = (e) => go("coach", e.target.value);
@@ -1392,7 +1395,7 @@ async function viewSituation(id) {
   const canPublish = s.status === "draft" && (isAdmin() || subj?.coach_id === ME.id);
   const practice = qs.filter((q) => q.situation_id === s.id);
   $("#main").innerHTML = `
-    <a class="back" href="#/library">← ${t("library")}</a>
+    <a class="back" href="#/study">← ${t("library")}</a>
     <section class="hello"><p class="eyebrow">${esc([s.pot, s.street, subj?.label].filter(Boolean).join(" · "))}</p><h1 class="h-long">${esc(s.title)}</h1></section>
     <div class="grid two">
       <div class="card conclusion">
@@ -1417,7 +1420,7 @@ async function viewSituation(id) {
 
 async function viewSubmit() {
   $("#main").innerHTML = `
-    <a class="back" href="#/library">← ${t("library")}</a>
+    <a class="back" href="#/study">← ${t("library")}</a>
     ${head(t("library"), t("submit"), t("submitSub"))}
     <form class="card journal-form" id="sform">
       <label>Title<input name="title" required placeholder="BTN vs CO open, 3-bet vs fish"></label>
@@ -1448,7 +1451,7 @@ async function viewSubmit() {
     f.stacks_bb = +f.stacks_bb || null;
     f.id = "sub-" + Date.now().toString(36);
     f.teams = ME.team === "elite" ? ["elite"] : ["academy", "elite"];
-    try { await db.submitSituation(f); $("#ssaved").textContent = t("saved"); setTimeout(() => (location.hash = "#/library"), 700); }
+    try { await db.submitSituation(f); $("#ssaved").textContent = t("saved"); setTimeout(() => (location.hash = "#/study?src=rts"), 700); }
     catch (err) { $("#ssaved").textContent = t("error") + " : " + err.message; }
   };
 }
@@ -1731,7 +1734,7 @@ function shell() {
   document.body.classList.remove("is-login");
   const demo = db.mode === "demo";
   // 2026-11-03: few tabs, no repeats. Home = HQ; Logbook = grind + study + journal + goals; Resources = mine + RTS (sub nav); tools in the bottom dock.
-  const links = [["", "home", "#/"]].concat(has(ME, "player") ? [["log", "logbook", "#/log"]] : []).concat([["res", "resources", "#/coaching"], ["calendar", "calendar", "#/calendar"]])
+  const links = [["", "home", "#/"]].concat(has(ME, "player") ? [["log", "logbook", "#/log"]] : []).concat([["res", "resources", "#/res"], ["calendar", "calendar", "#/calendar"]])
     .concat(isStaff() ? [["team", "team", "#/team"]] : []).concat(isOps() ? [["dir", isAdmin() ? "direction" : "admin", isAdmin() ? "#/ceo" : "#/admin"]] : []);
   $("#app").innerHTML = `
     <header class="top"><div class="wrap">
@@ -1772,14 +1775,15 @@ async function route() {
   const [path] = (location.hash || "#/").split("?");
   const [, a = "", b, c] = path.split("/");
   // Old addresses still work: journal and goals live in the Logbook, progress is My calls, the HQ is the home.
-  const moved = { journal: () => `#/log${location.hash.includes("day=") ? "?d=" + location.hash.split("day=")[1] : ""}`, goals: () => "#/log?m=" + monthStart().slice(0, 7), progress: () => "#/calls", hq: () => "#/" + (location.hash.split("?")[1] ? "?" + location.hash.split("?")[1] : "") };
+  const moved = { library: () => "#/study" + (location.hash.includes("?") ? "?" + location.hash.split("?")[1] : ""), journal: () => `#/log${location.hash.includes("day=") ? "?d=" + location.hash.split("day=")[1] : ""}`, goals: () => "#/log?m=" + monthStart().slice(0, 7), progress: () => "#/calls", hq: () => "#/" + (location.hash.split("?")[1] ? "?" + location.hash.split("?")[1] : "") };
   if (moved[a]) { location.replace(moved[a]()); return; }
   const group = GROUP[a] || a, navKey = a === "p" || ["session", "hero"].includes(a) ? "" : group;
   const sub = subnavHtml(group, a); $("#subnav").innerHTML = sub; $("#subnav").hidden = !sub;
+  document.body.dataset.g = group; // Resources pages share one compact, centred look (style.css)
   paintDock();
   $$("[data-nav]").forEach((l) => l.classList.toggle("on", l.dataset.nav === navKey));
   $("#main").innerHTML = `<p class="muted loading">${t("loading")}</p>`;
-  const views = { "": viewHome, journal: viewJournal, p: () => viewPlayer(b, c), coaching: viewCoaching, c: () => viewCoachingOne(b), quiz: () => viewQuiz(b),
+  const views = { "": viewHome, res: viewRes, journal: viewJournal, p: () => viewPlayer(b, c), coaching: viewCoaching, c: () => viewCoachingOne(b), quiz: () => viewQuiz(b),
     review: viewReview, library: viewLibrary, s: () => viewSituation(b), submit: viewSubmit, calendar: viewCalendar, team: viewTeam, admin: viewAdmin, ceo: viewCeo,
     session: viewSession, hands: viewHands, log: viewLog, calls: viewCalls, replayer: () => viewReplayer(b), study: viewStudy, recall: viewRecall, account: viewAccount, hero: viewHero, hq: viewHQ, notes: viewNotes, sizing: viewSizing, goals: viewGoals, progress: viewProgress, inbox: viewInbox };
   try { await (views[a] || viewHome)(); }
