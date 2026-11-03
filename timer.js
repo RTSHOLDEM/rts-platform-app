@@ -153,17 +153,15 @@ const ICONS = {
   gto: `<svg viewBox="0 0 24 24"><path d="M12 2 6 16h12z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3 18.5c5.5-2 12.5-2 18 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="13" cy="10" r="1.3"/></svg>`,
   replay: `<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10 8.5v7l5.5-3.5z"/></svg>`,
   discord: `<svg viewBox="0 0 24 24"><path d="M19.3 5.4A16 16 0 0 0 15.4 4l-.5 1a14.6 14.6 0 0 0-5.8 0L8.6 4a16 16 0 0 0-3.9 1.4C2.2 9.1 1.5 12.7 1.9 16.3a16 16 0 0 0 4.8 2.5l1-1.6c-.6-.2-1.1-.5-1.6-.8l.4-.3a11.3 11.3 0 0 0 11 0l.4.3-1.6.8 1 1.6a16 16 0 0 0 4.8-2.5c.5-4.2-.8-7.8-2.8-10.9zM8.7 14.2c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2zm6.6 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2z"/></svg>`,
+  cal: `<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 10h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`,
   feedback: `<svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>`,
   sizing: `<svg viewBox="0 0 24 24"><path d="M6 18 18 6" stroke="currentColor" stroke-width="2"/><circle cx="7" cy="7" r="2.4" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="17" cy="17" r="2.4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>`,
 };
 function dockHtml() {
   return `<nav class="dockbar" id="dock" aria-label="Dock"><div class="dk-ses" id="dkses"></div>
     <i class="dk-sep"></i>
-    <a class="dk" href="https://app.gtowizard.com" target="_blank" rel="noopener" data-tip="GTO Wizard">${ICONS.gto}</a>
+    <a class="dk" href="#/calendar" data-tip="${t("calendarT")}">${ICONS.cal}</a>
     <a class="dk" href="#/replayer" data-tip="Replayer">${ICONS.replay}</a>
-    <a class="dk" href="${DISCORD_URL}" target="_blank" rel="noopener" data-tip="Discord">${ICONS.discord}</a>
-    ${isAdmin() ? `<a class="dk" href="#/sizing" data-tip="MonPetitSizing">${ICONS.sizing}</a>` : ""}
-    <i class="dk-sep"></i>
     <button class="dk" id="fbb" data-tip="${t("fbBtn")}">${ICONS.feedback}</button></nav>
     <dialog id="durd" class="card"></dialog><dialog id="timeup" class="card timeup"></dialog>
     <div id="brk" class="brk" hidden></div>`;

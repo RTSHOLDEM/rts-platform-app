@@ -125,6 +125,7 @@ function liveDb() {
     // game layer (005)
     async myJoins() { const me = await db.me(); return rows(sb.from("event_joins").select("*").eq("player_id", me.id)); },
     async setPrefs(accent, skin) { const { error } = await sb.rpc("set_prefs", { p_accent: accent ?? null, p_skin: skin ?? null }); if (error) throw error; meCache = null; },
+    async setGoalsDay(v) { const { error } = await sb.rpc("set_goals_day", { p: v }); if (error) throw error; meCache = null; },
     async setLook(nick, avatar) { const { error } = await sb.rpc("set_look", { p_nick: nick ?? null, p_avatar: avatar ?? null }); if (error) throw error; meCache = null; },
     async notes() { const me = await db.me(); return rows(sb.from("opp_notes").select("*").eq("player_id", me.id).order("updated_at", { ascending: false })); },
     async saveNote(n) { const me = await db.me(); return rows(sb.from("opp_notes").upsert({ ...n, player_id: me.id, updated_at: new Date().toISOString() }, { onConflict: "player_id,nick" }).select()); },
@@ -274,6 +275,7 @@ function demoDb() {
     async join(id, on) { S.joins = (S.joins || []).filter((j) => !(j.event_id === id && j.player_id === meId())); if (on) S.joins.push({ event_id: id, player_id: meId() }); save(); },
     async myJoins() { return (S.joins || []).filter((j) => j.player_id === meId()); },
     async setPrefs(accent, skin) { if (accent) me().accent = accent; if (skin) me().skin = skin; save(); },
+    async setGoalsDay(v) { me().goals_day = v; save(); },
     async setLook(nick, avatar) { const m = me(); if (nick !== null) m.nick = (nick || "").trim().slice(0, 20) || null; if (avatar !== null) m.avatar = avatar; save(); },
     async notes() { return (S.notes ||= []).filter((n) => n.player_id === meId()).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)); },
     async saveNote(n) { const l = (S.notes ||= []); const i = l.findIndex((x) => x.player_id === meId() && x.nick === n.nick); const row = { ...(i >= 0 ? l[i] : { id: "n" + Date.now() }), ...n, player_id: meId(), updated_at: new Date().toISOString() }; i >= 0 ? (l[i] = row) : l.push(row); save(); },

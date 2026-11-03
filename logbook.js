@@ -3,6 +3,8 @@
    one bubble per day), right: ONE goal card, the one of the period you look at
    #/calls   my calls with mentor and coaches (Resources > Mine)      #/hands   saved hands by title (Resources > Mine) */
 Object.assign(STRINGS.en, {
+  tabGrind: "Grind", tabStudy: "Study", tabCoach: "Coachings", stNew: "New card", stNewT: "New study card", stSit: "The spot", stSitPh: "e.g. BTN vs BB, single raised pot, K72r, villain checks turn",
+  stConc: "My conclusion", stConcPh: "What I do and why", stShare: "Share with my team", stStart: "Start a study session", calendarT: "Calendar",
   gtoTip: "Copies the hand and opens GTO Wizard", gtoCopied: "Hand copied. In GTO Wizard: <b>Upload</b> (top right), <b>Cmd+V</b>, <b>Enter</b>.",
   sesEdit: "Change", sesStart: "Start", sesLen: "Length (min)", sesSave: "Save", sesDelAsk: "Delete this session? Its hours come off the journal of that day. Its hands stay saved.", sesDel: "Delete session",
   resHome: "Overview", resHomeSub: "Everything you keep and everything RTS shares, one click away.", resOpen: "Open", resStepsOpen: "next steps open", resNoSteps: "No step open",
@@ -13,7 +15,11 @@ Object.assign(STRINGS.en, {
   noSessionDay: "No session this day.", hoursWeek: "Hours this week", openSteps: "open next steps", seeCalls: "See my calls",
   totalPlay: "Play", totalStudy: "Study", totalHands: "Hands", daysLogged: "days logged", journalSaved: "Journal saved ✓",
   toReviewT: "To review", reviewedT: "Reviewed", allT: "All", noHandsT: "No hand here.", hhText: "Hand history", openFull: "Full size",
-  ckYear: "Year", ckWork: "Work", ckJournalSub: "Only if you want to write.", ckWritten: "written",
+  hsReady: "Ready?", hsTitle: "Start a session", hsGrind: "Poker session", hsGrindSub: "You play, the clock runs", hsStudy: "Study session", hsStudySub: "Wizard, review, trainer", hsLive: "Session running", ckStudyNotes: "Notes of the day →", resDayT: "Study of the day", resDayAll: "See all", resNoNotes: "No notes in this session.", resDayNone: "No study session that day.", hsLast: "My last sessions", hsNone: "No session yet.", hbCk: "Grind", hbCkOpen: "Open", hqBig: "Open the HQ big", hqSmall: "Make the HQ small",
+  ckYear: "Year", ckWork: "Work", ckJournalSub: "Your feelings of the day", ckWritten: "written", ckJrWrite: "Write",
+  ckGTitle: "This week's goals", ckGPlay: "Play hours", ckGHands: "Hands", ckGFree: "Other goals (one per line)", ckGFreePh: "e.g. Review 20 hands with the solver\nStop after 3 buy-ins lost",
+  ckGOpt: "All optional. They show at the top right of your Cockpit.", ckGAsk: "New week: your goals?", ckGLater: "Later", ckGSet: "Set my goals",
+  ckGWhen: "Ask me for my week goals", ckGSun: "Sunday evening", ckGMon: "Monday (first login)", ckWkSub: "Counted on the week (on its last day so far).", ckPrevW: "Previous week", ckNextW: "Next week",
   ckToday: "Today", ckAdd: "Add", ckEdit: "Edit", ckAddT: "Add", ckDone: "Done that day", ckHandsDay: "Hands that day", ckCoachCal: "From the calendar",
   ckCoaching: "Coaching", ckWeekGoals: "Week goals", ckAddSes: "Add a session I did", ckAddGo: "Add", ckNoCoach: "No coaching that day.",
   ckCoachSub: "Your team's coachings from the calendar count by themselves. Add here a coaching that is not in the calendar.", ckHandsSub: "Set the total for this period: the days you already filled stay as they are.",
@@ -25,6 +31,8 @@ Object.assign(STRINGS.en, {
   hcUseTracked: "Use the tracked {t}", hcKeep: "Keep {w}",
 });
 Object.assign(STRINGS.fr, {
+  tabGrind: "Grind", tabStudy: "Études", tabCoach: "Coachings", stNew: "Nouvelle carte", stNewT: "Nouvelle carte d'étude", stSit: "Le spot", stSitPh: "ex. BTN vs BB, pot simple relancé, K72r, villain check le turn",
+  stConc: "Ma conclusion", stConcPh: "Ce que je fais et pourquoi", stShare: "Partager avec mon équipe", stStart: "Lancer une session d'études", calendarT: "Calendrier",
   gtoTip: "Copie la main et ouvre GTO Wizard", gtoCopied: "Main copiée. Dans GTO Wizard : <b>Upload</b> (en haut à droite), <b>Cmd+V</b>, <b>Entrée</b>.",
   sesEdit: "Modifier", sesStart: "Début", sesLen: "Durée (min)", sesSave: "Enregistrer", sesDelAsk: "Supprimer cette session ? Ses heures sont retirées du journal de ce jour. Ses mains restent sauvegardées.", sesDel: "Supprimer la session",
   resHome: "Vue d'ensemble", resHomeSub: "Tout ce que tu gardes et tout ce que RTS partage, en un clic.", resOpen: "Ouvrir", resStepsOpen: "prochaines étapes ouvertes", resNoSteps: "Aucune étape ouverte",
@@ -35,7 +43,11 @@ Object.assign(STRINGS.fr, {
   noSessionDay: "Aucune session ce jour-là.", hoursWeek: "Heures cette semaine", openSteps: "prochaines étapes ouvertes", seeCalls: "Voir mes calls",
   totalPlay: "Jeu", totalStudy: "Étude", totalHands: "Mains", daysLogged: "jours remplis", journalSaved: "Journal enregistré ✓",
   toReviewT: "À revoir", reviewedT: "Revues", allT: "Toutes", noHandsT: "Aucune main ici.", hhText: "Historique", openFull: "Plein écran",
-  ckYear: "Année", ckWork: "Travail", ckJournalSub: "Seulement si tu veux écrire.", ckWritten: "écrit",
+  hsReady: "Prêt ?", hsTitle: "Lance une session", hsGrind: "Session de poker", hsGrindSub: "Tu joues, le chrono tourne", hsStudy: "Session d'études", hsStudySub: "Wizard, review, trainer", hsLive: "Session en cours", ckStudyNotes: "Notes du jour →", resDayT: "Études du jour", resDayAll: "Tout voir", resNoNotes: "Pas de notes dans cette session.", resDayNone: "Aucune session d'études ce jour-là.", hsLast: "Mes dernières sessions", hsNone: "Pas encore de session.", hbCk: "Grind", hbCkOpen: "Ouvrir", hqBig: "Ouvrir le QG en grand", hqSmall: "Réduire le QG",
+  ckYear: "Année", ckWork: "Travail", ckJournalSub: "Tes ressentis du jour", ckWritten: "écrit", ckJrWrite: "Écrire",
+  ckGTitle: "Objectifs de la semaine", ckGPlay: "Heures de jeu", ckGHands: "Mains", ckGFree: "Autres objectifs (un par ligne)", ckGFreePh: "ex. Revoir 20 mains au solver\nStop après 3 caves perdues",
+  ckGOpt: "Tout est facultatif. Ils s'affichent en haut à droite du Cockpit.", ckGAsk: "Nouvelle semaine : tes objectifs ?", ckGLater: "Plus tard", ckGSet: "Fixer mes objectifs",
+  ckGWhen: "Me demander mes objectifs de la semaine", ckGSun: "Le dimanche soir", ckGMon: "Le lundi (première connexion)", ckWkSub: "Compté sur la semaine (sur son dernier jour passé).", ckPrevW: "Semaine précédente", ckNextW: "Semaine suivante",
   ckToday: "Aujourd'hui", ckAdd: "Ajouter", ckEdit: "Modifier", ckAddT: "Ajouter", ckDone: "Fait ce jour-là", ckHandsDay: "Mains du jour", ckCoachCal: "Du calendrier",
   ckCoaching: "Coaching", ckWeekGoals: "Objectifs semaine", ckAddSes: "Ajouter une session faite", ckAddGo: "Ajouter", ckNoCoach: "Pas de coaching ce jour-là.",
   ckCoachSub: "Les coachings de ton équipe du calendrier comptent tout seuls. Ajoute ici un coaching qui n'y est pas.", ckHandsSub: "Mets le total de la période : les jours déjà remplis ne bougent pas.",
@@ -48,12 +60,12 @@ Object.assign(STRINGS.fr, {
 });
 
 /* ---------- sub navigation: Resources (mine | RTS) and Direction ---------- */
-const GROUP = { res: "res", log: "log", calls: "res", hands: "res", notes: "res", study: "res", recall: "res", coaching: "res", c: "res", quiz: "res", review: "res",
-  library: "res", s: "res", submit: "res", ceo: "dir", admin: "dir", inbox: "dir" };
+const GROUP = { res: "res", log: "log", calls: "res", hands: "res", notes: "res", study: "study", recall: "study", coaching: "coaching", c: "coaching", quiz: "coaching", review: "coaching",
+  library: "study", s: "study", submit: "study", ceo: "dir", admin: "dir", inbox: "dir" };
 function subnavHtml(group, a) {
   const l = (k, label) => `<a href="#/${k}" class="${a === k || (k === "coaching" && ["c", "quiz", "review"].includes(a)) || (k === "study" && ["recall", "s", "submit"].includes(a)) ? "on" : ""}">${label}</a>`;
   // Resources (Alexis 2026-11-03): an overview first; My cards and Strategies are one page now (the Study hub with a Mine / RTS filter).
-  if (group === "res") return l("res", "◎ " + t("resHome")) + `<i class="sn-sep"></i>` + (has(ME, "player") ? `<span class="sn-g">${t("resMine")}</span>${l("calls", t("myCalls"))}${l("hands", t("savedHands"))}${l("notes", t("oppNotes"))}<i class="sn-sep"></i>` : "")
+  if (group === "res" && false) return l("res", "◎ " + t("resHome")) + `<i class="sn-sep"></i>` + (has(ME, "player") ? `<span class="sn-g">${t("resMine")}</span>${l("calls", t("myCalls"))}${l("hands", t("savedHands"))}${l("notes", t("oppNotes"))}<i class="sn-sep"></i>` : "")
     + `<span class="sn-g">${t("resRts")}</span>${l("coaching", t("coachingsQuiz"))}${l("study", t("library"))}`;
   if (group === "dir") return [isAdmin() && l("ceo", t("ceo")), isOps() && l("admin", t("admin")), isAdmin() && l("inbox", t("inbox"))].filter(Boolean).join("");
   return "";
@@ -170,6 +182,7 @@ const isoWeekN = (d) => { const x = new Date(d + "T12:00:00"); x.setDate(x.getDa
 const monthOnly = (m) => { const s = new Date(m + "-15T12:00:00").toLocaleDateString(LANG === "fr" ? "fr-FR" : "en-GB", { month: "long" }); return s[0].toUpperCase() + s.slice(1); };
 const CK_PANE = { get: () => { try { return sessionStorage.getItem("ck-pane") || ""; } catch { return ""; } }, set: (v) => { try { sessionStorage.setItem("ck-pane", v); } catch {} } };
 
+const CK_ADD = { get: () => { try { return sessionStorage.getItem("ck-add") === "1"; } catch { return false; } }, set: (v) => { try { sessionStorage.setItem("ck-add", v ? "1" : ""); } catch {} } };
 const CK_OPEN = { get: (k) => { try { return sessionStorage.getItem("ck-" + k) === "1"; } catch { return false; } },
   set: (k, v) => { try { sessionStorage.setItem("ck-" + k, v ? "1" : ""); } catch {} } };
 async function viewLog() {
@@ -229,15 +242,22 @@ async function viewLog() {
       <div class="ck-row">${stepper("n", sumDays(days).hands, 500, 0, 9999999, "n")}<button class="btn btn-red">${t("save")}</button></div>
       <p class="muted small">${t("ckHandsSub")}</p></form>`;
   const wkLabel = selW || mondayOf(sel.k === "q" ? T : anchor), wG = wq.find((g) => g.period === "week" && g.label === wkLabel), qG = wq.find((g) => g.period === "quarter" && g.label === selQ), mG = mGoal(selM);
-  const wkHrs = hrs(sumDays(weekDays(wkLabel))), wkT = mG?.week_h_target || weekTarget(ME);
-  // Top of the Cockpit (Alexis 2026-11-03): the week first, one bar for all the work, one for the grind, and the week goals.
-  const wkPlay = sumDays(weekDays(wkLabel)).play, wkGi = wG?.items || [], wkDone = wkGi.filter((x) => x.startsWith("✓ ")).length;
-  const barRow = (cls, label, v, tgt, showT) => `<div class="ck-bar ${cls}"><span>${label}</span><div class="ck-track"><i style="width:${Math.min(100, tgt ? (v / tgt) * 100 : 0)}%"></i></div><b>${fmtH(v)}${showT ? ` <small>/ ${tgt} h</small>` : ""}</b></div>`;
-  const goalsBtn = sel.k === "d" ? `<button type="button" class="ck-wk-g ${CK_PANE.get() === "goals" ? "on" : ""}" data-pane="goals">` : `<a class="ck-wk-g" href="#/log?w=${wkLabel}">`;
-  const wkPanel = `<div class="ck-week"><div class="ck-wk-l"><span class="ck-eb">${t("hoursWeek")}</span><a class="ck-wk-t" href="#/log?w=${wkLabel}">${t("weekN")} ${isoWeekN(wkLabel)}</a>
+  // Top of the Cockpit (Alexis 2026-11-03): the week first with its own arrows, one bar for all the work
+  // (grind red + study green on the same bar), and the week goals at the top right.
+  const wkSum = sumDays(weekDays(wkLabel)), wkPlay = wkSum.play, wkStudy = wkSum.study, wkHrs = wkPlay + wkStudy, wkT = mG?.week_h_target || weekTarget(ME);
+  const pct = (v) => Math.min(100, wkT ? (v / wkT) * 100 : 0), pG = pct(wkPlay), pS = Math.min(100 - pG, pct(wkStudy));
+  const wkPrev = addDays(-7, new Date(wkLabel + "T12:00:00")), wkNext = addDays(7, new Date(wkLabel + "T12:00:00"));
+  const wkGi = wG?.items || [], gPlay = Number(wG?.play_h_target || 0), gHands = Number(wG?.hands_target || 0);
+  const gLines = [gPlay ? `<span class="ck-gl">♠ <b>${fmtH(wkPlay)}</b> / ${gPlay} h</span>` : "", gHands ? `<span class="ck-gl">🃏 <b>${fmtNum(wkSum.hands)}</b> / ${fmtNum(gHands)}</span>` : "",
+    ...wkGi.slice(0, 3).map((x, i) => `<label class="ck-gl ${x.startsWith("✓ ") ? "done" : ""}"><input type="checkbox" data-gtick="week|${wkLabel}|${i}" ${x.startsWith("✓ ") ? "checked" : ""}><span>${esc(x.replace(/^✓ /, ""))}</span></label>`),
+    wkGi.length > 3 ? `<span class="ck-gl muted">+${wkGi.length - 3}</span>` : ""].filter(Boolean).join("");
+  const wkPanel = `<div class="ck-week"><div class="ck-wk-l"><span class="ck-eb">${t("hoursWeek")}</span>
+      <div class="ck-wk-nav"><a class="btn btn-sm" href="#/log?w=${wkPrev}" title="${t("ckPrevW")}">←</a><a class="ck-wk-t" href="#/log?w=${wkLabel}">${t("weekN")} ${isoWeekN(wkLabel)}</a>${wkNext <= T ? `<a class="btn btn-sm" href="#/log?w=${wkNext}" title="${t("ckNextW")}">→</a>` : `<span class="btn btn-sm ck-off">→</span>`}</div>
       <small>${fmtDay(wkLabel)} → ${fmtDay(addDays(6, new Date(wkLabel + "T12:00:00")))}</small></div>
-    <div class="ck-bars">${barRow("work", "⚡ " + t("ckWork"), wkHrs, wkT, true)}${barRow("grind", "♠ " + t("grindW"), wkPlay, wkT, false)}</div>
-    ${goalsBtn}<span>🎯</span><b>${wkGi.length ? `${wkDone}/${wkGi.length}` : "–"}</b><small>${t("ckWeekGoals")}</small>${sel.k === "d" ? "</button>" : "</a>"}</div>`;
+    <div class="ck-bars"><div class="ck-tot"><span>⚡ ${t("ckWork")}</span><b>${fmtH(wkHrs)} <small>/ ${wkT} h</small></b></div>
+      <div class="ck-track ck-stack"><i class="g" style="width:${pG}%"></i><i class="s" style="width:${pS}%"></i></div>
+      <div class="ck-key"><span><i class="g"></i>♠ ${t("grindW")} <b>${fmtH(wkPlay)}</b></span><span><i class="s"></i>📚 ${t("studyW")} <b>${fmtH(wkStudy)}</b></span></div></div>
+    <div class="ck-wk-g"><button type="button" class="ck-gh" id="ckgoals">🎯 ${t("ckWeekGoals")} <span>✎</span></button>${gLines || `<button type="button" class="ck-gl ck-gset" data-gopen>+ ${t("ckGSet")}</button>`}</div></div>`;
   const openSteps = calls.filter((c) => c.status === "validated").reduce((a, c) => a + (c.next_steps || []).filter((_, i) => !(c.steps_done || []).includes(i)).length, 0);
   const stepsLink = openSteps ? `<a class="small-link ck-steps" href="#/calls"><b>${openSteps}</b> ${t("openSteps")} →</a>` : "";
 
@@ -246,9 +266,17 @@ async function viewLog() {
   if (sel.k === "d") mid = dayHtml(sel.v);
   else if (sel.k === "w") {
     const x = sumDays(weekDays(sel.v));
-    mid = `<div class="card"><div class="pg-stats">${stat(t("hoursWeek"), hrs(x), wkT + " h", fmtH(hrs(x)))}${stat(t("totalPlay"), x.play, null, fmtH(x.play))}${stat(t("totalStudy"), x.study, null, fmtH(x.study))}${stat(t("totalHands"), x.hands, null, fmtNum(x.hands))}</div></div>
-      ${rows(weekDays(sel.v).map((d) => [`#/log?d=${d}`, longDay(d), { ...dayN(d), logged: dayN(d).j }, `<span>${dayN(d).mood ? MOODS[dayN(d).mood - 1] : ""}</span>`]))}
-      <div class="grid two ck-pair">${handsBox(weekDays(sel.v), fmtWeek(sel.v))}${goalList("week", sel.v, wG, "goalsWeek", stepsLink)}</div>`;
+    // a week works like a day (Alexis 2026-11-03): its tiles, + Ajouter on each, then its days
+    const pane = CK_PANE.get(), wd = weekDays(sel.v);
+    const tile = (k, icon, label, val) => `<button type="button" class="ck-t ${pane === k ? "on" : ""}" data-pane="${k}"><span class="ck-tl">${icon} ${label}</span><b>${val}</b><span class="ck-act">+ ${t("ckAdd")}</span></button>`;
+    const wAdd = (kind) => `<form class="ck-addf" data-sesweek="${kind}"><h4>+ ${t("ckAddT")} · ${kind === "grind" ? "♠ " + t("grindW") : "📚 " + t("studyW")} · ${fmtWeek(sel.v)}</h4>
+        <div class="ck-row">${stepper("min", 60, 15, 15, 3000)}${kind === "study" ? topicSel("wizard") : ""}<button class="btn btn-red">+ ${t("ckAddGo")}</button></div><p class="muted small">${t("ckWkSub")}</p></form>`;
+    const wPanes = { grind: () => wAdd("grind"), study: () => wAdd("study"),
+      hands: () => `<form class="ck-addf ck-hands" data-hands="${wd.join(",")}"><h4>🃏 ${t("hands")} · ${fmtWeek(sel.v)}</h4><div class="ck-row">${stepper("n", x.hands, 500, 0, 9999999, "n")}<button class="btn btn-red">${t("save")}</button></div><p class="muted small">${t("ckHandsSub")}</p></form>` };
+    mid = `<div class="ck-strip w2">${tile("grind", "♠", t("grindW"), fmtH(x.play))}${tile("study", "📚", t("studyW"), fmtH(x.study))}</div>
+      ${wPanes[pane] && wd.length ? `<div class="card ck-pane">${wPanes[pane]()}</div>` : ""}
+      ${rows(wd.map((d) => [`#/log?d=${d}`, longDay(d), { ...dayN(d), logged: dayN(d).j }, `<span>${dayN(d).mood ? MOODS[dayN(d).mood - 1] : ""}</span>`]))}
+      ${stepsLink ? `<p class="row-btns">${stepsLink}</p>` : ""}`;
   } else if (sel.k === "m") {
     const x = sumDays(monthDays(sel.v)), g = mG, [y, mo] = sel.v.split("-").map(Number);
     const n = sel.v === T.slice(0, 7) ? new Date().getDate() : new Date(y, mo, 0).getDate(), perWeek = hrs(x) / Math.max(1, n / 7);
@@ -280,18 +308,18 @@ async function viewLog() {
     const loose = hands.filter((h) => !h.session_id && h.created_at.slice(0, 10) === d);
     const now = Date.now(), coach = evs.filter((x) => x.kind === "coaching" && forMe(x) && x.starts_at.slice(0, 10) === d && new Date(x.starts_at).getTime() <= now);
     const coachMin = coach.reduce((a, x) => a + Number(x.minutes || 60), 0);
-    const gi = wG?.items || [], gDone = gi.filter((x) => x.startsWith("✓ ")).length;
     const pane = CK_PANE.get();
     const manCoach = ss.filter((x) => x.kind === "coaching"), coachAll = coachMin + manCoach.reduce((a, x) => a + Number(x.minutes || 0), 0);
-    const tile = (k, icon, label, val, sub = "", act = "+ " + t("ckAdd")) => `<button type="button" class="ck-t ${pane === k ? "on" : ""}" data-pane="${k}"><span class="ck-tl">${icon} ${label}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ""}<span class="ck-act">${act}</span></button>`;
+    const tile = (k, icon, label, val, sub = "", go = "") => `<button type="button" class="ck-t ${pane === k ? "on" : ""}" data-pane="${k}" ${go ? `data-go="${go}"` : ""}><span class="ck-tl">${icon} ${label}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ""}<span class="ck-act">+ ${t("ckAdd")}</span></button>`;
+    const addOn = CK_ADD.get();
     const addForm = (kind) => `<form class="ck-addf" data-sesadd="${kind}"><h4>+ ${t("ckAddT")} · ${{ grind: "♠ " + t("grindW"), study: "📚 " + t("studyW"), coaching: "🎓 " + t("ckCoaching") }[kind]}</h4>
         <div class="ck-row">${stepper("min", 60, 15, 15, 900)}<label>${t("sesStart")} <input type="time" name="at" value="${d === T ? hhmm(new Date(Date.now() - 36e5).toISOString()) : "14:00"}" required></label>
         ${kind === "study" ? topicSel("wizard") : ""}<button class="btn btn-red">+ ${t("ckAddGo")}</button></div></form>`;
     const sesList = (kind) => {
       const l = ss.filter((x) => x.kind === kind);
-      return `${addForm(kind)}<h4 class="ck-sub">${t("ckDone")}</h4>${l.map((x) => { const hs = hands.filter((h) => h.session_id === x.id), cs = cards.filter((c) => c.session_id === x.id), min = x.ended_at ? Number(x.minutes || 0) : Math.round(elapsed(x) / 6e4);
+      return `${addOn ? addForm(kind) : ""}<h4 class="ck-sub">${t("ckDone")}${addOn ? "" : ` <button type="button" class="ck-act ck-more" data-pane="${kind}">+ ${t("ckAdd")}</button>`}</h4>${l.map((x) => { const hs = hands.filter((h) => h.session_id === x.id), cs = cards.filter((c) => c.session_id === x.id), min = x.ended_at ? Number(x.minutes || 0) : Math.round(elapsed(x) / 6e4);
           const todo = hs.filter((h) => !h.reviewed).length;
-          return `<details class="lg-sess" data-ses="${x.id}"><summary><span class="lg-st"><b>${hhmm(x.started_at)}${x.ended_at ? " → " + hhmm(x.ended_at) : ""}</b>
+          return `<details class="lg-sess" data-ses="${x.id}" ${q.s === x.id ? "open" : ""}><summary><span class="lg-st"><b>${hhmm(x.started_at)}${x.ended_at ? " → " + hhmm(x.ended_at) : ""}</b>
               ${x.topic && TOPICS[x.topic] ? `<span class="tag">${TOPICS[x.topic].icon} ${t("topic_" + x.topic)}</span>` : ""}
               ${x.ended_at ? "" : `<span class="live">${t("nbLive")}</span>`}<span class="muted">${dur(min)}${x.planned_min ? " / " + fmtMin(x.planned_min) : ""}</span>
               ${hs.length ? `<span class="tag">${hs.length} ${t("hands").toLowerCase()}</span>` : ""}${todo ? `<span class="tag red">${todo} ${t("toReviewT").toLowerCase()}</span>` : ""}</span>
@@ -309,19 +337,20 @@ async function viewLog() {
       coaching: () => `${sesList("coaching")}${coach.length ? `<h4 class="ck-sub">${t("ckCoachCal")}</h4>` : ""}${coach.map((x) => `<p class="hrow">🎓 <b>${hhmm(x.starts_at)}</b> · ${esc(evTitle(x))} <span class="muted">· ${dur(Number(x.minutes || 60))}</span></p>`).join("")}
         <p class="muted small">${t("ckCoachSub")} <a class="small-link" href="#/calendar">${t("calendar")} →</a></p>`,
       hands: () => `<form class="ck-addf ck-hands" data-hands="${d}"><h4>🃏 ${t("ckHandsDay")}</h4><div class="ck-row">${stepper("n", Number(e.hands || 0), 500, 0, 9999999, "n")}<button class="btn btn-red">${t("save")}</button></div></form>`,
-      goals: () => `${gi.map((x, i) => `<label class="pg-step ${x.startsWith("✓ ") ? "done" : ""}"><input type="checkbox" data-gtick="week|${wkLabel}|${i}" ${x.startsWith("✓ ") ? "checked" : ""}><span>${esc(x.replace(/^✓ /, ""))}</span></label>`).join("") || `<p class="muted small">${t("noGoals")}</p>`}
-        <p class="row-btns"><a class="small-link" href="#/log?w=${wkLabel}">✎ ${t("pgEdit")}</a>${stepsLink}</p>`,
-    };
-    return `<div class="ck-strip">${tile("grind", "♠", t("grindW"), fmtH(Number(e.play_h || 0)))}${tile("study", "📚", t("studyW"), fmtH(Number(e.study_h || 0)))}
-        ${tile("coaching", "🎓", t("ckCoaching"), fmtH(coachAll / 60))}${tile("hands", "🃏", t("hands"), fmtNum(Number(e.hands || 0)))}</div>
-      ${panes[pane] ? `<div class="card ck-pane">${panes[pane]()}</div>` : ""}
-      <details class="ck-jr" ${CK_OPEN.get("jr") ? "open" : ""}><summary><span>✎ <b>${t("journalW")}</b></span>${e.mood ? `<span>${MOODS[e.mood - 1]}</span>` : ""}${(e.played || "").trim() ? `<span class="tag ok">✓ ${t("ckWritten")}</span>` : `<small class="muted">${t("ckJournalSub")}</small>`}<span class="ck-tg" aria-hidden="true"></span></summary>
-      <form class="card journal-page jbook ck-journal" id="jform"><span class="saved" id="jsaved"></span>
+      journal: () => `<form class="journal-page jbook ck-journal" id="jform"><span class="saved" id="jsaved"></span>
         <div class="jmood">${MOODS.map((m, i) => `<input type="radio" name="mood" id="m${i + 1}" value="${i + 1}" ${Number(e.mood) === i + 1 ? "checked" : ""}><label for="m${i + 1}">${m}</label>`).join("")}</div>
         <textarea name="text" class="paper sensitive" rows="8" placeholder="${t("journalPh")}">${esc([e.played, e.learned && `${t("pLearned")} ${e.learned}`, e.did_well && `${t("pWell")} ${e.did_well}`, e.mistakes && `${t("pMistake")} ${e.mistakes}`].filter((x) => (x || "").trim()).join("\n\n"))}</textarea>
         <div class="prompts">${["pPlayed", "pLearned", "pWell", "pMistake", "pTomorrow"].map((k) => `<button type="button" class="chip" data-prompt="${k}">+ ${t(k)}</button>`).join("")}</div>
         <div class="chips jtags">${Object.keys(TAGS).map((k) => `<button type="button" class="tagchip ${(e.tags || []).includes(k) ? "on" : ""}" data-tag="${k}">${tag(k)}</button>`).join("")}</div>
-        <button class="btn btn-red" type="submit">${t("save")}${e.day ? "" : " · +20 XP"}</button></form></details>`;
+        <button class="btn btn-red" type="submit">${t("save")}${e.day ? "" : " · +20 XP"}</button></form>`,
+    };
+    const written = (e.played || "").trim();
+    const jTile = `<button type="button" class="ck-t ck-jt ${pane === "journal" ? "on" : ""}" data-pane="journal" title="${t("journalW")} · ${t("ckJournalSub")}" aria-label="${t("journalW")}">
+        <span class="ck-nb"><i>${e.mood ? MOODS[e.mood - 1] : written ? "✓" : "✎"}</i>${written ? `<small>✓ ${t("ckWritten")}</small>` : ""}</span></button>`;
+    return `<div class="ck-strip w3">${tile("grind", "♠", t("grindW"), fmtH(Number(e.play_h || 0)))}
+        ${jTile}
+        ${tile("study", "📚", t("studyW"), fmtH(Number(e.study_h || 0)), t("ckStudyNotes"), `#/study?day=${d}`)}</div>
+      ${panes[pane] ? `<div class="card ck-pane ${pane === "journal" ? "ck-jpane" : ""}">${panes[pane]()}</div>` : ""}`;
   }
   function topicSel(cur) { return `<label>${t("topicL")} <select name="topic">${Object.keys(TOPICS).map((k) => `<option value="${k}" ${k === cur ? "selected" : ""}>${TOPICS[k].icon} ${t("topic_" + k)}</option>`).join("")}</select></label>`; }
 
@@ -330,26 +359,40 @@ async function viewLog() {
     : sel.k === "m" ? `m=${iso(new Date(+sel.v.slice(0, 4), +sel.v.slice(5) - 1 + n, 15)).slice(0, 7)}` : `q=${qOf(iso(new Date(+sel.v.slice(0, 4), (+sel.v.slice(-1) - 1) * 3 + 3 * n, 15)))}`;
   const nextOk = shift(1).split("=")[1] <= (sel.k === "q" ? qOf(T) : sel.k === "m" ? T.slice(0, 7) : T);
   // quick start: the dock's own start buttons and duration box; a running session shows the way back instead
-  const quick = SES.s ? `<a class="btn btn-sm btn-red" href="#/session">${KIND_ICON[SES.s.kind]} ${t("backCockpit")}</a>`
-    : `<button class="btn btn-sm btn-red" data-ckgo="grind">▶ ${t("grindW")}</button><button class="btn btn-sm" data-ckgo="study">▶ ${t("studyW")}</button>`;
+  const startRow = `<div class="ck-start">${SES.s ? `<a class="hs-live" href="#/session">${KIND_ICON[SES.s.kind]} ${t("hsLive")} · <b>${t("backCockpit")} →</b></a>`
+    : `<button type="button" class="hs-btn grind" data-ckgo="grind"><span>♠</span><b>${t("hsGrind")}</b><small>${t("hsGrindSub")}</small></button>`}</div>`;
 
   const treeOn = CK_OPEN.get("tree");
   $("#main").innerHTML = `<div class="logbook cockpit ${treeOn ? "tree-on" : ""}">
       <nav class="card lg-tree ck-tree" ${treeOn ? "" : "hidden"}>${tree}
         <details class="lg-away">${awayCard().replace('<form class="card" id="aform">', '<summary class="small-link">🏖 ' + t("away") + '</summary><form class="card" id="aform">')}</details></nav>
-      <section class="lg-mid ck-mid">${wkPanel}<div class="lg-head ck-head"><span class="ck-hl"><button type="button" class="btn ck-yr ${treeOn ? "on" : ""}" id="cktree" aria-pressed="${treeOn}">🗓 ${t("ckYear")}</button><a class="btn ck-today ${sel.k === "d" && sel.v === T ? "on" : ""}" href="#/log">📍 ${t("ckToday")}</a></span>
+      <section class="lg-mid ck-mid">${wkPanel}${startRow}<div class="lg-head ck-head"><span class="ck-hl"><button type="button" class="btn ck-yr ${treeOn ? "on" : ""}" id="cktree" aria-pressed="${treeOn}">🗓 ${t("ckYear")}</button><a class="btn ck-today ${sel.k === "d" && sel.v === T ? "on" : ""}" href="#/log">📍 ${t("ckToday")}</a></span>
         <span class="ck-nav"><a class="btn btn-sm" href="#/log?${shift(-1)}">←</a><h2>${title}</h2>${nextOk ? `<a class="btn btn-sm" href="#/log?${shift(1)}">→</a>` : `<span class="btn btn-sm ck-off">→</span>`}</span>
-        <span class="ck-quick">${quick}</span></div>${mid}</section></div>`;
+        <span></span></div>${mid}</section></div>`;
   fitToDock(".logbook");
 
   // bindings
   bindSteppers();
   $("#cktree").onclick = () => { CK_OPEN.set("tree", !treeOn); route(); };
-  $(".ck-jr")?.addEventListener("toggle", (ev) => CK_OPEN.set("jr", ev.target.open));
+  $$("#ckgoals, [data-gopen]").forEach((b) => b.onclick = () => openWeekGoals(wkLabel, wG, false));
+  // study or grind for a whole week: one session on the week's last day so far (same rule as the hands)
+  $$("[data-sesweek]").forEach((f) => f.onsubmit = async (ev) => {
+    ev.preventDefault(); const kind = f.dataset.sesweek, wd = weekDays(sel.v), d = wd[wd.length - 1]; if (!d) return;
+    const min = Math.max(1, Math.min(3000, Math.round(+f.min.value || 0))), st = d === T ? new Date(Date.now() - min * 6e4) : new Date(d + "T12:00:00");
+    f.querySelector("button.btn-red").disabled = true;
+    const x = await db.addSession({ kind, topic: kind === "study" ? f.topic?.value || null : null, started_at: st.toISOString(), ended_at: new Date(st.getTime() + min * 6e4).toISOString(), minutes: min, planned_min: null });
+    await sesJournalShift(x, min); route();
+  });
   bindHands(hands);
   bindSessions(sessions);
   $$("[data-ckgo]").forEach((b) => b.onclick = () => (SES.s ? (location.hash = "#/session") : askDuration(b.dataset.ckgo))); // the session may have loaded after this page
-  $$("[data-pane]").forEach((b) => b.onclick = () => { CK_PANE.set(CK_PANE.get() === b.dataset.pane ? "" : b.dataset.pane); route(); });
+  // a tile opens what it holds (the day's sessions, coachings, journal; study goes to its notes); its "+ Ajouter" opens the add form
+  $$("[data-pane]").forEach((b) => b.onclick = (ev) => {
+    const add = !!ev.target.closest(".ck-act"), k = b.dataset.pane;
+    if (!add && b.dataset.go) { location.hash = b.dataset.go; return; }
+    const same = CK_PANE.get() === k && CK_ADD.get() === add && !b.classList.contains("ck-more");
+    CK_PANE.set(same ? "" : k); CK_ADD.set(!same && add); route();
+  });
   $$("[data-sesadd]").forEach((f) => f.onsubmit = async (ev) => {
     ev.preventDefault(); const kind = f.dataset.sesadd, [h, m] = f.at.value.split(":").map(Number), min = Math.max(1, Math.min(900, Math.round(+f.min.value || 0)));
     const st = new Date(sel.v + "T12:00:00"); st.setHours(h, m, 0, 0);
@@ -395,6 +438,47 @@ async function viewLog() {
   });
   bindAway();
   if (treeOn) $(".ck-tree a.on, .ck-tree .ck-d.on")?.scrollIntoView({ block: "center" });
+}
+
+/* Week goals (Alexis 2026-11-03): play hours, hands, and any goal in words, all optional. Shown at the top right of the Cockpit.
+   ask: the new-week question (first login of the week, or Sunday evening if the player chose it). */
+function openWeekGoals(label, g, ask) {
+  let dl = $("#wgoalsd");
+  if (!dl) { dl = document.createElement("dialog"); dl.id = "wgoalsd"; dl.className = "card"; document.body.appendChild(dl); }
+  const items = (g?.items || []).map((x) => x.replace(/^✓ /, "")), day = ME.goals_day || "mon";
+  dl.innerHTML = `<form method="dialog" class="wg"><div class="card-head"><h3>🎯 ${t(ask ? "ckGAsk" : "ckGTitle")}</h3><button class="x" value="cancel" formnovalidate>×</button></div>
+    <p class="muted small">${t("weekN")} ${isoWeekN(label)} · ${fmtDay(label)} → ${fmtDay(addDays(6, new Date(label + "T12:00:00")))}</p>
+    <div class="goals-grid two"><label>♠ ${t("ckGPlay")}<input name="play_h_target" type="number" min="0" step="1" value="${g?.play_h_target ?? ""}" placeholder="20"></label>
+      <label>🃏 ${t("ckGHands")}<input name="hands_target" type="number" min="0" step="1000" value="${g?.hands_target ?? ""}" placeholder="15000"></label></div>
+    <label>${t("ckGFree")}<textarea name="items" rows="5" placeholder="${t("ckGFreePh")}">${esc(items.join("\n"))}</textarea></label>
+    <p class="muted small">${t("ckGOpt")}</p>
+    <div class="wg-when"><span>${t("ckGWhen")}</span>${[["sun", "ckGSun"], ["mon", "ckGMon"]].map(([v, k]) => `<label class="chip ${day === v ? "on" : ""}"><input type="radio" name="gday" value="${v}" ${day === v ? "checked" : ""} hidden>${t(k)}</label>`).join("")}</div>
+    <p class="row-btns"><button class="btn btn-red" value="save">${t("save")}</button><button class="btn" value="cancel" formnovalidate>${t(ask ? "ckGLater" : "cancel")}</button></p></form>`;
+  const f = dl.querySelector("form");
+  f.onchange = (ev) => { if (ev.target.name === "gday") $$("input[name=gday]", f).forEach((r) => r.parentElement.classList.toggle("on", r.checked)); };
+  dl.onclose = async () => {
+    const gd = f.querySelector("input[name=gday]:checked")?.value;
+    if (gd && gd !== (ME.goals_day || "mon")) { try { await db.setGoalsDay(gd); ME.goals_day = gd; if (REAL) REAL.goals_day = gd; } catch {} }
+    if (dl.returnValue !== "save") return;
+    const old = g?.items || [], n = (k) => (f[k].value === "" ? null : +f[k].value);
+    const list = f.items.value.split("\n").map((x) => x.trim()).filter(Boolean).map((x) => (old.includes("✓ " + x) ? "✓ " + x : x));
+    await db.saveGoal({ player_id: ME.id, period: "week", label, status: g?.status || "proposed", items: list, play_h_target: n("play_h_target"), hands_target: n("hands_target") });
+    route();
+  };
+  dl.showModal();
+}
+async function weekGoalsPrompt() {
+  if (!ME || !has(ME, "player") || REAL?.id !== ME.id) return;
+  const now = new Date(), T = today(), sun = (ME.goals_day || "mon") === "sun";
+  let label = mondayOf(T);
+  if (now.getDay() === 0) { if (sun && now.getHours() >= 18) label = addDays(1, now); else return; } // Sunday: the week is ending, ask only for the next one
+  const key = "rts-wg-" + ME.id + "-" + label;
+  try { if (localStorage.getItem(key)) return; } catch { return; }
+  const g = (await db.weekGoals(ME.id).catch(() => [])).find((x) => x.period === "week" && x.label === label);
+  if (g && ((g.items || []).length || g.play_h_target || g.hands_target)) return;
+  if ($("dialog[open]")) return;
+  try { localStorage.setItem(key, "1"); } catch {} // asked once a week, "Later" does not come back at every login
+  openWeekGoals(label, g, true);
 }
 
 /* Stepper (Alexis 2026-11-03: "une petite molette"): − and + buttons, the mouse wheel turns it too.

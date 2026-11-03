@@ -161,8 +161,9 @@ function forMe(e) {
 async function viewHome() {
   const my = RENDER, player = has(ME, "player");
   const go = new URLSearchParams(location.hash.split("?")[1] || "").get("go");
-  const [mine, goals, all, g, sess] = await Promise.all([player ? db.journal(ME.id, daysAgo(400)) : [], player ? db.goals(ME.id) : [],
-    db.events(new Date(Date.now() - 864e5).toISOString(), addDays(14) + "T23:59"), player ? gameStats(ME) : null, player ? [] : db.sessions(ME.id, weekStart()).catch(() => [])]);
+  const [mine, goals, all, g, recent, wq] = await Promise.all([player ? db.journal(ME.id, daysAgo(400)) : [], player ? db.goals(ME.id) : [],
+    db.events(new Date(Date.now() - 864e5).toISOString(), addDays(14) + "T23:59"), player ? gameStats(ME) : null, db.sessions(ME.id, player ? daysAgo(120) : weekStart()).catch(() => []), player ? db.weekGoals(ME.id).catch(() => []) : []]);
+  const sess = player ? [] : recent;
   if (my !== RENDER) return; // a newer screen started while this one loaded
   const now = new Date().toISOString(), coming = all.filter(forMe).filter((e) => new Date(new Date(e.starts_at).getTime() + e.minutes * 6e4).toISOString() >= now);
   const when = (e) => `${e.starts_at.slice(0, 10) === today() ? t("today") : dayName(e.starts_at.slice(0, 10))} · ${hhmm(e.starts_at)}`;
@@ -175,48 +176,66 @@ async function viewHome() {
     extra = `<span>♠ <b>${fmtNum(wkHands)}</b> ${t("handsWeek")}</span><span>🔥 <b>${st.streak}</b> ${st.streak === 1 ? t("day") : t("days")}</span>
       <span>${t("handsMonth")} <b>${fmtNum(st.hands)}</b> / ${fmtNum(st.handsTarget)}</span>`;
   }
-  const pct = target ? Math.min(100, (wk / target) * 100) : 0, nx = coming[0], isLive = nx && nx.starts_at <= now;
-  const panelOpen = (() => { try { return localStorage.getItem("rts-hq-panel") === "1"; } catch { return false; } })();
+  const pct = target ? Math.min(100, (wk / target) * 100) : 0;
+  const mapBig = (() => { try { return sessionStorage.getItem("rts-hq-big") === "1"; } catch { return false; } })();
+  // Home (Alexis 2026-11-03): calendar on the left, the two ways to start working in the middle with my last sessions under each
+  // (click one to add to it in the Cockpit), the HQ map small on the right (⤢ opens it big). No online list, no chat: talk is on Discord.
+  const dayL = (d) => { const s = d === today() ? t("today") : fmtDay(d); return s[0].toUpperCase() + s.slice(1); };
+  const calDays = [...new Set(coming.map((e) => e.starts_at.slice(0, 10)))].slice(0, 6);
+  const cal = `<aside class="hcal card"><a class="card-head hc-head" href="#/calendar"><h3>📅 ${t("calendar")}</h3><span class="small-link">${t("hbCkOpen")} →</span></a>
+      <div class="hc-list">${calDays.map((d) => `<p class="hc-day">${dayL(d)}</p>${coming.filter((e) => e.starts_at.slice(0, 10) === d).map((e) => { const on = e.starts_at <= now;
+        return `<a class="hc-ev ${on ? "live" : ""}" href="${e.link ? esc(e.link) : "#/calendar"}" ${e.link ? 'target="_blank" rel="noopener"' : ""}><span class="hc-t">${hhmm(e.starts_at)}</span>
+          <span class="hc-b"><b>${KIND_ICON[e.kind] || ""} ${esc(evTitle(e))}</b><small>${on ? t("liveNow") + " · " : ""}${dur(Number(e.minutes || 60))}${e.link ? " · " + t("join") + " →" : ""}</small></span></a>`; }).join("")}`).join("") || `<p class="muted small">${t("noEvents")}</p>`}</div></aside>`;
+  // Home (Alexis 2026-11-03): HQ, this week's goals, start a grind or study session, the calendar. No news.
+  const wkL = mondayOf(today()), wG = wq.find((x) => x.period === "week" && x.label === wkL), wkDays = mine.filter((e) => e.day >= wkL);
+  const wPlay = wkDays.reduce((a, e) => a + Number(e.play_h || 0), 0), wHands = wkDays.reduce((a, e) => a + Number(e.hands || 0), 0);
+  const gP = Number(wG?.play_h_target || 0), gH = Number(wG?.hands_target || 0), gItems = wG?.items || [];
+  const gBar = (v, max) => `<span class="hg-bar"><i style="width:${Math.min(100, max ? (v / max) * 100 : 0)}%"></i></span>`;
+  const goalsBox = `<button type="button" class="card hgoals" id="hgoals" title="${t("ckGTitle")}"><span class="hg-head"><b>🎯 ${t("ckGTitle")}</b><small>${t("weekN")} ${isoWeekN(wkL)} ✎</small></span>
+      ${gP ? `<span class="hg-l"><span>♠ ${t("ckGPlay")}</span><b>${fmtH(wPlay)} <small>/ ${gP} h</small></b></span>${gBar(wPlay, gP)}` : ""}
+      ${gH ? `<span class="hg-l"><span>🃏 ${t("ckGHands")}</span><b>${fmtNum(wHands)} <small>/ ${fmtNum(gH)}</small></b></span>${gBar(wHands, gH)}` : ""}
+      ${gItems.map((x) => `<span class="hg-i ${x.startsWith("✓ ") ? "done" : ""}">${x.startsWith("✓ ") ? "☑" : "☐"} ${esc(x.replace(/^✓ /, ""))}</span>`).join("")}
+      ${gP || gH || gItems.length ? "" : `<span class="hg-set">+ ${t("ckGSet")}</span>`}</button>`;
+  const lastList = (kind) => { const l = recent.filter((x) => x.kind === kind && x.ended_at).slice(0, 4);
+    return `<div class="hs-last"><span class="hs-lt">${t("hsLast")}</span>${l.map((x) => `<a class="hs-ses" href="#/log?d=${x.started_at.slice(0, 10)}&s=${x.id}" data-ckpane="${kind}">
+        <b>${dayL(x.started_at.slice(0, 10))}</b><span>${hhmm(x.started_at)} · ${dur(Number(x.minutes || 0))}${kind === "study" && TOPICS[x.topic] ? " · " + TOPICS[x.topic].icon + " " + t("topic_" + x.topic) : ""}</span><i>✎</i></a>`).join("") || `<p class="muted small">${t("hsNone")}</p>`}</div>`; };
+  const startBox = `${SES.s ? `<a class="hs-live" href="#/session">${KIND_ICON[SES.s.kind]} ${t("hsLive")} · <b>${t("backCockpit")} →</b></a>` : `<span class="eyebrow">${t("hsReady")}</span>`}<h2 class="hs-title">${t("hsTitle")}</h2>
+      <div class="hs-btns"><div class="hs-col"><button type="button" class="hs-btn grind" data-hsgo="grind"><span>♠</span><b>${t("hsGrind")}</b><small>${t("hsGrindSub")}</small></button></div>
+        <div class="hs-col"><button type="button" class="hs-btn study" data-hsgo="study"><span>📚</span><b>${t("hsStudy")}</b><small>${t("hsStudySub")}</small></button></div></div>
+      ${goalsBox}`;
   $("#main").innerHTML = `
     <div class="home1">
       <section class="hbanner card">
         <a class="hb-me" href="#/hero" title="${t("charLink")}">${avatarSvg({ skin: g ? mySkin(ME, g) : "rookie", av: ME.avatar }, 46, "idle")}
           <span><b>${nm({ name: ME.nick || ME.name })}</b>${g ? `<small><span class="lvl-badge">${g.level}</span> ${esc(teamOf(ME).label)}</small><span class="xpbar"><i style="width:${(g.into / g.need) * 100}%"></i></span>` : ""}</span></a>
         <a class="hb-grind" href="#/log">
-          <span class="hb-top"><span class="eyebrow">${t("hqWeekGrind")}</span><b class="hb-num">${fmtH(wk)}${target ? ` <small>/ ${target} h</small>` : ""}</b></span>
+          <span class="hb-top"><span class="hb-ck">🧭 ${t("hbCk")} <small>· ${t("hqWeekGrind")}</small></span><b class="hb-num">${fmtH(wk)}${target ? ` <small>/ ${target} h</small>` : ""}</b></span>
           ${target ? `<span class="hb-bar"><i style="width:${pct}%"></i></span>` : ""}
-          ${extra ? `<span class="hb-stats">${extra}</span>` : ""}</a>
-        ${nx ? `<a class="hb-next ${isLive ? "live" : ""}" href="${nx.link ? esc(nx.link) : "#/calendar"}" ${nx.link ? 'target="_blank" rel="noopener"' : ""}>
-            <span class="eyebrow">${isLive ? t("liveNow") : t("nextUp")}</span><b>${KIND_ICON[nx.kind]} ${esc(evTitle(nx))}</b><small class="muted">${when(nx)}${nx.link ? " · " + t("join") + " →" : ""}</small></a>`
-          : `<a class="hb-next" href="#/calendar"><span class="eyebrow">${t("calendar")}</span><small class="muted">${t("noEvents")}</small></a>`}
-        <button class="hb-people ${panelOpen ? "on" : ""}" id="hqtoggle" title="${t("hqPeople")}">👥 <b id="hqn">1</b></button>
+          ${extra ? `<span class="hb-stats">${extra}<span class="hb-open">${t("hbCkOpen")} →</span></span>` : ""}</a>
       </section>
-      <div class="hmain ${panelOpen ? "open" : ""}">
-        ${newsPanel()}
-        <section class="hq-stage"><div id="hqmap"></div></section>
-        <aside class="hq-panel card">
-          <div class="card-head"><h3>${t("hqPeople")} <span class="tag" id="hqn2">1</span></h3>
-            ${visSelect("incog")}</div>
-          <p class="muted small hq-count" id="hqcount"></p>
-          <div id="hqwho" class="hq-who"></div>
-          <div class="hq-chat"><div id="hqlog" class="hq-log"></div><form id="hqsay" class="inline"><input name="m" maxlength="140" placeholder="${t("saySomething")}" autocomplete="off"><button class="btn btn-sm btn-red">↵</button></form></div>
-        </aside>
+      <div class="hmain ${mapBig ? "map-big" : ""}">
+        ${cal}
+        ${player ? `<section class="hstart">${startBox}</section>` : ""}
+        <div class="hq-side"><section class="hq-stage"><button type="button" class="hq-zoom" id="hqzoom" title="${t(mapBig ? "hqSmall" : "hqBig")}">${mapBig ? "⤡" : "⤢"}</button><div id="hqmap"></div></section></div>
       </div>
     </div>`;
   // Fit the page to the window: the HQ ends just above the dock, so the home never scrolls.
   const fit = () => {
     const el = $(".home1"); if (!el) { removeEventListener("resize", fit); return; }
+    if (innerWidth <= 1100) { el.style.height = ""; return; } // narrow: the blocks stack and the page scrolls
     const bottom = dockBottom();
     el.style.height = Math.max(380, bottom - el.getBoundingClientRect().top) + "px";
   };
   fit(); addEventListener("resize", fit);
-  $("#hqtoggle").onclick = () => {
-    const open = !$(".hmain").classList.contains("open");
-    $(".hmain").classList.toggle("open", open); $("#hqtoggle").classList.toggle("on", open);
-    try { localStorage.setItem("rts-hq-panel", open ? "1" : "0"); } catch {}
+  $("#hgoals")?.addEventListener("click", () => openWeekGoals(wkL, wG, false));
+  $$("[data-ckpane]").forEach((a) => a.onclick = () => { try { sessionStorage.setItem("ck-pane", a.dataset.ckpane); } catch {} });
+  $$("[data-hsgo]").forEach((b) => b.onclick = () => (SES.s ? (location.hash = "#/session") : askDuration(b.dataset.hsgo))); // the session may have loaded after this page
+  $("#hqzoom").onclick = () => {
+    const big = !$(".hmain").classList.contains("map-big");
+    $(".hmain").classList.toggle("map-big", big); $("#hqzoom").textContent = big ? "⤡" : "⤢"; $("#hqzoom").title = t(big ? "hqSmall" : "hqBig");
+    try { sessionStorage.setItem("rts-hq-big", big ? "1" : ""); } catch {}
   };
-  $("#incog").onchange = (ev) => hqSetVis(ev.target.value);
-  (g ? newsSyncAch(g) : Promise.resolve()).finally(bindNews);
+  if (g) newsSyncAch(g).catch(() => {}); // achievements still count; the news feed itself is gone
   await presenceStart();
   if (my !== RENDER) return;
   const who = (p) => nm({ name: p?.name || "?" });
@@ -226,9 +245,6 @@ async function viewHome() {
     $("#hqn") && ($("#hqn").textContent = l.length); $("#hqn2") && ($("#hqn2").textContent = l.length);
     $("#hqwho") && ($("#hqwho").innerHTML = l.map((p) => `<p>${avatarSvg(p, 22)} <b>${who(p)}</b> <small class="muted">${t("room_" + p.room) || ""}</small></p>`).join(""));
   } });
-  const logLine = (m) => { const log = $("#hqlog"); if (!log) { PRES.chats.delete(logLine); return; } log.insertAdjacentHTML("beforeend", `<p><b>${who(PRES.list.find((p) => p.id === m.id))}</b> ${m.kind === "review" ? "🔍 " : ""}${esc(m.text)}</p>`); log.scrollTop = log.scrollHeight; };
-  PRES.log.forEach(logLine); PRES.chats.add(logLine);
-  $("#hqsay").onsubmit = (ev) => { ev.preventDefault(); const v = ev.target.m.value.trim(); if (v) PRES.ch?.say(v); ev.target.reset(); };
   if (go) setTimeout(() => hqMove(go), 900);
   if (g) xpToast(g);
 }
@@ -551,9 +567,11 @@ async function viewStudy() {
   ];
   const branch = (c) => (c.street === "preflop" ? "Preflop" : c.pot || "—"), match = (c) => `${c.hero_pos || "?"} vs ${c.villain_pos || "?"}`;
   const isDue = (c) => c.due && c.due <= today();
+  const dS = q.day ? sessions.filter((s) => s.kind === "study" && s.ended_at && s.started_at.slice(0, 10) === q.day) : [], dIds = new Set(dS.map((s) => s.id));
   const words = (q.q || "").toLowerCase();
   const pass = (c) => (!q.src || c.src === q.src) && (!q.st || c.street === q.st) && (!q.pos || c.hero_pos === q.pos) && (!q.due || isDue(c))
-    && (!words || [c.front, c.back, c.pot, c.hero_pos, c.villain_pos].join(" ").toLowerCase().includes(words));
+    && (!words || [c.front, c.back, c.pot, c.hero_pos, c.villain_pos].join(" ").toLowerCase().includes(words))
+    && (!q.day || dIds.has(c.session_id) || (c.created_at || "").slice(0, 10) === q.day);
   const pool = deck.filter(pass), tree = {};
   pool.forEach((c) => ((tree[branch(c)] ||= {})[match(c)] ||= []).push(c));
   const branches = POT_ORDER.filter((b) => tree[b]).concat(Object.keys(tree).filter((b) => !POT_ORDER.includes(b)));
@@ -561,14 +579,28 @@ async function viewStudy() {
   const list = pool.filter((c) => (!q.b || branch(c) === q.b) && (!q.m || match(c) === q.m)).sort((a, b) => (isDue(b) - isDue(a)) || (a.src === "rts") - (b.src === "rts"));
   const dueN = mine.filter(isDue).length;
   const studies = sessions.filter((s) => s.kind === "study" && s.ended_at);
+  const dayBox = q.day ? `<div class="card res-day"><div class="card-head"><h3>📚 ${t("resDayT")} · ${fmtDay(q.day)}</h3><span class="row-btns"><a class="small-link" href="#/log?d=${q.day}">← ${t("logbook")}</a><a class="small-link" href="${href({ day: "" })}">✕ ${t("resDayAll")}</a></span></div>
+      ${dS.map((s) => `<div class="rd-s"><b>${hhmm(s.started_at)} · ${dur(Number(s.minutes || 0))}${TOPICS[s.topic] ? ` · ${TOPICS[s.topic].icon} ${t("topic_" + s.topic)}` : ""}</b>${(s.notes || "").trim() ? `<p class="nb-notes sensitive">${esc(s.notes)}</p>` : `<p class="muted small">${t("resNoNotes")}</p>`}</div>`).join("") || `<p class="muted small">${t("resDayNone")}</p>`}</div>` : "";
   const hours = studies.filter((s) => s.started_at >= monthStart()).reduce((a, s) => a + (s.minutes || 0), 0) / 60;
   const SRC = { mine: "✍", import: "📥", team: "🤝", rts: "♠" };
   const sel = (k, opts, all) => `<select data-f="${k}"><option value="">${all}</option>${opts.map(([v, l]) => `<option value="${v}" ${q[k] === v ? "selected" : ""}>${l}</option>`).join("")}</select>`;
   // Strategies = RTS strategies + my cards on one map (Alexis 2026-11-03: My cards and Strategies were the same thing twice)
   const drafts = isStaff() ? sits.filter((x) => x.status === "draft") : [];
   const srcChip = (v, l) => `<a class="tagchip ${(q.src || "") === v ? "on" : ""}" href="${href({ src: v })}">${l} <small>${v ? deck.filter((c) => c.src === v).length : deck.length}</small></a>`;
-  $("#main").innerHTML = `${head(t("resources"), t("library"), `${fmtH(hours)} ${t("studyMonth").toLowerCase()} · ${mine.length} ${t("myCards").toLowerCase()}`)}
-    <div class="finder card">
+  // Study tab (Alexis 2026-11-03): start a study session and write your own cards right here; they land on the same map as the RTS strategies.
+  const posSel = (n, l) => `<label>${l} <select name="${n}"><option value="">—</option>${["UTG", "HJ", "CO", "BTN", "SB", "BB"].map((x) => `<option>${x}</option>`).join("")}</select></label>`;
+  $("#main").innerHTML = `<div class="st-top">${head(t("tabStudy"), t("library"), `${fmtH(hours)} ${t("studyMonth").toLowerCase()} · ${mine.length} ${t("myCards").toLowerCase()}`)}
+    <div class="st-acts">${SES.s ? `<a class="hs-live" href="#/session">${t("hsLive")} · <b>${t("backCockpit")} →</b></a>` : `<button type="button" class="hs-btn study" data-stgo><span>📚</span><b>${t("hsStudy")}</b><small>${t("hsStudySub")}</small></button>`}
+      <button type="button" class="hs-btn new" id="stnew"><span>✍</span><b>${t("stNew")}</b><small>${t("srcMine")}</small></button></div></div>
+    <dialog id="stnewd" class="card"><form id="stnewf"><div class="card-head"><h3>✍ ${t("stNewT")}</h3><button class="x" type="button" data-stx>×</button></div>
+      <div class="st-sel"><label>Pot <select name="pot"><option value="">—</option>${POT_ORDER.filter((x) => x !== "—").map((x) => `<option value="${x}">${esc(potLabel(x))}</option>`).join("")}</select></label>
+        ${posSel("hero_pos", "Hero")}${posSel("villain_pos", "Villain")}
+        <label>Street <select name="street"><option value="">—</option>${STREETS.map((x) => `<option value="${x}">${t("st_" + x)}</option>`).join("")}</select></label></div>
+      <label>${t("stSit")}<textarea name="situation" rows="3" required placeholder="${t("stSitPh")}"></textarea></label>
+      <label>${t("stConc")}<textarea name="conclusion" rows="4" required placeholder="${t("stConcPh")}"></textarea></label>
+      <label class="check sm"><input type="checkbox" name="shared"><span>${t("stShare")}</span></label>
+      <div class="btns"><button class="btn btn-red" type="submit">${t("save")}</button></div></form></dialog>
+    ${dayBox}${q.day ? "" : `<div class="finder card">
       <div class="chips">${srcChip("", t("all"))}${srcChip("rts", "♠ " + t("srcRts"))}${srcChip("mine", "✍ " + t("srcMine"))}${srcChip("team", "🤝 " + t("fromTeam"))}${srcChip("import", "📥 " + t("srcImport"))}
         <span class="grow"></span>${dueN ? `<button class="btn btn-sm btn-red" data-run="due">⟳ ${t("recallNow")} (${dueN})</button>` : ""}<a class="btn btn-sm btn-ghost-red" href="#/submit">${t("submit")}</a></div>
       <input type="search" id="sq" placeholder="${t("searchStudy")}" value="${esc(q.q || "")}">
@@ -578,7 +610,7 @@ async function viewStudy() {
         <label class="check sm"><input type="checkbox" data-f="due" ${q.due ? "checked" : ""}><span>${t("dueOnly")}</span></label>
         <button class="btn btn-sm" id="impbtn">📥 ${t("importNotes")}</button>
       </div>
-    </div>
+    </div>`}
     <div class="grid lib res-scroll">
       <nav class="card tree"><div class="card-head"><h3>${t("map")}</h3><span class="muted small">${pool.length}</span></div>
         <a class="${q.b ? "" : "on"}" href="${href({ b: "", m: "" })}">${t("everything")} <small>${pool.length}</small></a>
@@ -605,15 +637,23 @@ async function viewStudy() {
     <dialog id="flash" class="card flash"></dialog>`;
   fitToDock(".res-scroll");
   $$("[data-share]").forEach((c) => c.onchange = () => db.saveCard({ id: c.dataset.share, shared: c.checked }));
-  $("#sq").onchange = (e) => (location.hash = href({ q: e.target.value.trim() }));
+  if ($("#sq")) $("#sq").onchange = (e) => (location.hash = href({ q: e.target.value.trim() }));
   $$("select[data-f]").forEach((s) => s.onchange = () => (location.hash = href({ [s.dataset.f]: s.value })));
-  $("input[data-f=due]").onchange = (e) => (location.hash = href({ due: e.target.checked ? "1" : "" }));
+  if ($("input[data-f=due]")) $("input[data-f=due]").onchange = (e) => (location.hash = href({ due: e.target.checked ? "1" : "" }));
   $$("[data-close]").forEach((b) => b.onclick = () => b.closest("dialog").close());
   // import
   let parsed = [];
   const preview = () => { const n = parsed.length, placed = parsed.filter((c) => c.pot || c.street).length;
     $("#impprev").textContent = n ? `${n} ${t("cardsN")} · ${placed} ${t("placedOnTree")}` : ""; $("#impgo").disabled = !n; };
-  $("#impbtn").onclick = () => $("#impd").showModal();
+  if ($("#impbtn")) $("#impbtn").onclick = () => $("#impd").showModal(); // the finder is hidden on a one-day view
+  $("[data-stgo]")?.addEventListener("click", () => (SES.s ? (location.hash = "#/session") : askDuration("study")));
+  $("#stnew").onclick = () => $("#stnewd").showModal();
+  $("[data-stx]").onclick = () => $("#stnewd").close();
+  $("#stnewf").onsubmit = async (e) => {
+    e.preventDefault(); const f = new FormData(e.target), v = (k) => (f.get(k) || "").trim() || null;
+    await db.addCard({ situation: v("situation"), conclusion: v("conclusion"), pot: v("pot"), hero_pos: v("hero_pos"), villain_pos: v("villain_pos"), street: v("street"), shared: f.has("shared"), due: today(), interval_days: 1 });
+    $("#stnewd").close(); route();
+  };
   $("#impt").oninput = (e) => { parsed = parseStudy(e.target.value); preview(); };
   $("#impf").onchange = async (e) => { parsed = []; for (const f of e.target.files) parsed.push(...parseStudy(await f.text(), f.name).map((c) => ({ ...c, source: f.name.slice(0, 80) }))); preview(); };
   $("#impgo").onclick = async () => {
@@ -1736,7 +1776,9 @@ function shell() {
   document.body.classList.remove("is-login");
   const demo = db.mode === "demo";
   // 2026-11-03: few tabs, no repeats. Home = HQ; Logbook = grind + study + journal + goals; Resources = mine + RTS (sub nav); tools in the bottom dock.
-  const links = [["", "home", "#/"]].concat(has(ME, "player") ? [["log", "logbook", "#/log"]] : []).concat([["res", "resources", "#/res"], ["calendar", "calendar", "#/calendar"]])
+  // 2026-11-03 (Alexis: "trop complexe, on se recentre"): 3 tabs. Grind = the hours tracker, Study = build your own studies, Coachings = RTS replays.
+  // Calendar, Replayer and Feedback sit in the side dock; the HQ map, Resources and saved hands are hidden (code kept, old links still open).
+  const links = [["", "home", "#/"]].concat(has(ME, "player") ? [["log", "tabGrind", "#/log"]] : []).concat([["study", "tabStudy", "#/study"], ["coaching", "tabCoach", "#/coaching"]])
     .concat(isStaff() ? [["team", "team", "#/team"]] : []).concat(isOps() ? [["dir", isAdmin() ? "direction" : "admin", isAdmin() ? "#/ceo" : "#/admin"]] : []);
   $("#app").innerHTML = `
     <header class="top"><div class="wrap">
@@ -1779,9 +1821,10 @@ async function route() {
   // Old addresses still work: journal and goals live in the Logbook, progress is My calls, the HQ is the home.
   const moved = { library: () => "#/study" + (location.hash.includes("?") ? "?" + location.hash.split("?")[1] : ""), journal: () => `#/log${location.hash.includes("day=") ? "?d=" + location.hash.split("day=")[1] : ""}`, goals: () => "#/log?m=" + monthStart().slice(0, 7), progress: () => "#/calls", hq: () => "#/" + (location.hash.split("?")[1] ? "?" + location.hash.split("?")[1] : "") };
   if (moved[a]) { location.replace(moved[a]()); return; }
+  if (a === "res") { location.replace(has(ME, "player") ? "#/log" : "#/coaching"); return; }
   const group = GROUP[a] || a, navKey = a === "p" || ["session", "hero"].includes(a) ? "" : group;
   const sub = subnavHtml(group, a); $("#subnav").innerHTML = sub; $("#subnav").hidden = !sub;
-  document.body.dataset.g = group; // Resources pages share one compact, centred look (style.css)
+  document.body.dataset.g = ["study", "coaching", "calendar"].includes(group) ? "res" : group; // Resources pages share one compact, centred look (style.css)
   paintDock();
   $$("[data-nav]").forEach((l) => l.classList.toggle("on", l.dataset.nav === navKey));
   $("#main").innerHTML = `<p class="muted loading">${t("loading")}</p>`;
@@ -1821,6 +1864,7 @@ async function boot() {
   [VISIBLE, TEAMS] = await Promise.all([db.people(), db.teams()]);
   shell(); route();
   presenceStart(); sesLoad();
+  setTimeout(() => weekGoalsPrompt().catch(() => {}), 1200);
 }
 
 window.addEventListener("hashchange", route);
