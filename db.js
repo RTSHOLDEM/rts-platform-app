@@ -93,6 +93,7 @@ function liveDb() {
     async openSession(pid) { return (await rows(sb.from("sessions").select("*").eq("player_id", pid).is("ended_at", null).order("started_at", { ascending: false }).limit(1)))[0] || null; },
     async startSession(kind, planned_min = null, topic = null) { const me = await db.me(); return (await rows(sb.from("sessions").insert({ player_id: me.id, kind, planned_min, ...(topic ? { topic } : {}) }).select()))[0]; },
     async saveSession(s) { return (await rows(sb.from("sessions").update(s).eq("id", s.id).select()))[0]; },
+    async addSession(s) { const me = await db.me(); return (await rows(sb.from("sessions").insert({ ...s, player_id: me.id }).select()))[0]; }, // done without the timer (Cockpit)
     async dropSession(id) { return rows(sb.from("sessions").delete().eq("id", id)); },
     async focus(pid) { return rows(sb.from("focus_items").select("*").eq("player_id", pid).eq("active", true).order("created_at")); },
     async addFocus(pid, text) { const me = await db.me(); return rows(sb.from("focus_items").insert({ player_id: pid, text, added_by: me.id }).select()); },
@@ -245,6 +246,7 @@ function demoDb() {
     async openSession(pid) { return (S.sessions ||= []).find((s) => s.player_id === pid && !s.ended_at) || null; },
     async startSession(kind, planned_min = null, topic = null) { const s = { id: "se" + Date.now(), player_id: meId(), kind, planned_min, topic, started_at: new Date().toISOString(), ended_at: null }; (S.sessions ||= []).push(s); save(); return s; },
     async saveSession(x) { const s = S.sessions.find((y) => y.id === x.id); Object.assign(s, x); save(); return s; },
+    async addSession(x) { const s = { id: "se" + Date.now(), player_id: meId(), ...x }; (S.sessions ||= []).push(s); save(); return s; },
     async dropSession(id) { S.sessions = S.sessions.filter((x) => x.id !== id); (S.hands || []).forEach((h) => { if (h.session_id === id) h.session_id = null; }); save(); },
     async focus(pid) { return canSee(me(), byId(pid)) ? (S.focus ||= []).filter((f) => f.player_id === pid && f.active) : []; },
     async addFocus(pid, text) { (S.focus ||= []).push({ id: "f" + Date.now(), player_id: pid, text, added_by: meId(), active: true }); save(); },
