@@ -44,12 +44,15 @@ function sesBeat() {
 }
 
 async function sesStart(kind, minutes) {
+  // Grind: the cockpit pops out over the tables at once. The window is asked for before any await, while the click still counts.
+  const pop = kind === "grind" ? popRequest() : null;
   try { localStorage.setItem("rts-dur-" + kind, minutes); } catch {}
   SES.s = await db.startSession(kind, minutes); SES.breakN = 0;
   hqMove(kind === "grind" ? "grind" : "study");
   if (!SES.beat) SES.beat = setInterval(sesBeat, 1000);
   paintDock();
   location.hash = "#/session"; route();
+  if (pop) openPop(pop);
 }
 
 async function sesPause() {
@@ -87,11 +90,11 @@ async function sesEnd(notes, auto = false) {
 }
 
 /* ---------- dialogs: pick a duration, time is up, take a break ---------- */
-function askDuration(kind) {
+function askDuration(kind, ask = "") { // ask: the HQ room's "are you sure" question, shown as the title
   const dl = $("#durd"); if (!dl) return;
   let last = 120; try { last = +localStorage.getItem("rts-dur-" + kind) || (kind === "grind" ? 120 : 60); } catch {}
-  dl.innerHTML = `<form method="dialog" class="dur"><div class="card-head"><h3>${KIND_ICON[kind]} ${t(kind === "grind" ? "durGrind" : "durStudy")}</h3><button class="x" value="cancel">×</button></div>
-    <p class="muted small">${t("durSub")}</p>
+  dl.innerHTML = `<form method="dialog" class="dur"><div class="card-head"><h3>${KIND_ICON[kind]} ${ask || t(kind === "grind" ? "durGrind" : "durStudy")}</h3><button class="x" value="cancel">×</button></div>
+    <p class="muted small">${ask ? t(kind === "grind" ? "durGrind" : "durStudy") + " " : ""}${t("durSub")}</p>
     <div class="dur-grid">${DURATIONS.map((m) => `<button class="dur-b ${m === last ? "on" : ""}" value="${m}">${fmtMin(m)}</button>`).join("")}</div>
     <label class="dur-own">${t("durOwn")} <input type="number" min="5" max="600" step="5" name="own" placeholder="${last}"> min <button class="btn btn-sm btn-red" value="own">${t("durGo")}</button></label></form>`;
   dl.onclose = () => {

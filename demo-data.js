@@ -36,7 +36,8 @@ const D_JOURNAL = [];
  ["theo", 5, 4, 1.5, 2800, 0], ["sam", 6, 4, 1, 2300, 1], ["max", 7, 3.5, 1, 2400, 0], ["alex", 8, 3, 1, 1500, 3]]
   .forEach(([pid, seed, play, study, hands, gap]) => {
     const r = dRand(seed);
-    for (let i = gap + 1; i <= 75; i++) {
+    const sinceJan = Math.round((Date.now() - new Date("2026-01-01T12:00:00")) / 864e5); // demo = the whole of 2026 so far
+    for (let i = gap + 1; i <= Math.max(75, sinceJan); i++) {
       if (i > gap + 2 && r(i) < 0.12) continue;                   // a few days off
       const tags = Object.keys(TAGS).filter((k, j) => r(i * 3 + j) > 0.86).slice(0, 3);
       D_JOURNAL.push({
@@ -52,6 +53,12 @@ const D_JOURNAL = [];
 
 const D_GOALS = [
   { player_id: "lucas", period: "month", label: "current", status: "confirmed", hands_target: 50000, play_h_target: 110, study_h_target: 45, items: ["Review SB vs BTN: 30 tagged hands", "Stop-loss at 3 buy-ins every session"] },
+  // A past goal for every month and quarter of 2026, so the logbook shows a full year.
+  ...Array.from({ length: 10 }, (_, i) => ({ player_id: "lucas", period: "month", label: `2026-${String(i + 1).padStart(2, "0")}-01`, status: "confirmed",
+    week_h_target: 35, hands_target: 45000 + i * 1000, play_h_target: 100, study_h_target: 40,
+    items: [["✓ 3-bet more vs late opens", "✓ Journal every day"], ["✓ BB defence module", "Stop-loss every session"], ["✓ 40k hands", "✓ 2 reviews a week"]][i % 3] })),
+  ...[["2026-Q1", ["✓ Move up to NL200", "✓ 120k hands"]], ["2026-Q2", ["✓ Seminar prep", "Win rate above 4 bb/100"]], ["2026-Q3", ["✓ 150k hands", "✓ Finish the multiway track"]], ["2026-Q4", ["Shot NL500", "Re-sign for 2027"]]]
+    .map(([label, items]) => ({ player_id: "lucas", period: "quarter", label, status: "confirmed", items })),
   { player_id: "nina", period: "month", label: "current", status: "proposed", hands_target: 40000, play_h_target: 90, study_h_target: 40, items: ["Finish the multiway module"] },
 ];
 

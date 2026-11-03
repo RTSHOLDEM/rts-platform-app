@@ -182,13 +182,9 @@ async function gameStats(p) {
   g.skins = SKINS.filter((s) => !s.unlock || g.unlocked.includes(s.unlock)).map((s) => s.id);
   return g;
 }
-/* Supreme look: "mission to the sky" crew (Alexis 2026-11-03: less secret agent, more rocket mission; replaced the agent look of 2026-10-28). Ranks = space crew. */
-const OPS_RANKS = [[1, "Cadet", "Cadet"], [3, "Crew", "Équipage"], [6, "Pilot", "Pilote"], [10, "Flight engineer", "Ingénieur de vol"],
-  [15, "Mission specialist", "Spécialiste de mission"], [22, "Flight director", "Directeur de vol"], [30, "Commander", "Commandant"]];
-const opsRank = (lvl) => { const r = OPS_RANKS.filter((x) => lvl >= x[0]).pop(); return LANG === "fr" ? r[2] : r[1]; };
-const isOperation = (e) => e.kind === "coaching" && e.teams?.length === 1 && e.teams[0] === "supreme";
-const opTitle = (e) => (isOperation(e) ? `MISSION · ${e.title}` : e.title);
-const rankLine = (p, g) => [p.team_id === "supreme" ? `◆ ${opsRank(g.level)}` : null, esc(teamOf(p).label), p.stakes ? esc(p.stakes) : null, `${t("season")} ${g.season}`].filter(Boolean).join(" · ");
+/* Supreme coachings look like any other coaching (Alexis 2026-11-03: no mission / top secret look). Only Max stays hidden (presence + RLS). */
+const evTitle = (e) => (e.kind === "coaching" && !/^coaching/i.test(e.title || "") ? `Coaching ${e.title}` : e.title); // "RTS Supreme" -> "Coaching RTS Supreme"
+const rankLine = (p, g) => [esc(teamOf(p).label), p.stakes ? esc(p.stakes) : null, `${t("season")} ${g.season}`].filter(Boolean).join(" · ");
 const mySkin = (p, g) => (g?.skins || []).includes(p.skin) ? p.skin : (g?.skins || ["rookie"]).slice(-1)[0] || "rookie";
 
 /* XP toast: shows what you earned since your last visit, and level ups. */
@@ -301,8 +297,17 @@ async function viewHero() {
 const ROOMS = {
   grind: { x: 0, y: 0, w: 330, h: 215, icon: "♠" }, study: { x: 335, y: 0, w: 330, h: 215, icon: "📚" }, coaching: { x: 670, y: 0, w: 330, h: 215, icon: "🎓" },
   lobby: { x: 0, y: 220, w: 1000, h: 120, icon: "🏠" },
-  review: { x: 0, y: 345, w: 330, h: 215, icon: "🔍" }, mentor: { x: 335, y: 345, w: 330, h: 215, icon: "🤝" }, lounge: { x: 670, y: 345, w: 330, h: 215, icon: "☕" },
+  review: { x: 0, y: 345, w: 330, h: 215, icon: "🔍" },
 };
+const CLOSED = [{ x: 335, y: 345, w: 330, h: 215 }, { x: 670, y: 345, w: 330, h: 215 }]; // mentor room + lounge: closed for now (Alexis 2026-11-03)
+Object.assign(STRINGS.en, { hqGrindAsk: "Are you sure you want to start a grind session?", hqStudyAsk: "Are you sure you want to start a study session?",
+  hqReviewAsk: "Tell the players you are available for a review?", hqReviewYes: "Yes, tell them", hqReviewPing: "is available for a review", hqGoReview: "Go to the review room",
+  hqNoCoaching: "No coaching live right now.", hqNextCoaching: "Next coaching:", hqIncog: "Incognito", hqVisible: "Visible", hqIncogTip: "Incognito: nobody sees you online. Visible: you show on the map.",
+  hqPeople: "Online", hqWeekGrind: "Week grind", cancel: "Cancel" });
+Object.assign(STRINGS.fr, { hqGrindAsk: "Tu es sûr de vouloir lancer une session de grind ?", hqStudyAsk: "Tu es sûr de vouloir lancer une session d'étude ?",
+  hqReviewAsk: "Prévenir les joueurs que tu es dispo pour une review ?", hqReviewYes: "Oui, préviens-les", hqReviewPing: "est dispo pour une review", hqGoReview: "Aller en salle de review",
+  hqNoCoaching: "Pas de coaching en direct maintenant.", hqNextCoaching: "Prochain coaching :", hqIncog: "Incognito", hqVisible: "Visible", hqIncogTip: "Incognito : personne ne te voit en ligne. Visible : tu es sur la carte.",
+  hqPeople: "En ligne", hqWeekGrind: "Grind de la semaine", cancel: "Annuler" });
 const CORRIDOR = 280;
 const hashN = (s) => [...String(s)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
 function hqSpot(room, id) {
@@ -311,23 +316,72 @@ function hqSpot(room, id) {
 }
 const PRES = { ch: null, me: null, list: [], subs: new Set(), chats: new Set(), log: [] };
 const hqRoomNow = (open) => open ? (open.kind === "grind" ? "grind" : "study") : (() => { try { return localStorage.getItem("rts-hq-room") || "lobby"; } catch { return "lobby"; } })();
+/* Incognito (Alexis 2026-11-03): you still see the map, but you are never tracked, so nobody sees you online. Kept per browser. */
+const hqIncog = () => { try { return localStorage.getItem("rts-incog") === "1"; } catch { return false; } };
+const hqLocal = () => { PRES.list = [...PRES.list.filter((p) => p.id !== ME.id), PRES.me]; PRES.subs.forEach((f) => f(PRES.list)); };
+function hqSetIncog(on) {
+  try { localStorage.setItem("rts-incog", on ? "1" : "0"); } catch {}
+  if (!PRES.ch) return;
+  if (on) { PRES.ch.untrack(); hqLocal(); } else PRES.ch.track(PRES.me);
+}
 async function presenceStart() {
   if (PRES.ch || !ME) return;
   const [g, open] = await Promise.all([gameStats(ME).catch(() => ({ level: 1, skins: ["rookie"] })), db.openSession(ME.id).catch(() => null)]);
   PRES.me = { id: ME.id, name: ME.nick || ME.name, skin: mySkin(ME, g), av: ME.avatar || null, lvl: g.level, team: ME.team_id || "", room: hqRoomNow(open) };
-  PRES.ch = db.hq(PRES.me, (l) => { PRES.list = l; PRES.subs.forEach((f) => f(l)); }, (m) => { PRES.log.push(m); PRES.log = PRES.log.slice(-40); PRES.chats.forEach((f) => f(m)); },
-    { secret: !!ME.secret, sees: ME.team_id === "supreme" || isAdmin() });
+  PRES.ch = db.hq(PRES.me, (l) => { PRES.list = l; if (hqIncog()) return hqLocal(); PRES.subs.forEach((f) => f(l)); }, (m) => {
+    PRES.log.push(m); PRES.log = PRES.log.slice(-40); PRES.chats.forEach((f) => f(m));
+    if (m.kind === "review" && m.id !== ME.id) hqReviewToast(m);
+  }, { secret: !!ME.secret, sees: ME.team_id === "supreme" || isAdmin(), hidden: hqIncog() });
 }
 function hqMove(room) {
   try { if (!["grind", "study"].includes(room)) localStorage.setItem("rts-hq-room", room); } catch {}
   if (!PRES.ch || PRES.me.room === room) return;
-  PRES.me = { ...PRES.me, room }; PRES.ch.track(PRES.me);
+  PRES.me = { ...PRES.me, room };
+  if (hqIncog()) hqLocal(); else PRES.ch.track(PRES.me);
+}
+
+/* Rooms are actions (Alexis 2026-11-03). Grind / study: confirm, then pick the length and start. Coaching: opens the live coaching's Zoom.
+   Review: a coach or mentor tells every connected player he is free for a review. */
+function hqAsk(title, yes, onYes) {
+  const dl = $("#durd"); if (!dl) return;
+  dl.innerHTML = `<form method="dialog" class="dur"><div class="card-head"><h3>${title}</h3><button class="x" value="cancel">×</button></div>
+    <p class="row-btns"><button class="btn btn-red" value="yes">${yes}</button><button class="btn" value="cancel">${t("cancel")}</button></p></form>`;
+  dl.onclose = () => { if (dl.returnValue === "yes") onYes(); };
+  dl.showModal();
+}
+function roomAction(room, events = []) {
+  if (room === "grind" || room === "study") {
+    if (SES.s) { location.hash = "#/session"; return; } // a session already runs: back to its cockpit
+    return askDuration(room, t(room === "grind" ? "hqGrindAsk" : "hqStudyAsk"));
+  }
+  if (room === "coaching") {
+    const now = Date.now(), end = (e) => new Date(e.starts_at).getTime() + (e.minutes || 60) * 6e4;
+    const mine = events.filter((e) => e.kind === "coaching" && forMe(e) && end(e) > now).sort((a, b) => (a.starts_at < b.starts_at ? -1 : 1));
+    const live = mine.find((e) => new Date(e.starts_at).getTime() - 15 * 6e4 <= now);
+    hqMove("coaching");
+    if (live?.link) window.open(live.link, "_blank", "noopener");
+    else hqToast(live ? `🎓 ${esc(evTitle(live))}` : `${t("hqNoCoaching")}${mine[0] ? ` ${t("hqNextCoaching")} <b>${esc(evTitle(mine[0]))}</b> · ${dayName(mine[0].starts_at.slice(0, 10))} ${hhmm(mine[0].starts_at)}` : ""}`);
+    return;
+  }
+  if (room === "review" && isStaff()) return hqAsk(`🔍 ${t("hqReviewAsk")}`, t("hqReviewYes"), () => { hqMove("review"); PRES.ch?.say(t("hqReviewPing"), "review"); });
+  hqMove(room);
+}
+function hqToast(html, ms = 6000) {
+  const el = document.createElement("div"); el.className = "toast hq-toast"; el.innerHTML = html;
+  document.body.appendChild(el); setTimeout(() => el.remove(), ms);
+  return el;
+}
+function hqReviewToast(m) {
+  const who = nm({ name: PRES.list.find((p) => p.id === m.id)?.name || "?" });
+  const el = hqToast(`🔍 <b>${who}</b> ${t("hqReviewPing")} <a class="btn btn-sm btn-red" href="#/?go=review">${t("hqGoReview")}</a>`, 20000);
+  el.querySelector("a").onclick = () => { el.remove(); if (location.hash === "#/?go=review") hqMove("review"); };
 }
 function presenceStop() { PRES.ch?.leave(); PRES.ch = null; PRES.list = []; }
 
 /* Draws the map into `box` and keeps it live. mini = the home preview (my team only, no names). */
-function mountMap(box, { mini = false, onList } = {}) {
+function mountMap(box, { mini = false, onList, onRoom = hqMove } = {}) {
   box.innerHTML = `<div class="hq-map ${mini ? "mini" : ""}">${hqArt() ? `<img class="hq-art" src="${hqArt()}" alt="">` : ""}
+    ${mini ? "" : CLOSED.map((r) => `<div class="room closed" style="left:${r.x / 10}%;top:${r.y / 5.6}%;width:${r.w / 10}%;height:${r.h / 5.6}%"></div>`).join("")}
     ${Object.entries(ROOMS).map(([k, r]) => `<button class="room r-${k} ${hqArt() ? "on-art" : ""}" data-room="${k}" style="left:${r.x / 10}%;top:${r.y / 5.6}%;width:${r.w / 10}%;height:${r.h / 5.6}%"><span>${r.icon} ${mini ? "" : t("room_" + k)}</span></button>`).join("")}
     <div class="hq-people"></div></div>`;
   const layer = box.querySelector(".hq-people"), els = {}, at = {}, rooms = {};
@@ -367,7 +421,7 @@ function mountMap(box, { mini = false, onList } = {}) {
   };
   PRES.subs.add(render); PRES.chats.add(chat);
   render(PRES.list);
-  if (!mini) $$("[data-room]", box).forEach((b) => b.onclick = () => hqMove(b.dataset.room));
+  if (!mini) $$("[data-room]", box).forEach((b) => b.onclick = () => onRoom(b.dataset.room));
 }
 
 /* Home preview: who of my team is grinding, studying, in a review. Click = the full map. */
@@ -408,5 +462,5 @@ async function viewHQ() {
   $("#hqsay").onsubmit = (ev) => { ev.preventDefault(); const v = ev.target.m.value.trim(); if (v) PRES.ch?.say(v); ev.target.reset(); };
   if (go) setTimeout(() => hqMove(go), 900);
 }
-/* Map art (Higgsfield): the rocket launch base for everyone, mission control at night for Supreme. */
-const hqArt = () => (document.body.classList.contains("ops") ? "img/hq/hq-mission.webp" : "img/hq/hq-rocket.webp"); // rocket base, Supreme = mission control (2026-11-03)
+/* Map art (Higgsfield): the rocket launch base, same for every team. */
+const hqArt = () => "img/hq/hq-rocket.webp";

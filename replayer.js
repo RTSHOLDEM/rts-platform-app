@@ -55,7 +55,7 @@ async function viewReplayer(id) {
       <div class="rp-stage">${cur ? `
         <div class="rp-bar"><span class="rp-cards">${cardsHtml(handInfo(cur.hh).cards)}</span>
           <b>${esc([handInfo(cur.hh).stakes, handInfo(cur.hh).site].filter(Boolean).join(" · "))}</b>
-          <span class="rp-tools"><button class="chip" id="rpcopy">${t("copyHH")}</button><a class="chip" id="rpfull" target="_blank" rel="noopener">${t("fullScreen")} ↗</a></span></div>
+          <span class="rp-tools"><button class="chip btn-gto" id="rpgto" title="${t("gtoTip")}">GTO Wizard ↗</button><button class="chip" id="rpcopy">${t("copyHH")}</button><a class="chip" id="rpfull" target="_blank" rel="noopener">${t("fullScreen")} ↗</a></span></div>
         ${cur.note ? `<p class="rp-q">${esc(cur.note)}</p>` : ""}
         <iframe class="rp-frame" id="rpframe" title="RTS Replayer" allow="clipboard-write; fullscreen"></iframe>` : form}</div>
     </section>`;
@@ -75,6 +75,7 @@ async function viewReplayer(id) {
   if (cur) {
     const url = await replayUrl(cur.hh);
     $("#rpframe").src = url; $("#rpfull").href = url;
+    $("#rpgto").onclick = () => { navigator.clipboard.writeText(cur.hh).catch(() => {}); window.open("https://app.gtowizard.com/", "_blank", "noopener"); hqToast(`✓ ${t("gtoCopied")}`, 9000); };
     $("#rpcopy").onclick = async () => { try { await navigator.clipboard.writeText(cur.hh); $("#rpcopy").textContent = "✓"; } catch {} };
   } else {
     $("#rpform").onsubmit = (e) => { e.preventDefault(); const fd = new FormData(e.target); save(fd.get("hh"), fd.get("note")); };

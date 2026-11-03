@@ -93,6 +93,7 @@ function liveDb() {
     async openSession(pid) { return (await rows(sb.from("sessions").select("*").eq("player_id", pid).is("ended_at", null).order("started_at", { ascending: false }).limit(1)))[0] || null; },
     async startSession(kind, planned_min = null) { const me = await db.me(); return (await rows(sb.from("sessions").insert({ player_id: me.id, kind, planned_min }).select()))[0]; },
     async saveSession(s) { return (await rows(sb.from("sessions").update(s).eq("id", s.id).select()))[0]; },
+    async dropSession(id) { return rows(sb.from("sessions").delete().eq("id", id)); },
     async focus(pid) { return rows(sb.from("focus_items").select("*").eq("player_id", pid).eq("active", true).order("created_at")); },
     async addFocus(pid, text) { const me = await db.me(); return rows(sb.from("focus_items").insert({ player_id: pid, text, added_by: me.id }).select()); },
     async dropFocus(id) { return rows(sb.from("focus_items").update({ active: false }).eq("id", id)); },
@@ -133,13 +134,13 @@ function liveDb() {
     /* RTS HQ: live presence (who is where) + chat bubbles. Realtime only, nothing stored. */
     /* Public HQ channel for everyone. Secret accounts (Supreme only) live on the private "hq-sup" channel,
        which only Supreme and admin can join (Realtime policies, supabase/007). */
-    hq(me, onSync, onChat, { secret = false, sees = false } = {}) {
+    hq(me, onSync, onChat, { secret = false, sees = false, hidden = false } = {}) {
       const opt = (priv) => ({ config: { private: priv, presence: { key: me.id }, broadcast: { self: true } } });
       const pub = sb.channel("rts-hq", opt(false)), sup = sees || secret ? sb.channel("hq-sup", opt(true)) : null, home = secret ? sup : pub;
       const sync = () => { const seen = {}; [pub, sup].filter(Boolean).forEach((ch) => Object.values(ch.presenceState()).forEach((l) => { const p = l[l.length - 1]; seen[p.id] = p; })); onSync(Object.values(seen)); };
       [pub, sup].filter(Boolean).forEach((ch) => ch.on("presence", { event: "sync" }, sync).on("broadcast", { event: "chat" }, ({ payload }) => onChat(payload))
-        .subscribe((s) => { if (s === "SUBSCRIBED" && ch === home) ch.track(me); }));
-      return { track: (st) => home.track(st), say: (text) => home.send({ type: "broadcast", event: "chat", payload: { id: me.id, text, at: Date.now() } }),
+        .subscribe((s) => { if (s === "SUBSCRIBED" && ch === home && !hidden) ch.track(me); }));
+      return { track: (st) => home.track(st), untrack: () => home.untrack(), say: (text, kind) => home.send({ type: "broadcast", event: "chat", payload: { id: me.id, text, at: Date.now(), ...(kind ? { kind } : {}) } }),
         leave: () => [pub, sup].filter(Boolean).forEach((ch) => sb.removeChannel(ch)) };
     },
   };
@@ -156,7 +157,7 @@ function nextRecall(card, ok) {
 function demoDb() {
   const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
   const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
-  const S = load("rts-demo-v2", null) || {
+  const S = load("rts-demo-v3", null) || {
     people: D_PEOPLE, journal: D_JOURNAL,
     goals: D_GOALS.map((g) => ({ ...g, label: g.label === "current" ? monthStart() : g.label })),
     reports: D_REPORTS.map((r) => ({ ...r, month: r.month === "prev" ? prevMonthStart() : r.month })),
@@ -164,7 +165,7 @@ function demoDb() {
     exdone: D_EXDONE, answers: [], deck: [],
   };
   if (typeof demoCoachings === "function" && !(S.events || []).some((e) => e.kind === "coaching")) (S.events ||= []).push(...demoCoachings());
-  const save = () => store("rts-demo-v2", S);
+  const save = () => store("rts-demo-v3", S);
   const meId = () => load("rts-demo-user", "lucas");
   const me = () => S.people.find((p) => p.id === meId());
   const byId = (id) => S.people.find((p) => p.id === id);
@@ -177,7 +178,7 @@ function demoDb() {
   const db = {
     mode: "demo", users: D_USERS,
     setUser(id) { store("rts-demo-user", id); },
-    reset() { try { localStorage.removeItem("rts-demo-v2"); } catch {} },
+    reset() { try { localStorage.removeItem("rts-demo-v3"); } catch {} },
     async session() { return { user: { id: meId() } }; },
     async signIn() {}, async signOut() {}, onAuth() {}, refresh() {},
     async me() { return me(); },
@@ -237,6 +238,7 @@ function demoDb() {
     async openSession(pid) { return (S.sessions ||= []).find((s) => s.player_id === pid && !s.ended_at) || null; },
     async startSession(kind, planned_min = null) { const s = { id: "se" + Date.now(), player_id: meId(), kind, planned_min, started_at: new Date().toISOString(), ended_at: null }; (S.sessions ||= []).push(s); save(); return s; },
     async saveSession(x) { const s = S.sessions.find((y) => y.id === x.id); Object.assign(s, x); save(); return s; },
+    async dropSession(id) { S.sessions = S.sessions.filter((x) => x.id !== id); (S.hands || []).forEach((h) => { if (h.session_id === id) h.session_id = null; }); save(); },
     async focus(pid) { return canSee(me(), byId(pid)) ? (S.focus ||= []).filter((f) => f.player_id === pid && f.active) : []; },
     async addFocus(pid, text) { (S.focus ||= []).push({ id: "f" + Date.now(), player_id: pid, text, added_by: meId(), active: true }); save(); },
     async dropFocus(id) { S.focus.find((f) => f.id === id).active = false; save(); },
@@ -272,7 +274,7 @@ function demoDb() {
     /* Demo HQ: teammates wander between rooms, so the map is alive without a server. */
     hq(meState, onSync, onChat) {
       let mine = meState;
-      const rooms = ["lobby", "grind", "study", "review", "coaching", "lounge"];
+      const rooms = ["lobby", "grind", "study", "review", "coaching"];
       const npcs = S.people.filter((p) => p.id !== meState.id && p.roles.includes("player") && !hid(p)).slice(0, 5).map((p, i) => ({ id: p.id, name: p.name, team: p.team_id, skin: ["academy", "suit", "hoodie", "shark", "cap"][i], room: rooms[(i + 1) % rooms.length], lvl: 3 + i * 4 }));
       const push = () => onSync([mine, ...npcs]);
       const lines = ["gl all", "anyone for a review at 20:00?", "running 6 tables tonight", "who has the SB vs BTN deck?", "gg"];
@@ -282,7 +284,7 @@ function demoDb() {
         else onChat({ id: n.id, text: lines[Math.floor(Math.random() * lines.length)], at: Date.now() });
       }, 6000);
       setTimeout(push, 50);
-      return { track: (st) => { mine = st; push(); }, say: (text) => onChat({ id: mine.id, text, at: Date.now() }), leave: () => clearInterval(tick) };
+      return { track: (st) => { mine = st; push(); }, untrack: () => onSync(npcs), say: (text, kind) => onChat({ id: mine.id, text, at: Date.now(), ...(kind ? { kind } : {}) }), leave: () => clearInterval(tick) };
     },
   };
   return db;

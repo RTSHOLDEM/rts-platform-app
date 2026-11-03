@@ -154,6 +154,8 @@ function forMe(e) {
 
 /* Home = the HQ (2026-11-03): the live map of everyone connected, always open, with my grind, what's next and the chat.
    Starting a session lives in the bottom dock (timer.js). */
+/* Home = RTS HQ on one screen, never scrolls (Alexis 2026-11-03). Top: week grind banner. Middle: the map, as big as the screen allows.
+   Right: who is online + chat, hidden behind a button like Discord's member list. */
 async function viewHome() {
   const my = RENDER, player = has(ME, "player");
   const go = new URLSearchParams(location.hash.split("?")[1] || "").get("go");
@@ -161,54 +163,66 @@ async function viewHome() {
     db.events(new Date(Date.now() - 864e5).toISOString(), addDays(14) + "T23:59"), player ? gameStats(ME) : null, player ? [] : db.sessions(ME.id, weekStart()).catch(() => [])]);
   if (my !== RENDER) return; // a newer screen started while this one loaded
   const now = new Date().toISOString(), coming = all.filter(forMe).filter((e) => new Date(new Date(e.starts_at).getTime() + e.minutes * 6e4).toISOString() >= now);
-  const first = cam.on ? esc((ME.nick || ME.name)[0]) + "." : esc(ME.nick || ME.name.split(" ")[0]);
   const when = (e) => `${e.starts_at.slice(0, 10) === today() ? t("today") : dayName(e.starts_at.slice(0, 10))} · ${hhmm(e.starts_at)}`;
-  let left = weekView(all, sess);
+  const live = SES.s ? elapsed(SES.s) / 36e5 : 0;
+  let wk = sess.reduce((a, x) => a + (x.ended_at ? Number(x.minutes || 0) / 60 : 0), 0) + live, target = 0, extra = "";
   if (player) {
     setGoals(ME, goals);
-    const s = stats(mine, ME), target = weekTarget(ME), wk = weekHours(mine) + (SES.s ? elapsed(SES.s) / 36e5 : 0), skin = mySkin(ME, g);
-    const wkHands = mine.filter((e) => e.day >= weekStart()).reduce((a, e) => a + Number(e.hands || 0), 0);
-    left = `<aside class="card char">
-        <a class="char-stage" href="#/hero" title="${t("charLink")}">${avatarSvg({ skin, av: ME.avatar }, 96, "idle")}</a>
-        <h3 class="char-name">${nm({ name: ME.nick || ME.name })}</h3><p class="rank">${rankLine(ME, g)}</p>
-        <div class="lvl-line"><span class="lvl-badge">${g.level}</span><div class="xpbar"><i style="width:${(g.into / g.need) * 100}%"></i></div></div>
-        <p class="muted tiny">${fmtNum(g.into)} / ${fmtNum(g.need)} XP · ${t("lvl")} ${g.level + 1}</p>
-        <div class="ach-row">${ACH.filter((a) => g.unlocked.includes(a.id)).slice(-6).map((a) => `<span title="${esc(L2(a))}">${a.icon}</span>`).join("") || `<span class="muted tiny">${t("noAch")}</span>`}</div>
-        <a class="btn btn-sm char-link" href="#/hero">${t("charLink")} · ${g.unlocked.length}/${ACH.length}</a></aside>
-      <a class="card grindbox" href="#/log">
-        <div class="card-head"><h3>${t("yourGrind")}</h3><span class="wk-num">${fmtH(wk)} <small>/ ${target} h</small></span></div>${xpBar(wk, target)}
-        <div class="stats-strip">
-          <div><span>♠ ${t("handsWeek")}</span><b>${fmtNum(wkHands)}</b></div>
-          <div><span>🔥 ${t("streak")}</span><b>${s.streak} <small>${s.streak === 1 ? t("day") : t("days")}</small></b></div>
-          <div><span>${t("handsMonth")}</span><b>${fmtNum(s.hands)} <small>/ ${fmtNum(s.handsTarget)}</small></b>${bar(s.hands, s.handsTarget, s.hands >= s.pace * 0.9 ? "" : "warn")}</div>
-          <div><span>⏱ ${t("hoursMonth")}</span><b>${fmtH(s.play + s.study)}</b></div></div>
-        <span class="small-link">${s.filledToday ? "✓ " : "🌙 "}${t("logbook")} →</span></a>`;
+    const st = stats(mine, ME), wkHands = mine.filter((e) => e.day >= weekStart()).reduce((a, e) => a + Number(e.hands || 0), 0);
+    wk = weekHours(mine) + live; target = weekTarget(ME);
+    extra = `<span>♠ <b>${fmtNum(wkHands)}</b> ${t("handsWeek")}</span><span>🔥 <b>${st.streak}</b> ${st.streak === 1 ? t("day") : t("days")}</span>
+      <span>${t("handsMonth")} <b>${fmtNum(st.hands)}</b> / ${fmtNum(st.handsTarget)}</span>`;
   }
+  const pct = target ? Math.min(100, (wk / target) * 100) : 0, nx = coming[0], isLive = nx && nx.starts_at <= now;
+  const panelOpen = (() => { try { return localStorage.getItem("rts-hq-panel") === "1"; } catch { return false; } })();
   $("#main").innerHTML = `
-    <section class="lobby-top"><h1 class="hi">${ME.team_id === "supreme" ? t("briefing") : t("hi")} ${first}</h1></section>
-    <div class="lobby home-hq">
-      <div class="stack lobby-left">${left}</div>
-      <section class="card hq-home"><div class="card-head"><h3>RTS HQ</h3><span class="muted small" id="hqcount"></span></div><div id="hqmap"></div></section>
-      <aside class="stack lobby-right">
-        <div class="card upcoming">
-          ${coming[0] ? `<a class="nextup-in ${coming[0].starts_at <= now ? "live" : ""} ${isOperation(coming[0]) ? "op" : ""}" href="${coming[0].link ? esc(coming[0].link) : "#/calendar"}" ${coming[0].link ? 'target="_blank" rel="noopener"' : ""}>
-            <span class="eyebrow">${coming[0].starts_at <= now ? t("liveNow") : t("nextUp")}</span><b>${KIND_ICON[coming[0].kind]} ${esc(opTitle(coming[0]))}</b><span class="muted small">${when(coming[0])}${coming[0].link ? " · " + t("join") + " →" : ""}</span></a>` : `<p class="muted small">${t("noEvents")}</p>`}
-          ${coming.slice(1, 4).map((e) => `<p class="hrow ${isOperation(e) ? "op" : ""}">${KIND_ICON[e.kind]} ${esc(opTitle(e))}<small class="muted"> · ${when(e)}</small></p>`).join("")}
-          <a class="small-link" href="#/calendar">${t("calendar")} →</a></div>
-        <div class="card"><div class="card-head"><h3>${t("online")}</h3><span class="tag" id="hqn">1</span></div><div id="hqwho" class="hq-who"></div></div>
-        <div class="card hq-chat"><div id="hqlog" class="hq-log"></div><form id="hqsay" class="inline"><input name="m" maxlength="140" placeholder="${t("saySomething")}" autocomplete="off"><button class="btn btn-sm btn-red">↵</button></form></div>
-      </aside>
+    <div class="home1">
+      <section class="hbanner card">
+        <a class="hb-me" href="#/hero" title="${t("charLink")}">${avatarSvg({ skin: g ? mySkin(ME, g) : "rookie", av: ME.avatar }, 46, "idle")}
+          <span><b>${nm({ name: ME.nick || ME.name })}</b>${g ? `<small><span class="lvl-badge">${g.level}</span> ${esc(teamOf(ME).label)}</small><span class="xpbar"><i style="width:${(g.into / g.need) * 100}%"></i></span>` : ""}</span></a>
+        <a class="hb-grind" href="#/log">
+          <span class="hb-top"><span class="eyebrow">${t("hqWeekGrind")}</span><b class="hb-num">${fmtH(wk)}${target ? ` <small>/ ${target} h</small>` : ""}</b></span>
+          ${target ? `<span class="hb-bar"><i style="width:${pct}%"></i></span>` : ""}
+          ${extra ? `<span class="hb-stats">${extra}</span>` : ""}</a>
+        ${nx ? `<a class="hb-next ${isLive ? "live" : ""}" href="${nx.link ? esc(nx.link) : "#/calendar"}" ${nx.link ? 'target="_blank" rel="noopener"' : ""}>
+            <span class="eyebrow">${isLive ? t("liveNow") : t("nextUp")}</span><b>${KIND_ICON[nx.kind]} ${esc(evTitle(nx))}</b><small class="muted">${when(nx)}${nx.link ? " · " + t("join") + " →" : ""}</small></a>`
+          : `<a class="hb-next" href="#/calendar"><span class="eyebrow">${t("calendar")}</span><small class="muted">${t("noEvents")}</small></a>`}
+        <button class="hb-people ${panelOpen ? "on" : ""}" id="hqtoggle" title="${t("hqPeople")}">👥 <b id="hqn">1</b></button>
+      </section>
+      <div class="hmain ${panelOpen ? "open" : ""}">
+        <section class="hq-stage"><div id="hqmap"></div></section>
+        <aside class="hq-panel card">
+          <div class="card-head"><h3>${t("hqPeople")} <span class="tag" id="hqn2">1</span></h3>
+            <label class="incog" title="${t("hqIncogTip")}"><input type="checkbox" id="incog" ${hqIncog() ? "checked" : ""}> <span>${hqIncog() ? "🕶 " + t("hqIncog") : "🟢 " + t("hqVisible")}</span></label></div>
+          <p class="muted small hq-count" id="hqcount"></p>
+          <div id="hqwho" class="hq-who"></div>
+          <div class="hq-chat"><div id="hqlog" class="hq-log"></div><form id="hqsay" class="inline"><input name="m" maxlength="140" placeholder="${t("saySomething")}" autocomplete="off"><button class="btn btn-sm btn-red">↵</button></form></div>
+        </aside>
+      </div>
     </div>`;
+  // Fit the page to the window: the HQ ends just above the dock, so the home never scrolls.
+  const fit = () => {
+    const el = $(".home1"); if (!el) { removeEventListener("resize", fit); return; }
+    const dock = $("#dock")?.getBoundingClientRect(), bottom = dock && dock.height ? dock.top - 10 : innerHeight - 12;
+    el.style.height = Math.max(380, bottom - el.getBoundingClientRect().top) + "px";
+  };
+  fit(); addEventListener("resize", fit);
+  $("#hqtoggle").onclick = () => {
+    const open = !$(".hmain").classList.contains("open");
+    $(".hmain").classList.toggle("open", open); $("#hqtoggle").classList.toggle("on", open);
+    try { localStorage.setItem("rts-hq-panel", open ? "1" : "0"); } catch {}
+  };
+  $("#incog").onchange = (ev) => { hqSetIncog(ev.target.checked); ev.target.nextElementSibling.textContent = ev.target.checked ? "🕶 " + t("hqIncog") : "🟢 " + t("hqVisible"); };
   await presenceStart();
   if (my !== RENDER) return;
   const who = (p) => nm({ name: p?.name || "?" });
-  mountMap($("#hqmap"), { onList: (l) => {
+  mountMap($("#hqmap"), { onRoom: (k) => roomAction(k, all), onList: (l) => {
     const n = (r) => l.filter((p) => p.room === r).length;
-    $("#hqcount") && ($("#hqcount").textContent = `♠ ${n("grind")} · 📚 ${n("study")} · 🔍 ${n("review")}`);
-    $("#hqn") && ($("#hqn").textContent = l.length);
-    $("#hqwho") && ($("#hqwho").innerHTML = l.map((p) => `<p>${avatarSvg(p, 18)} <b>${who(p)}</b> <small class="muted">${t("room_" + p.room)}</small></p>`).join(""));
+    $("#hqcount") && ($("#hqcount").textContent = `♠ ${n("grind")} · 📚 ${n("study")} · 🎓 ${n("coaching")} · 🔍 ${n("review")}`);
+    $("#hqn") && ($("#hqn").textContent = l.length); $("#hqn2") && ($("#hqn2").textContent = l.length);
+    $("#hqwho") && ($("#hqwho").innerHTML = l.map((p) => `<p>${avatarSvg(p, 22)} <b>${who(p)}</b> <small class="muted">${t("room_" + p.room) || ""}</small></p>`).join(""));
   } });
-  const logLine = (m) => { const log = $("#hqlog"); if (!log) { PRES.chats.delete(logLine); return; } log.insertAdjacentHTML("beforeend", `<p><b>${who(PRES.list.find((p) => p.id === m.id))}</b> ${esc(m.text)}</p>`); log.scrollTop = log.scrollHeight; };
+  const logLine = (m) => { const log = $("#hqlog"); if (!log) { PRES.chats.delete(logLine); return; } log.insertAdjacentHTML("beforeend", `<p><b>${who(PRES.list.find((p) => p.id === m.id))}</b> ${m.kind === "review" ? "🔍 " : ""}${esc(m.text)}</p>`); log.scrollTop = log.scrollHeight; };
   PRES.log.forEach(logLine); PRES.chats.add(logLine);
   $("#hqsay").onsubmit = (ev) => { ev.preventDefault(); const v = ev.target.m.value.trim(); if (v) PRES.ch?.say(v); ev.target.reset(); };
   if (go) setTimeout(() => hqMove(go), 900);
@@ -284,7 +298,7 @@ async function viewSession() {
             <textarea name="note" rows="2" class="sensitive" placeholder="${t("handNotePh")}"></textarea>
             <button class="btn btn-sm btn-red">${t("saveHand")}</button><p class="saved" id="hsaved"></p>
             <details class="hlist"><summary>${t("handsSession")} · ${mineHere.length}</summary>
-              ${mineHere.map((h) => `<p class="hrow">${h.image_path || h.image_data ? "🖼" : "📋"} <span class="sensitive">${esc((h.note || h.hh || t("screenshot")).slice(0, 60))}</span></p>`).join("") || `<p class="muted small">${t("noHandsYet")}</p>`}</details></form>`
+              ${mineHere.map((h) => `<p class="hrow">${h.image_path || h.image_data ? "🖼" : h.link ? "🔗" : "📋"} <span class="sensitive">${esc((h.note || h.link || h.hh || t("screenshot")).slice(0, 60))}</span> ${(h.tags || []).map((k) => `<small class="tag">${t("tag_" + k)}</small>`).join(" ")}</p>`).join("") || `<p class="muted small">${t("noHandsYet")}</p>`}</details></form>`
         : `<form class="card" id="cform"><div class="card-head"><h3>${t("addConclusion")}</h3><span class="tag">${cardsHere.length}</span></div>
             <p class="muted small">${t("conclusionAsk")}</p>
             <input name="situation" required placeholder="${t("situation")} · SB vs BTN, 3BP, K72r">
@@ -320,6 +334,7 @@ async function viewSession() {
   const notesNow = () => $("[name=notes]").value;
   const saveNotes = async () => { await db.saveSession({ id: s.id, notes: notesNow() }); $("#nsaved").textContent = t("saved"); };
   $("[name=notes]").onblur = saveNotes;
+  $("[name=notes]").oninput = () => popNotes(notesNow()); // same notes in the pop out cockpit
   $("#pause").onclick = sesPause;
   if (timeUp(s)) askRelaunch();
   $("#popb") && ($("#popb").onclick = openPop);
@@ -693,13 +708,17 @@ function paintRng(numEl, barEl) {
   return true;
 }
 
-/* Pop out bar: timer, weekly hours, RNG and pause in an always-on-top window (Document Picture-in-Picture,
-   Chrome/Edge). It runs on its own window's timers, which keep ticking while the platform tab is hidden. */
-const POP = { win: null, s: null, before: 0, target: 35, pause: null };
+/* Pop out cockpit (2026-11-03): the size of one poker table (640x470), always on top (Document Picture-in-Picture, Chrome/Edge).
+   Opens by itself when a grind session starts. Top: timer, weekly hours, RNG, pause. Below: drop a hand (screenshot or hand
+   history, Ctrl+V works), the session focus, the session notes (same notes as the cockpit page). Shrink it to a strip and only
+   the bar stays. It runs on its own window's timers, which keep ticking while the platform tab is hidden. */
+const POP = { win: null, w: 640, h: 470 };
+/* Hand tags: who (pick one) then the spot (pick one). Both optional. */
+const HAND_TAGS = { who: ["reg", "fish", "mw"], spot: ["bluff", "catch", "value", "pre"] };
 const POP_CSS = `
 *{box-sizing:border-box;margin:0}
 html,body{height:100%;background:#0b0b0d;color:#f4f4f2;font:500 13px Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
-.bar{height:100%;display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:14px;padding:10px 14px;border-top:2px solid #fd0606}
+.bar{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:14px;padding:10px 14px;border-top:2px solid #fd0606}
 .bar.paused{border-top-color:#f0b429}
 .clock{font-size:28px;font-weight:300;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .paused .clock{color:#f0b429}
@@ -730,25 +749,156 @@ button{padding:6px 10px;font-size:12px}
 @media (max-width:290px){.ant video{display:none}.rng.ant{grid-template-columns:auto auto}.ant .rb{grid-column:1/-1}}
 @media (max-width:330px){.wk{display:none}.bar{grid-template-columns:auto 1fr auto}}
 @media (max-width:230px){.clock{display:none}.bar{grid-template-columns:1fr auto}}
-@media (max-height:44px){.bar{padding:2px 8px}.rb{display:none}.rng{padding:1px 8px}.ant video{width:28px;height:28px;border-radius:7px}.ant small{font-size:8px}}`;
-async function openPop() {
+@media (max-height:44px){.bar{padding:2px 8px}.rb{display:none}.rng{padding:1px 8px}.ant video{width:28px;height:28px;border-radius:7px}.ant small{font-size:8px}}
+html,body{height:100%}
+body{display:grid;grid-template-rows:auto 1fr}
+.bar{border-bottom:1px solid #1f1f23}
+.body{display:grid;grid-template-columns:1.15fr 1fr;gap:10px;padding:10px;min-height:0}
+.col{display:grid;gap:10px;min-height:0}
+.hand{grid-template-rows:1fr auto auto auto auto;gap:7px}
+.tags{display:flex;flex-wrap:wrap;gap:5px}
+.tags button{padding:4px 9px;font-size:11px;font-weight:600;color:#b5b5bb}
+.tags button.on{background:#fd0606;border-color:#fd0606;color:#fff}
+.tags.spot button.on{background:#f4f4f2;border-color:#f4f4f2;color:#0b0b0d}
+.side{grid-template-rows:auto 1fr}
+h4{font-size:10px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#8b8b92;margin-bottom:6px;display:flex;justify-content:space-between}
+h4 span{letter-spacing:0;text-transform:none;font-weight:500}
+.drop{position:relative;border:1.5px dashed #2c2c31;border-radius:12px;background:#111114;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:10px;cursor:pointer;min-height:0;overflow:auto;text-align:center;color:#8b8b92;font-size:12px;line-height:1.4}
+.drop:hover,.drop.over{border-color:#fd0606;color:#f4f4f2;background:#160d0e}
+.drop .ic{font-size:26px;line-height:1;color:#fd0606}
+.drop.full .ic,.drop.full .dt{display:none}
+.th{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.th span{position:relative}
+.th img{height:78px;max-width:150px;object-fit:cover;border-radius:8px;border:1px solid #2c2c31;display:block}
+.th .hh{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;height:78px;padding:0 12px;border-radius:8px;border:1px solid #2c2c31;background:#141417;color:#f4f4f2;font-size:12px}
+.th button{position:absolute;top:-6px;right:-6px;width:20px;height:20px;padding:0;border-radius:50%;font-size:12px;line-height:18px;background:#0b0b0d}
+.hrow{display:grid;grid-template-columns:1fr auto;gap:8px}
+input,textarea{font:500 13px Inter,system-ui,sans-serif;color:#f4f4f2;background:#111114;border:1px solid #2c2c31;border-radius:10px;padding:8px 10px;outline:none;width:100%}
+input:focus,textarea:focus{border-color:#fd0606}
+textarea{resize:none;height:100%;min-height:0;line-height:1.45}
+.red{background:#fd0606;border-color:#fd0606}.red:hover{background:#e00505}
+.msg{font-size:11px;color:#8b8b92;min-height:14px}
+.msg b{color:#f4f4f2}
+.focus{background:#111114;border:1px solid #2c2c31;border-radius:12px;padding:9px 11px;max-height:132px;overflow:auto}
+.focus p{font-size:13px;line-height:1.35;padding:3px 0 3px 12px;position:relative}
+.focus p:before{content:"";position:absolute;left:0;top:9px;width:5px;height:5px;border-radius:50%;background:#fd0606}
+.focus .none{color:#8b8b92;font-size:12px;padding-left:0}.focus .none:before{display:none}
+.notes{display:grid;grid-template-rows:auto 1fr;min-height:0}
+/* The window decides what shows: small = timer bar only (drop hands in the platform tab), about one table = hand drop,
+   full table = hand drop + focus + notes. "The wider I make it, the more room to drop hands" (Alexis). */
+@media (max-width:579px){.body{grid-template-columns:1fr}.side{display:none}}
+@media (max-width:439px),(max-height:259px){body{grid-template-rows:1fr}.body{display:none}.bar{border-bottom:0}}`;
+/* Ask for the window right away (inside the click), fill it later. */
+function popRequest() {
+  if (!("documentPictureInPicture" in window) || (POP.win && !POP.win.closed)) return null;
+  return documentPictureInPicture.requestWindow({ width: POP.w, height: POP.h }).catch((err) => { console.warn("Pop out:", err); return null; });
+}
+async function openPop(pending) {
   if (POP.win && !POP.win.closed) { POP.win.focus(); return; }
-  let w;
-  try { w = await documentPictureInPicture.requestWindow({ width: 360, height: 92 }); }
-  catch (err) { const b = $("#popb"); if (b) { b.textContent = t("popOutFail"); b.disabled = true; } console.warn("Pop out:", err); return; }
+  const w = await (pending || popRequest());
+  if (!w) { const b = $("#popb"); if (b && !pending) { b.textContent = t("popOutFail"); b.disabled = true; } return; }
+  if (!SES.s) { w.close(); return; }
   POP.win = w;
-  const d = w.document;
+  const d = w.document, s0 = SES.s, url = (f) => new URL(f, location.href).href;
   d.title = "RTS · Grind";
   d.head.innerHTML = `<meta charset="utf-8"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"><style>${POP_CSS}</style>`;
   d.body.innerHTML = `<div class="bar"><div class="clock" id="c">0:00:00</div>
     <div class="wk"><div class="wkbar"><i id="w"></i></div><small id="wt"></small></div>
-    <div class="rng ant" title="Antho lance le rando · RNG 1-100"><video id="av" src="${new URL("img/antho-rng.mp4", location.href).href}" poster="${new URL("img/antho-rng.jpg", location.href).href}" muted playsinline preload="auto"></video><small>Le RNG<br>d'Antho</small><b id="n">--</b><span class="rb"><i id="nb"></i></span></div>
+    <div class="rng ant" title="Antho lance le rando · RNG 1-100"><video id="av" src="${url("img/antho-rng.mp4")}" poster="${url("img/antho-rng.jpg")}" muted playsinline preload="auto"></video><small>Le RNG<br>d'Antho</small><b id="n">--</b><span class="rb"><i id="nb"></i></span></div>
     <button id="p"></button>
     <div class="tu" id="tu" hidden><b>⏰ ${t("tuTitle")}</b>${[30, 60, 120].map((m) => `<button data-add="${m}">+${fmtMin(m)}</button>`).join("")}<button data-add="end" class="end">■</button></div>
-    <div class="brk" id="brk" hidden><video src="${new URL("img/alexis-break.mp4", location.href).href}" muted autoplay loop playsinline></video><b>${t("brkTitle")}</b></div></div>`;
-  const q = (id) => d.getElementById(id);
+    <div class="brk" id="brk" hidden><video src="${url("img/alexis-break.mp4")}" muted autoplay loop playsinline></video><b>${t("brkTitle")}</b></div></div>
+    <div class="body">
+      <div class="col hand">
+        <div class="drop" id="drop"><span class="ic">＋</span><span class="dt">${t("popDrop")}</span><div class="th" id="th"></div><input type="file" id="hf" accept="image/*" multiple hidden></div>
+        <div class="tags" data-row="who">${HAND_TAGS.who.map((k) => `<button data-tag="${k}">${t("tag_" + k)}</button>`).join("")}</div>
+        <div class="tags spot" data-row="spot">${HAND_TAGS.spot.map((k) => `<button data-tag="${k}">${t("tag_" + k)}</button>`).join("")}</div>
+        <div class="hrow"><input id="hq" class="sensitive" placeholder="${t("popQ")}" autocomplete="off"><button id="hs" class="red">${t("popSave")}</button></div>
+        <p class="msg" id="hm"></p>
+      </div>
+      <div class="col side">
+        <div class="focus"><h4>${t("focus")}</h4><div id="fl"></div></div>
+        <div class="notes"><h4>${t("sessionNotes")}<span id="ns"></span></h4><textarea id="nt" class="sensitive" placeholder="${t("sessionNotesPh")}"></textarea></div>
+      </div>
+    </div>`;
+  const q = (id) => d.getElementById(id), av = q("av");
   q("p").onclick = () => sesPause();
-  q("tu").onclick = (e) => { const v = e.target.dataset.add; if (v === "end") sesEnd(null); else if (v) sesRelaunch(+v); };
+  q("tu").onclick = (e) => { const v = e.target.dataset.add; if (v === "end") sesEnd(q("nt").value); else if (v) sesRelaunch(+v); };
+
+  // Focus (read only here) and the hand count of this session.
+  db.focus(ME.id).then((l) => { q("fl").innerHTML = l.map((f) => `<p>${esc(f.text)}</p>`).join("") || `<p class="none">${t("popNoFocus")}</p>`; }).catch(() => {});
+  let count = 0;
+  const showCount = (extra = "") => { q("hm").innerHTML = `${extra}${extra ? " · " : ""}${t("popHands")} : <b>${count}</b>`; };
+  db.hands().then((l) => { count = l.filter((h) => h.session_id === s0.id).length; showCount(); }).catch(() => showCount());
+
+  // Notes: same text as the cockpit page, saved 1 s after the last key.
+  const nt = q("nt");
+  nt.value = $("#nform [name=notes]")?.value ?? SES.s.notes ?? "";
+  let nTimer = null;
+  const saveN = async () => { clearTimeout(nTimer); nTimer = null; if (!SES.s) return; SES.s.notes = nt.value; await db.saveSession({ id: SES.s.id, notes: nt.value }); q("ns").textContent = "✓"; };
+  nt.oninput = () => { const m = $("#nform [name=notes]"); if (m) m.value = nt.value; q("ns").textContent = ""; clearTimeout(nTimer); nTimer = w.setTimeout(saveN, 1000); };
+  nt.onblur = () => nTimer && saveN();
+
+  // Hand: screenshots and/or a pasted hand history wait as thumbnails, then one click saves them with the question.
+  // A pasted hand history becomes a replayer hand (RTS Replayer tab); a pasted link (replayer or any hand link) is kept as is.
+  const shots = []; let hh = null, link = null;
+  const drop = q("drop");
+  const paint = () => {
+    q("th").innerHTML = shots.map((x, i) => `<span><img src="${x.url}" alt=""><button data-rm="${i}" title="${t("removeShot")}">×</button></span>`).join("")
+      + (hh ? `<span><b class="hh">▶ ${t("popHH")}</b><button data-rm="hh" title="${t("removeShot")}">×</button></span>` : "")
+      + (link ? `<span><b class="hh">🔗 ${esc(link.replace(/^https?:\/\/(www\.)?/, ""))}</b><button data-rm="link" title="${t("removeShot")}">×</button></span>` : "");
+    drop.classList.toggle("full", !!(shots.length || hh || link));
+  };
+  const addFiles = (list) => { [...list].filter((f) => f.type.startsWith("image/")).forEach((f) => shots.push({ f, url: URL.createObjectURL(f) })); paint(); q("hq").focus(); };
+  const isLink = (txt) => /^https?:\/\/\S+$/.test(txt.trim());
+  const takeText = (txt) => { if (isHH(txt)) hh = txt.trim(); else if (isLink(txt)) link = txt.trim(); else return false; paint(); q("hq").focus(); return true; };
+  const tags = {};
+  $$("[data-tag]", d).forEach((b) => b.onclick = () => {
+    const row = b.parentElement.dataset.row; tags[row] = tags[row] === b.dataset.tag ? null : b.dataset.tag;
+    $$("button", b.parentElement).forEach((x) => x.classList.toggle("on", x.dataset.tag === tags[row]));
+  });
+  drop.onclick = (e) => {
+    const rm = e.target.dataset?.rm;
+    if (rm === "hh") { hh = null; paint(); return; }
+    if (rm === "link") { link = null; paint(); return; }
+    if (rm != null) { URL.revokeObjectURL(shots[rm].url); shots.splice(rm, 1); paint(); return; }
+    q("hf").click();
+  };
+  q("hf").onchange = (e) => { addFiles(e.target.files); e.target.value = ""; };
+  // A drop anywhere in the window counts (a missed drop must never open the image instead of the cockpit).
+  d.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
+  d.addEventListener("dragleave", (e) => { if (!e.relatedTarget) drop.classList.remove("over"); });
+  d.addEventListener("drop", (e) => {
+    e.preventDefault(); drop.classList.remove("over");
+    if (e.dataTransfer.files.length) return addFiles(e.dataTransfer.files);
+    const txt = e.dataTransfer.getData("text"); if (txt) takeText(txt);
+  });
+  // Ctrl+V: an image is a screenshot; outside the notes, a hand history or a link goes to the hand.
+  d.addEventListener("paste", (e) => {
+    const im = [...(e.clipboardData?.files || [])].filter((f) => f.type.startsWith("image/"));
+    if (im.length) { e.preventDefault(); return addFiles(im); }
+    if (e.target !== nt && takeText(e.clipboardData?.getData("text") || "")) e.preventDefault();
+  });
+  const saveHand = async () => {
+    if (!SES.s) return;
+    if (!shots.length && !hh && !link) { drop.classList.add("over"); w.setTimeout(() => drop.classList.remove("over"), 600); return; }
+    const note = q("hq").value.trim() || null, sid = SES.s.id, tg = Object.values(tags).filter(Boolean), base = { session_id: sid, note, tags: tg, link };
+    q("hs").disabled = true; q("hm").textContent = "…";
+    try {
+      if (nTimer) await saveN();
+      if (!shots.length) await db.addHand({ ...base, hh });
+      for (const [i, x] of shots.entries()) await db.addHand({ ...base, hh: i ? null : hh, link: i ? null : link }, x.f);
+      count += Math.max(1, shots.length);
+      shots.forEach((x) => URL.revokeObjectURL(x.url)); shots.length = 0; hh = null; link = null; q("hq").value = ""; paint();
+      Object.keys(tags).forEach((k) => (tags[k] = null)); $$("[data-tag]", d).forEach((x) => x.classList.remove("on"));
+      showCount(`✓ ${t("popSaved")}`);
+      if (location.hash === "#/session") route(); // the cockpit page lists the new hand too
+    } catch (err) { q("hm").textContent = t("error") + " : " + err.message; }
+    q("hs").disabled = false;
+  };
+  q("hs").onclick = saveHand;
+  q("hq").onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); saveHand(); } };
+
   const tick = () => {
     const s = SES.s; if (!s) { w.close(); return; }
     const ms = elapsed(s), wk = SES.before + ms / 36e5;
@@ -759,11 +909,13 @@ async function openPop() {
     q("p").textContent = s.paused_at ? "▶" : "⏸"; q("p").title = s.paused_at ? t("resume") : t("pause");
     if (paintRng(q("n"), q("nb")) && av) { av.currentTime = 0; av.play().catch(() => {}); }
   };
-  const av = q("av"); if (av) av.playbackRate = 1.6;
+  if (av) av.playbackRate = 1.6;
   tick(); w.setInterval(tick, 200);
-  w.addEventListener("pagehide", () => { POP.win = null; });
+  w.addEventListener("pagehide", () => { if (nTimer) saveN(); POP.win = null; });
 }
 function closePop() { if (POP.win && !POP.win.closed) POP.win.close(); POP.win = null; }
+/* Notes typed on the cockpit page show up in the pop out (unless the player is typing there). */
+function popNotes(v) { const nt = POP.win && !POP.win.closed && POP.win.document.getElementById("nt"); if (nt && POP.win.document.activeElement !== nt) nt.value = v; }
 const popPaint = () => {}; // the pop out redraws itself 5 times a second
 
 /* Daily journal: one paper page per day, written at the end of the day. Free writing, prompts only help.
@@ -1328,8 +1480,8 @@ async function viewCalendar() {
         <div class="wk-col" style="height:${(H1 - H0) * PX}px">${d === today() && nowTop > 0 ? `<i class="wk-now" style="top:${nowTop}px"></i>` : ""}
         ${events.filter((e) => iso(new Date(e.starts_at)) === d).map((e) => {
           const joined = joins.some((j) => j.event_id === e.id && j.player_id === ME.id);
-          return `<button class="wk-ev k-${e.kind}${joined || e.created_by === ME.id ? " me" : ""}${isOperation(e) ? " op" : ""}" data-ev="${e.id}" style="top:${top(e)}px;height:${Math.max(22, e.minutes / 60 * PX - 2)}px">
-            <b>${KIND_ICON[e.kind]} ${esc(opTitle(e))}</b><small>${hhmm(e.starts_at)}</small></button>`; }).join("")}</div></div>`).join("")}
+          return `<button class="wk-ev k-${e.kind}${joined || e.created_by === ME.id ? " me" : ""}" data-ev="${e.id}" style="top:${top(e)}px;height:${Math.max(22, e.minutes / 60 * PX - 2)}px">
+            <b>${KIND_ICON[e.kind]} ${esc(evTitle(e))}</b><small>${hhmm(e.starts_at)}</small></button>`; }).join("")}</div></div>`).join("")}
     </div>
     ${events.length ? "" : `<p class="muted small">${t("noEvents")}</p>`}
     ${cals.length ? `<p class="small">${cals.map((c) => `<a class="small-link" target="_blank" rel="noopener" href="https://calendar.google.com/calendar/r?cid=${encodeURIComponent(c.calendar_id)}">${t("subscribe")} · ${esc(c.label)} ↗</a>`).join(" · ")}</p>` : ""}
@@ -1380,8 +1532,7 @@ async function viewCalendar() {
     const e = events.find((x) => x.id === b.dataset.ev), mine = e.created_by === ME.id || isAdmin();
     const joined = joins.some((j) => j.event_id === e.id && j.player_id === ME.id), n = joins.filter((j) => j.event_id === e.id).length;
     const dl = $("#evd");
-    dl.classList.toggle("op", isOperation(e));
-    dl.innerHTML = `<div class="card-head"><h3>${KIND_ICON[e.kind]} ${esc(opTitle(e))}</h3><button class="x" data-close>×</button></div>
+    dl.innerHTML = `<div class="card-head"><h3>${KIND_ICON[e.kind]} ${esc(evTitle(e))}</h3><button class="x" data-close>×</button></div>
       <p><b>${fmtDay(iso(new Date(e.starts_at)))} · ${hhmm(e.starts_at)}</b> · ${e.minutes} min</p>
       <p class="muted small">${t("kind_" + e.kind)} · ${e.open ? `${t("openTo")} ${e.teams.length ? e.teams.map((x) => esc(TEAMS.find((y) => y.id === x)?.label || x)).join(", ") : t("allTeams")}` : t("private")} · ${t("by")} ${who(e.created_by)}</p>
       ${e.invitees.length ? `<p class="small">${t("with")} ${e.invitees.map(who).join(", ")}</p>` : ""}${n ? `<p class="small">${n} ${t("joined")}</p>` : ""}
@@ -1576,7 +1727,6 @@ const asView = (p, v) => v === "player" ? asPlayer(p)
 
 function shell() {
   document.body.classList.remove("is-login");
-  document.body.classList.toggle("ops", ME?.team_id === "supreme");
   const demo = db.mode === "demo";
   // 2026-11-03: few tabs, no repeats. Home = HQ; Logbook = grind + study + journal + goals; Resources = mine + RTS (sub nav); tools in the bottom dock.
   const links = [["", "home", "#/"]].concat(has(ME, "player") ? [["log", "logbook", "#/log"]] : []).concat([["res", "resources", "#/coaching"], ["calendar", "calendar", "#/calendar"]])
