@@ -1482,3 +1482,9 @@ body[data-g="res"] .finder .btn { margin: 0; }
 .mt-fb { overflow: auto; border-color: rgba(253,6,6,.45); background: linear-gradient(160deg, rgba(253,6,6,.08), transparent 60%), var(--surface); }
 .mt-fb p { white-space: pre-wrap; font-size: 15px; line-height: 1.65; margin: 0; }
 .mt-me { margin-top: 10px; border-top: 1px solid var(--line); border-radius: 0 0 12px 12px; padding-top: 12px; }
+
+/* ⚙ session clock: stopwatch or timer (2026-11-03) */
+.clk-opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.clk-b{display:flex;flex-direction:column;gap:2px;text-align:left;padding:8px 14px;border-radius:12px;border:1px solid var(--line);background:var(--card2,rgba(255,255,255,.03));color:inherit;cursor:pointer}
+.clk-b small{color:var(--muted);font-size:12px;line-height:1.35}
+.clk-b.on{border-color:var(--red);background:rgba(232,65,66,.10)}

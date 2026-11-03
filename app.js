@@ -228,7 +228,7 @@ async function viewHome() {
   fit(); addEventListener("resize", fit);
   if (player) bindWeekPanel(wkL, wG); // the whole week sits on Home: one bar grind + study, the week goals (Alexis 2026-11-03)
   $$("[data-ckpane]").forEach((a) => a.onclick = () => { try { sessionStorage.setItem("ck-pane", a.dataset.ckpane); } catch {} });
-  $$("[data-hsgo]").forEach((b) => b.onclick = () => (SES.s ? (location.hash = "#/session") : askDuration(b.dataset.hsgo))); // the session may have loaded after this page
+  $$("[data-hsgo]").forEach((b) => b.onclick = () => sesGo(b.dataset.hsgo)); // the session may have loaded after this page
   $("#hqzoom").onclick = () => {
     const big = !$(".hmain").classList.contains("map-big");
     $(".hmain").classList.toggle("map-big", big); $("#hqzoom").textContent = big ? "⤡" : "⤢"; $("#hqzoom").title = t(big ? "hqSmall" : "hqBig");
@@ -606,7 +606,7 @@ async function viewStudyNotes() {
       <input name="name" required maxlength="60" placeholder="${t("fNamePh")}" autocomplete="off">
       <div class="btns"><button class="btn btn-red" type="submit">${t("save")}</button></div></form></dialog>`;
   fitToDock(".res-scroll"); fitToDock(".fd-list");
-  $("[data-stgo]")?.addEventListener("click", () => (SES.s ? (location.hash = "#/session") : askDuration("study")));
+  $("[data-stgo]")?.addEventListener("click", () => sesGo("study"));
   // a note can be started from anywhere in the tree: "✎ Note" at the top (current folder), ✎ on a folder, or the empty folder button
   const newNote = (folder) => { const f = $("#nnewf"); f.reset(); f.folder.value = folder || ""; $("#nnewd").showModal(); f.notes.focus(); };
   $$("[data-fnote]").forEach((b) => b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); newNote(b.dataset.fnote); });
@@ -734,7 +734,7 @@ async function viewStudy() {
   const preview = () => { const n = parsed.length, placed = parsed.filter((c) => c.pot || c.street).length;
     $("#impprev").textContent = n ? `${n} ${t("cardsN")} · ${placed} ${t("placedOnTree")}` : ""; $("#impgo").disabled = !n; };
   if ($("#impbtn")) $("#impbtn").onclick = () => $("#impd").showModal(); // the finder is hidden on a one-day view
-  $("[data-stgo]")?.addEventListener("click", () => (SES.s ? (location.hash = "#/session") : askDuration("study")));
+  $("[data-stgo]")?.addEventListener("click", () => sesGo("study"));
   $("#stnew").onclick = () => $("#stnewd").showModal();
   $("[data-stx]").onclick = () => $("#stnewd").close();
   $("#stnewf").onsubmit = async (e) => {
@@ -1113,6 +1113,16 @@ async function viewJournal() {
     catch (err) { $("#jsaved").textContent = t("error") + " : " + err.message; }
   };
   bindAway();
+}
+
+/* Stopwatch (default, one click) or timer (asks how long, stops by itself): for players who forget to stop the clock. */
+function clockCard() {
+  const on = CLOCK.timer ? "timer" : "chrono";
+  return `<div class="card" id="clkcard"><div class="card-head"><h3>⏱ ${t("clkT")}</h3></div>
+    <div class="clk-opts">${["chrono", "timer"].map((k) => `<button type="button" class="clk-b ${k === on ? "on" : ""}" data-clk="${k}"><b>${t("clk_" + k)}</b><small>${t("clk_" + k + "S")}</small></button>`).join("")}</div></div>`;
+}
+function bindClock() {
+  $$("[data-clk]").forEach((b) => b.onclick = () => { CLOCK.set(b.dataset.clk === "timer"); $$("[data-clk]").forEach((x) => x.classList.toggle("on", x === b)); });
 }
 
 function awayCard() {
@@ -1696,8 +1706,8 @@ async function viewAccount() {
       <a class="card menu-item" href="#/p/${ME.id}/overview"><b>${t("mypage")}</b><span>${t("objectives")} · ${t("report")}</span></a>
     </div>
     <div class="card"><div class="card-head"><h3>${t("yourColor")}</h3><a class="small-link" href="#/hero">${t("charLink")} →</a></div>${swatches(ME.accent)}</div>
-    ${has(ME, "player") ? awayCard() : ""}`;
-  bindAway(); bindSwatches();
+    ${has(ME, "player") ? clockCard() + awayCard() : ""}`;
+  bindAway(); bindSwatches(); bindClock();
 }
 
 /* ---------- staff: team dashboard ---------- */

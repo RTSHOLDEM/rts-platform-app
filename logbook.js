@@ -3,6 +3,7 @@
    one bubble per day), right: ONE goal card, the one of the period you look at
    #/calls   my calls with mentor and coaches (Resources > Mine)      #/hands   saved hands by title (Resources > Mine) */
 Object.assign(STRINGS.en, {
+  clkT: "Session clock", clk_chrono: "Stopwatch", clk_chronoS: "One click starts it. You stop it when you are done.", clk_timer: "Timer", clk_timerS: "You say how long. It stops by itself at zero.",
   mtMine: "My monthly reviews", mtMineSub: "My mentor's feedback", mtHasFb: "Mentor feedback ✓", mtNoFb: "No feedback yet", mtFb: "My mentor's feedback", mtFbNone: "Your mentor has not written his feedback for this month yet.",
   mtMyReport: "What I wrote", mtNoMine: "You have not written your review for this month.", mtWrite: "Write",
   tabMentor: "Mentoring", mtMy: "My players", mtNone: "No player to mentor yet.", mtPick: "Pick a player", mtOpen: "Player page →", mtWeekG: "Grind this week", mtWeekS: "Study this week",
@@ -40,6 +41,7 @@ Object.assign(STRINGS.en, {
   hcUseTracked: "Use the tracked {t}", hcKeep: "Keep {w}",
 });
 Object.assign(STRINGS.fr, {
+  clkT: "Chrono des sessions", clk_chrono: "Chronomètre", clk_chronoS: "Un clic et ça part. Tu l'arrêtes quand tu as fini.", clk_timer: "Minuteur", clk_timerS: "Tu dis combien de temps. Il s'arrête tout seul à zéro.",
   mtMine: "Mes bilans mensuels", mtMineSub: "Les retours de mon mentor", mtHasFb: "Retour du mentor ✓", mtNoFb: "Pas encore de retour", mtFb: "Le retour de mon mentor", mtFbNone: "Ton mentor n'a pas encore écrit son retour pour ce mois.",
   mtMyReport: "Ce que j'ai écrit", mtNoMine: "Tu n'as pas encore écrit ton bilan pour ce mois.", mtWrite: "Écrire",
   tabMentor: "Mentoring", mtMy: "Mes joueurs", mtNone: "Aucun joueur à mentorer pour l'instant.", mtPick: "Choisis un joueur", mtOpen: "Fiche joueur →", mtWeekG: "Grind cette semaine", mtWeekS: "Études cette semaine",
@@ -403,7 +405,7 @@ async function viewLog() {
   });
   bindHands(hands);
   bindSessions(sessions);
-  $$("[data-ckgo]").forEach((b) => b.onclick = () => (SES.s ? (location.hash = "#/session") : askDuration(b.dataset.ckgo))); // the session may have loaded after this page
+  $$("[data-ckgo]").forEach((b) => b.onclick = () => sesGo(b.dataset.ckgo)); // the session may have loaded after this page
   // a tile opens what it holds (the day's sessions, coachings, journal; study goes to its notes); its "+ Ajouter" opens the add form
   $$("[data-pane]").forEach((b) => b.onclick = (ev) => {
     const add = !!ev.target.closest(".ck-act"), k = b.dataset.pane;

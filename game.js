@@ -371,10 +371,9 @@ function hqAsk(title, yes, onYes) {
 }
 function roomAction(room, events = []) {
   if (room === "grind" || room === "study") {
-    if (SES.s) { location.hash = "#/session"; return; } // a session already runs: back to its cockpit
-    return askDuration(room, t(room === "grind" ? "hqGrindAsk" : "hqStudyAsk"));
+    return sesGo(room); // a session already runs: back to its cockpit; else one click starts it (timer mode asks how long)
   }
-  if (room === "review" && !isStaff()) { if (SES.s) { location.hash = "#/session"; return; } return askDuration("study", t("hqStudyAsk"), "review_solo"); }
+  if (room === "review" && !isStaff()) return sesGo("study", "review_solo");
   if (room === "coaching") {
     const now = Date.now(), end = (e) => new Date(e.starts_at).getTime() + (e.minutes || 60) * 6e4;
     const mine = events.filter((e) => e.kind === "coaching" && forMe(e) && end(e) > now).sort((a, b) => (a.starts_at < b.starts_at ? -1 : 1));

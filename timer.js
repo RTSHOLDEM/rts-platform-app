@@ -43,10 +43,22 @@ function sesBeat() {
   const g = $("#tu-grace"); if (g && s.paused_at) g.textContent = clock(GRACE_MS - (Date.now() - new Date(s.paused_at)));
 }
 
+/* One click starts a session (Alexis 2026-11-03: "0 friction"): a stopwatch by default. A player who forgets to stop it
+   can switch to the timer in ⚙ settings: then the start asks how long and the session stops by itself at zero. */
+const CLOCK = {
+  get timer() { try { return localStorage.getItem("rts-clock") === "timer"; } catch { return false; } },
+  set(v) { try { localStorage.setItem("rts-clock", v ? "timer" : "chrono"); } catch {} },
+};
+function sesGo(kind, topic = null) {
+  if (SES.s) { location.hash = "#/session"; return; }
+  if (CLOCK.timer) return askDuration(kind, "", topic);
+  sesStart(kind, null, topic);
+}
+
 async function sesStart(kind, minutes, topic = null) {
   // Grind: the cockpit pops out over the tables at once. The window is asked for before any await, while the click still counts.
   const pop = kind === "grind" ? popRequest() : null;
-  try { localStorage.setItem("rts-dur-" + kind, minutes); } catch {}
+  if (minutes) try { localStorage.setItem("rts-dur-" + kind, minutes); } catch {}
   SES.s = await db.startSession(kind, minutes, topic); SES.breakN = 0;
   hqMove(sesRoom(kind, topic));
   if (!SES.beat) SES.beat = setInterval(sesBeat, 1000);
@@ -101,8 +113,6 @@ function askDuration(kind, ask = "", topic = null) { // ask: the HQ room's "are 
   // Alexis 2026-11-03: just "how long?" (and what, for study). Who sees me is set on the Home online panel, not here.
   const seg = (name, items, on) => `<div class="dur-grid g4">${items.map(([v, label]) => `<label class="dur-b ${v === on ? "on" : ""}"><input type="radio" name="${name}" value="${v}" ${v === on ? "checked" : ""} hidden>${label}</label>`).join("")}</div>`;
   dl.innerHTML = `<form method="dialog" class="dur"><div class="card-head"><h3>${KIND_ICON[kind]} ${ask || t(kind === "grind" ? "durGrind" : "durStudy")}</h3><button class="x" value="cancel" formnovalidate>×</button></div>
-    ${kind === "study" ? `<p class="lbl">${t("topicL")}</p>${seg("topic", Object.entries(TOPICS).map(([k, x]) => [k, `<span>${x.icon}</span>${t("topic_" + k)}`]), top in TOPICS ? top : "wizard")}` : ""}
-    ${kind === "study" ? `<p class="lbl">${t("durL")}</p>` : ""}
     <div class="dur-grid g4">${DURATIONS.map((m) => `<label class="dur-b ${m === last ? "on" : ""}"><input type="radio" name="dur" value="${m}" ${m === last ? "checked" : ""} hidden>${fmtMin(m)}</label>`).join("")}
       <label class="dur-b own ${last ? "" : "on"}"><input type="radio" name="dur" value="own" ${last ? "" : "checked"} hidden><input type="number" min="5" max="600" step="5" name="own" placeholder="45" value="${last ? "" : +ls("rts-dur-" + kind, 60)}"> min</label></div>
     <p class="row-btns"><button class="btn btn-red" value="go">▶ ${t("durGo")}</button><button class="btn" value="cancel" formnovalidate>${t("cancel")}</button></p></form>`;
@@ -112,8 +122,7 @@ function askDuration(kind, ask = "", topic = null) { // ask: the HQ room's "are 
   dl.onclose = () => {
     if (dl.returnValue !== "go") return;
     const d = f.querySelector("input[name=dur]:checked")?.value, m = d === "own" || !d ? +f.own.value || 60 : +d;
-    const tp = kind === "study" ? f.querySelector("input[name=topic]:checked")?.value || "wizard" : null, v = f.querySelector("input[name=vis]:checked")?.value || vis;
-    try { if (tp) localStorage.setItem("rts-topic", tp); } catch {}
+    const tp = topic, v = f.querySelector("input[name=vis]:checked")?.value || vis; // Alexis 2026-11-03: no "what do you do" question
     if (v !== hqVis()) hqSetVis(v);
     sesStart(kind, Math.max(5, Math.min(600, m)), tp);
   };
@@ -174,6 +183,6 @@ function paintDock() {
     ? `<a class="dk-live ${s.kind} ${s.paused_at ? "paused" : ""}" href="#/session" data-tip="${t("backCockpit")}">${s.kind === "grind" ? ICONS.grind : ICONS.study}<b data-left>${sesClock(s)}</b>${s.planned_min ? `<small>${t("left")}</small>` : ""}</a>
        <button class="dk dk-mini" data-dkpause data-tip="${s.paused_at ? t("resume") : t("pause")}">${s.paused_at ? "▶" : "⏸"}</button>`
     : `<button class="dk dk-go grind" data-dkgo="grind" data-tip="${t("startPoker")}">${ICONS.grind}</button><button class="dk dk-go study" data-dkgo="study" data-tip="${t("startStudyS")}">${ICONS.study}</button>`;
-  $$("[data-dkgo]", box).forEach((b) => b.onclick = () => askDuration(b.dataset.dkgo));
+  $$("[data-dkgo]", box).forEach((b) => b.onclick = () => sesGo(b.dataset.dkgo));
   $("[data-dkpause]", box)?.addEventListener("click", sesPause);
 }
