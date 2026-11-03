@@ -190,10 +190,11 @@ async function viewHome() {
         <button class="hb-people ${panelOpen ? "on" : ""}" id="hqtoggle" title="${t("hqPeople")}">👥 <b id="hqn">1</b></button>
       </section>
       <div class="hmain ${panelOpen ? "open" : ""}">
+        ${newsPanel()}
         <section class="hq-stage"><div id="hqmap"></div></section>
         <aside class="hq-panel card">
           <div class="card-head"><h3>${t("hqPeople")} <span class="tag" id="hqn2">1</span></h3>
-            <label class="incog" title="${t("hqIncogTip")}"><input type="checkbox" id="incog" ${hqIncog() ? "checked" : ""}> <span>${hqIncog() ? "🕶 " + t("hqIncog") : "🟢 " + t("hqVisible")}</span></label></div>
+            ${visSelect("incog")}</div>
           <p class="muted small hq-count" id="hqcount"></p>
           <div id="hqwho" class="hq-who"></div>
           <div class="hq-chat"><div id="hqlog" class="hq-log"></div><form id="hqsay" class="inline"><input name="m" maxlength="140" placeholder="${t("saySomething")}" autocomplete="off"><button class="btn btn-sm btn-red">↵</button></form></div>
@@ -212,7 +213,8 @@ async function viewHome() {
     $(".hmain").classList.toggle("open", open); $("#hqtoggle").classList.toggle("on", open);
     try { localStorage.setItem("rts-hq-panel", open ? "1" : "0"); } catch {}
   };
-  $("#incog").onchange = (ev) => { hqSetIncog(ev.target.checked); ev.target.nextElementSibling.textContent = ev.target.checked ? "🕶 " + t("hqIncog") : "🟢 " + t("hqVisible"); };
+  $("#incog").onchange = (ev) => hqSetVis(ev.target.value);
+  (g ? newsSyncAch(g) : Promise.resolve()).finally(bindNews);
   await presenceStart();
   if (my !== RENDER) return;
   const who = (p) => nm({ name: p?.name || "?" });

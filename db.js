@@ -91,7 +91,7 @@ function liveDb() {
     // player hub (004)
     async sessions(pid, from) { return rows(sb.from("sessions").select("*").eq("player_id", pid).gte("started_at", from).order("started_at", { ascending: false })); },
     async openSession(pid) { return (await rows(sb.from("sessions").select("*").eq("player_id", pid).is("ended_at", null).order("started_at", { ascending: false }).limit(1)))[0] || null; },
-    async startSession(kind, planned_min = null) { const me = await db.me(); return (await rows(sb.from("sessions").insert({ player_id: me.id, kind, planned_min }).select()))[0]; },
+    async startSession(kind, planned_min = null, topic = null) { const me = await db.me(); return (await rows(sb.from("sessions").insert({ player_id: me.id, kind, planned_min, ...(topic ? { topic } : {}) }).select()))[0]; },
     async saveSession(s) { return (await rows(sb.from("sessions").update(s).eq("id", s.id).select()))[0]; },
     async dropSession(id) { return rows(sb.from("sessions").delete().eq("id", id)); },
     async focus(pid) { return rows(sb.from("focus_items").select("*").eq("player_id", pid).eq("active", true).order("created_at")); },
@@ -131,6 +131,13 @@ function liveDb() {
     async sendFeedback(f) { const me = await db.me(); return rows(sb.from("feedback").insert({ ...f, author_id: me.id })); },
     async feedback() { return rows(sb.from("feedback").select("*").order("created_at", { ascending: false })); },
     async setFeedback(id, status) { return rows(sb.from("feedback").update({ status }).eq("id", id)); },
+    // RTS News (018): announcements + achievements, emoji reactions only
+    async news() { return rows(sb.from("news").select("*, news_reactions(emoji, user_id)").eq("quiet", false).order("created_at", { ascending: false }).limit(40)); },
+    async postNews(n) { const me = await db.me(); return rows(sb.from("news").insert({ kind: "announce", author_id: me.id, author_name: me.nick || me.name, ...n }).select()); },
+    async dropNews(id) { return rows(sb.from("news").delete().eq("id", id)); },
+    async myAch() { const me = await db.me(); return (await rows(sb.from("news").select("ach_id").eq("kind", "achievement").eq("author_id", me.id))).map((r) => r.ach_id); },
+    async postAch(ids, quiet) { const me = await db.me(); return rows(sb.from("news").upsert(ids.map((a) => ({ kind: "achievement", author_id: me.id, author_name: me.nick || me.name, ach_id: a, quiet })), { onConflict: "author_id,ach_id", ignoreDuplicates: true })); },
+    async react(news_id, emoji, on) { const me = await db.me(); const r = sb.from("news_reactions"); return on ? rows(r.insert({ news_id, user_id: me.id, emoji })) : rows(r.delete().match({ news_id, user_id: me.id, emoji })); },
     /* RTS HQ: live presence (who is where) + chat bubbles. Realtime only, nothing stored. */
     /* Public HQ channel for everyone. Secret accounts (Supreme only) live on the private "hq-sup" channel,
        which only Supreme and admin can join (Realtime policies, supabase/007). */
@@ -236,7 +243,7 @@ function demoDb() {
     // player hub (004), same rules as the database
     async sessions(pid, from) { return canSee(me(), byId(pid)) ? (S.sessions ||= []).filter((s) => s.player_id === pid && s.started_at >= from).sort((a, b) => (a.started_at < b.started_at ? 1 : -1)) : []; },
     async openSession(pid) { return (S.sessions ||= []).find((s) => s.player_id === pid && !s.ended_at) || null; },
-    async startSession(kind, planned_min = null) { const s = { id: "se" + Date.now(), player_id: meId(), kind, planned_min, started_at: new Date().toISOString(), ended_at: null }; (S.sessions ||= []).push(s); save(); return s; },
+    async startSession(kind, planned_min = null, topic = null) { const s = { id: "se" + Date.now(), player_id: meId(), kind, planned_min, topic, started_at: new Date().toISOString(), ended_at: null }; (S.sessions ||= []).push(s); save(); return s; },
     async saveSession(x) { const s = S.sessions.find((y) => y.id === x.id); Object.assign(s, x); save(); return s; },
     async dropSession(id) { S.sessions = S.sessions.filter((x) => x.id !== id); (S.hands || []).forEach((h) => { if (h.session_id === id) h.session_id = null; }); save(); },
     async focus(pid) { return canSee(me(), byId(pid)) ? (S.focus ||= []).filter((f) => f.player_id === pid && f.active) : []; },
@@ -271,6 +278,17 @@ function demoDb() {
     async sendFeedback(f) { (S.feedback ||= []).push({ id: "f" + Date.now(), status: "new", created_at: new Date().toISOString(), ...f, author_id: meId() }); save(); },
     async feedback() { const m = me(); return (S.feedback || []).filter((f) => m.roles.includes("admin") || f.author_id === m.id).sort((a, b) => (a.created_at < b.created_at ? 1 : -1)); },
     async setFeedback(id, status) { const f = (S.feedback || []).find((x) => x.id === id); if (f && me().roles.includes("admin")) { f.status = status; save(); } },
+    async news() {
+      if (!(S.news || []).some((n) => n.id === "nw1")) { const ago = (h) => new Date(Date.now() - h * 36e5).toISOString(), p = S.people.filter((x) => x.roles.includes("player")); S.news = [
+        { id: "nw1", kind: "announce", author_id: "alexis", author_name: "Alex RTS", title: "Seminar 2027", body: "Dates are out: 15 to 18 January. Block them now.", created_at: ago(3), news_reactions: [{ emoji: "🔥", user_id: p[0]?.id }, { emoji: "🚀", user_id: p[1]?.id }] },
+        { id: "nw2", kind: "achievement", author_id: p[0]?.id, author_name: p[0]?.name, ach_id: "hands500000", created_at: ago(20), news_reactions: [{ emoji: "👏", user_id: p[1]?.id }, { emoji: "👏", user_id: p[2]?.id }] },
+        { id: "nw3", kind: "achievement", author_id: p[1]?.id, author_name: p[1]?.name, ach_id: "h100", created_at: ago(30), news_reactions: [] }, ...(S.news || [])]; save(); }
+      return S.news.filter((n) => !n.quiet).sort((a, b) => (a.created_at < b.created_at ? 1 : -1)); },
+    async postNews(n) { const m = me(); (S.news ||= []).push({ id: "nw" + Date.now(), kind: "announce", author_id: m.id, author_name: m.nick || m.name, created_at: new Date().toISOString(), news_reactions: [], ...n }); save(); },
+    async dropNews(id) { S.news = (S.news || []).filter((n) => n.id !== id); save(); },
+    async myAch() { return (S.news || []).filter((n) => n.kind === "achievement" && n.author_id === meId()).map((n) => n.ach_id); },
+    async postAch(ids, quiet) { const m = me(); ids.forEach((a) => (S.news ||= []).push({ id: "nw" + Date.now() + a, kind: "achievement", author_id: m.id, author_name: m.nick || m.name, ach_id: a, quiet, created_at: new Date().toISOString(), news_reactions: [] })); save(); },
+    async react(id, emoji, on) { const n = (S.news || []).find((x) => x.id === id); if (!n) return; n.news_reactions = (n.news_reactions || []).filter((r) => !(r.user_id === meId() && r.emoji === emoji)).concat(on ? [{ emoji, user_id: meId() }] : []); save(); },
     /* Demo HQ: teammates wander between rooms, so the map is alive without a server. */
     hq(meState, onSync, onChat) {
       let mine = meState;

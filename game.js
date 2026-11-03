@@ -243,6 +243,7 @@ async function viewHero() {
   const g = await gameStats(ME);
   const cur = mySkin(ME, g);
   $("#main").innerHTML = `
+    <a class="btn btn-sm back-btn" href="#/" id="heroback">← ${t("back")}</a>
     <div class="hero-grid">
       <div class="card hero-card">
         <div class="hero-stage">${avatarSvg({ skin: cur, av: ME.avatar }, 150, "idle")}</div>
@@ -294,19 +295,32 @@ async function viewHero() {
 /* ---------- RTS HQ: live map ----------
    One presence channel for the whole app: you are on the map from the moment you log in.
    Start a poker session and your character walks to the grind room; end it and it walks back to the lobby. */
+/* 4 rooms only for now (Alexis 2026-11-03): grind, study, review, coaching around the lobby. Map art hq4.webp = 667.5 x 560 units. */
+const MAP_W = 667.5, MAP_H = 560;
 const ROOMS = {
-  grind: { x: 0, y: 0, w: 330, h: 215, icon: "♠" }, study: { x: 335, y: 0, w: 330, h: 215, icon: "📚" }, coaching: { x: 670, y: 0, w: 330, h: 215, icon: "🎓" },
-  lobby: { x: 0, y: 220, w: 1000, h: 120, icon: "🏠" },
-  review: { x: 0, y: 345, w: 330, h: 215, icon: "🔍" },
+  grind: { x: 0, y: 0, w: 330, h: 215, icon: "♠" }, study: { x: 335, y: 0, w: 330, h: 215, icon: "📚" },
+  lobby: { x: 0, y: 220, w: 667, h: 120, icon: "🏠" },
+  review: { x: 0, y: 345, w: 330, h: 215, icon: "🔍" }, coaching: { x: 337, y: 345, w: 330, h: 215, icon: "🎓" },
 };
-const CLOSED = [{ x: 335, y: 345, w: 330, h: 215 }, { x: 670, y: 345, w: 330, h: 215 }]; // mentor room + lounge: closed for now (Alexis 2026-11-03)
+const pctX = (x) => (x / MAP_W) * 100, pctY = (y) => (y / MAP_H) * 100;
+/* Study session types (Alexis 2026-11-03): what the player does, and the room his character walks to. */
+const TOPICS = { trainer: { icon: "🎯", room: "study" }, review_solo: { icon: "🔍", room: "review" }, review_team: { icon: "👥", room: "review" }, wizard: { icon: "🧙", room: "study" } };
+const sesRoom = (kind, topic) => (kind === "grind" ? "grind" : TOPICS[topic]?.room || "study");
 Object.assign(STRINGS.en, { hqGrindAsk: "Are you sure you want to start a grind session?", hqStudyAsk: "Are you sure you want to start a study session?",
   hqReviewAsk: "Tell the players you are available for a review?", hqReviewYes: "Yes, tell them", hqReviewPing: "is available for a review", hqGoReview: "Go to the review room",
-  hqNoCoaching: "No coaching live right now.", hqNextCoaching: "Next coaching:", hqIncog: "Incognito", hqVisible: "Visible", hqIncogTip: "Incognito: nobody sees you online. Visible: you show on the map.",
+  hqNoCoaching: "No coaching live right now.", hqNextCoaching: "Next coaching:", hqIncog: "Incognito", hqVisible: "Visible", hqIncogTip: "Who sees you online on the map.",
+  vis_all: "Everyone", vis_team: "My team", vis_staff: "Coaches", vis_incog: "Incognito", visL: "Who sees me",
+  topicL: "What do you do?", topic_trainer: "Trainer", topic_review_solo: "Solo review", topic_review_team: "Team review", topic_wizard: "Wizard study / research",
+  durL: "How long?", durMin: "my time",
+  newsT: "RTS News", newsPost: "Post", newsTitleP: "Title (optional)", newsBodyP: "Your announcement…", newsEmpty: "No news yet.", newsUnlocked: "unlocked", newsDel: "Delete this news?", back: "Back",
   hqPeople: "Online", hqWeekGrind: "Week grind", cancel: "Cancel" });
 Object.assign(STRINGS.fr, { hqGrindAsk: "Tu es sûr de vouloir lancer une session de grind ?", hqStudyAsk: "Tu es sûr de vouloir lancer une session d'étude ?",
   hqReviewAsk: "Prévenir les joueurs que tu es dispo pour une review ?", hqReviewYes: "Oui, préviens-les", hqReviewPing: "est dispo pour une review", hqGoReview: "Aller en salle de review",
-  hqNoCoaching: "Pas de coaching en direct maintenant.", hqNextCoaching: "Prochain coaching :", hqIncog: "Incognito", hqVisible: "Visible", hqIncogTip: "Incognito : personne ne te voit en ligne. Visible : tu es sur la carte.",
+  hqNoCoaching: "Pas de coaching en direct maintenant.", hqNextCoaching: "Prochain coaching :", hqIncog: "Incognito", hqVisible: "Visible", hqIncogTip: "Qui te voit en ligne sur la carte.",
+  vis_all: "Tout le monde", vis_team: "Mon équipe", vis_staff: "Les coachs", vis_incog: "Incognito", visL: "Qui me voit",
+  topicL: "Tu fais quoi ?", topic_trainer: "Trainer", topic_review_solo: "Review solo", topic_review_team: "Review en équipe", topic_wizard: "Étude / recherche Wizard",
+  durL: "Combien de temps ?", durMin: "mon temps",
+  newsT: "News RTS", newsPost: "Publier", newsTitleP: "Titre (facultatif)", newsBodyP: "Ton annonce…", newsEmpty: "Pas encore de news.", newsUnlocked: "a débloqué", newsDel: "Supprimer cette news ?", back: "Retour",
   hqPeople: "En ligne", hqWeekGrind: "Grind de la semaine", cancel: "Annuler" });
 const CORRIDOR = 280;
 const hashN = (s) => [...String(s)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
@@ -315,19 +329,25 @@ function hqSpot(room, id) {
   return { x: r.x + r.w / 2 + ((h % 7) - 3) * 34, y: r.y + r.h / 2 + 18 + (((h >> 4) % 3) - 1) * 30 };
 }
 const PRES = { ch: null, me: null, list: [], subs: new Set(), chats: new Set(), log: [] };
-const hqRoomNow = (open) => open ? (open.kind === "grind" ? "grind" : "study") : (() => { try { return localStorage.getItem("rts-hq-room") || "lobby"; } catch { return "lobby"; } })();
-/* Incognito (Alexis 2026-11-03): you still see the map, but you are never tracked, so nobody sees you online. Kept per browser. */
-const hqIncog = () => { try { return localStorage.getItem("rts-incog") === "1"; } catch { return false; } };
+const hqRoomNow = (open) => open ? sesRoom(open.kind, open.topic) : (() => { try { return localStorage.getItem("rts-hq-room") || "lobby"; } catch { return "lobby"; } })();
+/* Who sees me (Alexis 2026-11-03): everyone, my team, the coaches, or nobody (incognito: you still see the map, but you are never
+   tracked). Kept per browser. Team / coaches: everyone's browser gets the presence and only draws the people allowed to see you. */
+const VIS = ["all", "team", "staff", "incog"];
+const hqVis = () => { try { const v = localStorage.getItem("rts-vis"); return VIS.includes(v) ? v : localStorage.getItem("rts-incog") === "1" ? "incog" : "all"; } catch { return "all"; } };
+const hqIncog = () => hqVis() === "incog";
+const canSeeMe = (p) => p.id === ME.id || !p.vis || p.vis === "all" || isAdmin() || (p.vis === "team" && p.team === ME.team_id) || (p.vis === "staff" && isStaff());
 const hqLocal = () => { PRES.list = [...PRES.list.filter((p) => p.id !== ME.id), PRES.me]; PRES.subs.forEach((f) => f(PRES.list)); };
-function hqSetIncog(on) {
-  try { localStorage.setItem("rts-incog", on ? "1" : "0"); } catch {}
+function hqSetVis(v) {
+  try { localStorage.setItem("rts-vis", v); localStorage.removeItem("rts-incog"); } catch {}
   if (!PRES.ch) return;
-  if (on) { PRES.ch.untrack(); hqLocal(); } else PRES.ch.track(PRES.me);
+  PRES.me = { ...PRES.me, vis: v };
+  if (v === "incog") { PRES.ch.untrack(); hqLocal(); } else PRES.ch.track(PRES.me);
 }
+const visSelect = (id = "visq") => `<select id="${id}" class="vis-sel" title="${t("hqIncogTip")}">${VIS.map((v) => `<option value="${v}" ${hqVis() === v ? "selected" : ""}>${{ all: "🌍", team: "👥", staff: "🎓", incog: "🕶" }[v]} ${t("vis_" + v)}</option>`).join("")}</select>`;
 async function presenceStart() {
   if (PRES.ch || !ME) return;
   const [g, open] = await Promise.all([gameStats(ME).catch(() => ({ level: 1, skins: ["rookie"] })), db.openSession(ME.id).catch(() => null)]);
-  PRES.me = { id: ME.id, name: ME.nick || ME.name, skin: mySkin(ME, g), av: ME.avatar || null, lvl: g.level, team: ME.team_id || "", room: hqRoomNow(open) };
+  PRES.me = { id: ME.id, name: ME.nick || ME.name, skin: mySkin(ME, g), av: ME.avatar || null, lvl: g.level, team: ME.team_id || "", room: hqRoomNow(open), vis: hqVis() };
   PRES.ch = db.hq(PRES.me, (l) => { PRES.list = l; if (hqIncog()) return hqLocal(); PRES.subs.forEach((f) => f(l)); }, (m) => {
     PRES.log.push(m); PRES.log = PRES.log.slice(-40); PRES.chats.forEach((f) => f(m));
     if (m.kind === "review" && m.id !== ME.id) hqReviewToast(m);
@@ -354,6 +374,7 @@ function roomAction(room, events = []) {
     if (SES.s) { location.hash = "#/session"; return; } // a session already runs: back to its cockpit
     return askDuration(room, t(room === "grind" ? "hqGrindAsk" : "hqStudyAsk"));
   }
+  if (room === "review" && !isStaff()) { if (SES.s) { location.hash = "#/session"; return; } return askDuration("study", t("hqStudyAsk"), "review_solo"); }
   if (room === "coaching") {
     const now = Date.now(), end = (e) => new Date(e.starts_at).getTime() + (e.minutes || 60) * 6e4;
     const mine = events.filter((e) => e.kind === "coaching" && forMe(e) && end(e) > now).sort((a, b) => (a.starts_at < b.starts_at ? -1 : 1));
@@ -381,12 +402,11 @@ function presenceStop() { PRES.ch?.leave(); PRES.ch = null; PRES.list = []; }
 /* Draws the map into `box` and keeps it live. mini = the home preview (my team only, no names). */
 function mountMap(box, { mini = false, onList, onRoom = hqMove } = {}) {
   box.innerHTML = `<div class="hq-map ${mini ? "mini" : ""}">${hqArt() ? `<img class="hq-art" src="${hqArt()}" alt="">` : ""}
-    ${mini ? "" : CLOSED.map((r) => `<div class="room closed" style="left:${r.x / 10}%;top:${r.y / 5.6}%;width:${r.w / 10}%;height:${r.h / 5.6}%"></div>`).join("")}
-    ${Object.entries(ROOMS).map(([k, r]) => `<button class="room r-${k} ${hqArt() ? "on-art" : ""}" data-room="${k}" style="left:${r.x / 10}%;top:${r.y / 5.6}%;width:${r.w / 10}%;height:${r.h / 5.6}%"><span>${r.icon} ${mini ? "" : t("room_" + k)}</span></button>`).join("")}
+    ${Object.entries(ROOMS).map(([k, r]) => `<button class="room r-${k} ${hqArt() ? "on-art" : ""}" data-room="${k}" style="left:${pctX(r.x)}%;top:${pctY(r.y)}%;width:${pctX(r.w)}%;height:${pctY(r.h)}%"><span>${r.icon} ${mini ? "" : t("room_" + k)}</span></button>`).join("")}
     <div class="hq-people"></div></div>`;
   const layer = box.querySelector(".hq-people"), els = {}, at = {}, rooms = {};
   const label = (p) => nm({ name: p.name || "?" });
-  const place = (el, pt, ms) => { el.style.transition = ms ? `left ${ms}ms linear, top ${ms}ms linear` : "none"; el.style.left = pt.x / 10 + "%"; el.style.top = pt.y / 5.6 + "%"; };
+  const place = (el, pt, ms) => { el.style.transition = ms ? `left ${ms}ms linear, top ${ms}ms linear` : "none"; el.style.left = pctX(pt.x) + "%"; el.style.top = pctY(pt.y) + "%"; };
   const walk = (id, from, to) => {
     const el = els[id]; if (!el) return;
     const a = at[id] || hqSpot(from, id), b = hqSpot(to, id);
@@ -402,7 +422,7 @@ function mountMap(box, { mini = false, onList, onRoom = hqMove } = {}) {
   };
   const render = (all) => {
     if (!box.isConnected) { PRES.subs.delete(render); PRES.chats.delete(chat); return; }
-    const list = mini && !isStaff() ? all.filter((p) => p.id === ME.id || p.team === ME.team_id) : all;
+    const seen = all.filter(canSeeMe), list = mini && !isStaff() ? seen.filter((p) => p.id === ME.id || p.team === ME.team_id) : seen;
     list.forEach((p) => {
       if (!els[p.id]) {
         const el = document.createElement("div"); el.className = "pc" + (p.id === ME.id ? " me" : "");
@@ -462,5 +482,52 @@ async function viewHQ() {
   $("#hqsay").onsubmit = (ev) => { ev.preventDefault(); const v = ev.target.m.value.trim(); if (v) PRES.ch?.say(v); ev.target.reset(); };
   if (go) setTimeout(() => hqMove(go), 900);
 }
+/* ---------- RTS News (Alexis 2026-11-03): left of the HQ. Announcements (admin, ops, team managers) + achievements players unlock.
+   The only thing anyone can do on a news item: react with an emoji. ---------- */
+const NEWS_EMOJI = ["👏", "🔥", "💪", "🚀", "❤️"];
+const canAnnounce = () => isAdmin() || has(ME, "ops") || has(ME, "manager");
+const agoTxt = (iso) => { const m = Math.max(1, Math.round((Date.now() - new Date(iso)) / 6e4)); return m < 60 ? `${m} min` : m < 1440 ? `${Math.round(m / 60)} h` : `${Math.round(m / 1440)} d`; };
+/* The player's own app posts what he unlocks. The first time it only records what he already had ("_start"), quietly, so launch day is not 100 posts. */
+async function newsSyncAch(g) {
+  if (!g?.unlocked) return;
+  const have = await db.myAch().catch(() => null); if (!have) return;
+  if (!have.length) return db.postAch(["_start", ...g.unlocked], true).catch(() => {});
+  const fresh = g.unlocked.filter((a) => !have.includes(a));
+  if (fresh.length) await db.postAch(fresh, false).catch(() => {});
+}
+function newsItem(n) {
+  const a = n.kind === "achievement" ? ACH.find((x) => x.id === n.ach_id) : null;
+  if (n.kind === "achievement" && !a) return "";
+  const who = nm({ name: n.author_name || "?" }), rx = n.news_reactions || []; // nm(): initials in camera mode
+  const head = a ? `<span class="nw-ic">${a.icon}</span><p><b>${who}</b> ${t("newsUnlocked")} <b>${esc(L2(a))}</b></p>`
+    : `<span class="nw-ic">📣</span><p>${n.title ? `<b>${esc(n.title)}</b><br>` : ""}${esc(n.body || "")}</p>`;
+  return `<article class="nw ${n.kind}" data-nw="${n.id}">${head}
+    <div class="nw-foot"><small class="muted">${a ? "" : who + " · "}${agoTxt(n.created_at)}</small>
+      <span class="nw-rx">${NEWS_EMOJI.map((e) => { const c = rx.filter((r) => r.emoji === e).length, on = rx.some((r) => r.emoji === e && r.user_id === ME.id);
+        return `<button class="${on ? "on" : ""} ${c ? "" : "zero"}" data-rx="${e}">${e}${c ? `<i>${c}</i>` : ""}</button>`; }).join("")}</span>
+      ${!a && (n.author_id === ME.id || isAdmin()) ? `<button class="x" data-nwdel title="${t("del")}">×</button>` : ""}</div></article>`;
+}
+function newsPanel() {
+  return `<aside class="hq-news card"><div class="card-head"><h3>📣 ${t("newsT")}</h3>${canAnnounce() ? `<button class="btn btn-sm" id="nwnew">+ ${t("newsPost")}</button>` : ""}</div>
+    ${canAnnounce() ? `<form id="nwform" class="nw-form" hidden><input name="ttl" maxlength="80" placeholder="${t("newsTitleP")}"><textarea name="body" rows="3" maxlength="600" placeholder="${t("newsBodyP")}" required></textarea><p class="row-btns"><button class="btn btn-sm btn-red">${t("newsPost")}</button></p></form>` : ""}
+    <div id="nwlist" class="nw-list"><p class="muted small">…</p></div></aside>`;
+}
+async function bindNews() {
+  const box = $("#nwlist"); if (!box) return;
+  const paint = async () => { const l = await db.news().catch(() => []); if (box.isConnected) box.innerHTML = l.map(newsItem).join("") || `<p class="muted small">${t("newsEmpty")}</p>`; };
+  box.onclick = async (e) => {
+    const b = e.target.closest("button"), card = e.target.closest("[data-nw]"); if (!b || !card) return;
+    if (b.dataset.rx) { const on = !b.classList.contains("on"); b.classList.toggle("on", on); await db.react(card.dataset.nw, b.dataset.rx, on).catch(() => {}); return paint(); }
+    if (b.hasAttribute("data-nwdel") && confirm(t("newsDel"))) { await db.dropNews(card.dataset.nw).catch(() => {}); paint(); }
+  };
+  const f = $("#nwform");
+  if (f) {
+    $("#nwnew").onclick = () => { f.hidden = !f.hidden; if (!f.hidden) f.elements.ttl.focus(); };
+    f.onsubmit = async (e) => { e.preventDefault(); const title = f.elements.ttl.value.trim(), body = f.elements.body.value.trim(); if (!body) return;
+      await db.postNews({ title: title || null, body }).catch(() => {}); f.reset(); f.hidden = true; paint(); };
+  }
+  await paint();
+}
+
 /* Map art (Higgsfield): the rocket launch base, same for every team. */
-const hqArt = () => "img/hq/hq-rocket.webp";
+const hqArt = () => "img/hq/hq4.webp";

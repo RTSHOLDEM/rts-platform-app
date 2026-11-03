@@ -4,7 +4,7 @@
    The bottom dock (start buttons, tools) and the pop out bar read the same state. */
 const SES = { s: null, before: 0, target: 35, beat: null, asking: false, breakN: 0 };
 const GRACE_MS = 5 * 6e4;
-const DURATIONS = [30, 60, 90, 120, 180, 240];
+const DURATIONS = [30, 60, 90]; // + a 4th box: own minutes (Alexis 2026-11-03)
 const fmtMin = (m) => (m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? " " + String(m % 60).padStart(2, "0") : ""}` : `${m} min`);
 const leftMs = (s) => (s?.planned_min ? s.planned_min * 6e4 - elapsed(s) : null);
 // What the clocks show: time left on a countdown, time played on an old open-ended session.
@@ -43,12 +43,12 @@ function sesBeat() {
   const g = $("#tu-grace"); if (g && s.paused_at) g.textContent = clock(GRACE_MS - (Date.now() - new Date(s.paused_at)));
 }
 
-async function sesStart(kind, minutes) {
+async function sesStart(kind, minutes, topic = null) {
   // Grind: the cockpit pops out over the tables at once. The window is asked for before any await, while the click still counts.
   const pop = kind === "grind" ? popRequest() : null;
   try { localStorage.setItem("rts-dur-" + kind, minutes); } catch {}
-  SES.s = await db.startSession(kind, minutes); SES.breakN = 0;
-  hqMove(kind === "grind" ? "grind" : "study");
+  SES.s = await db.startSession(kind, minutes, topic); SES.breakN = 0;
+  hqMove(sesRoom(kind, topic));
   if (!SES.beat) SES.beat = setInterval(sesBeat, 1000);
   paintDock();
   location.hash = "#/session"; route();
@@ -90,17 +90,32 @@ async function sesEnd(notes, auto = false) {
 }
 
 /* ---------- dialogs: pick a duration, time is up, take a break ---------- */
-function askDuration(kind, ask = "") { // ask: the HQ room's "are you sure" question, shown as the title
+/* Start a session (Alexis 2026-11-03): one box, three choices. Study: what I do (trainer, review solo, review in team, Wizard study).
+   How long: 30 min, 1 h, 1 h 30 or my own minutes. Who sees me on the map: everyone, my team, the coaches, nobody. */
+function askDuration(kind, ask = "", topic = null) { // ask: the HQ room's "are you sure" question, shown as the title
   const dl = $("#durd"); if (!dl) return;
-  let last = 120; try { last = +localStorage.getItem("rts-dur-" + kind) || (kind === "grind" ? 120 : 60); } catch {}
-  dl.innerHTML = `<form method="dialog" class="dur"><div class="card-head"><h3>${KIND_ICON[kind]} ${ask || t(kind === "grind" ? "durGrind" : "durStudy")}</h3><button class="x" value="cancel">×</button></div>
-    <p class="muted small">${ask ? t(kind === "grind" ? "durGrind" : "durStudy") + " " : ""}${t("durSub")}</p>
-    <div class="dur-grid">${DURATIONS.map((m) => `<button class="dur-b ${m === last ? "on" : ""}" value="${m}">${fmtMin(m)}</button>`).join("")}</div>
-    <label class="dur-own">${t("durOwn")} <input type="number" min="5" max="600" step="5" name="own" placeholder="${last}"> min <button class="btn btn-sm btn-red" value="own">${t("durGo")}</button></label></form>`;
+  const ls = (k, d) => { try { return localStorage.getItem(k) || d; } catch { return d; } };
+  let last = +ls("rts-dur-" + kind, kind === "grind" ? 90 : 60);
+  if (!DURATIONS.includes(last)) last = 0;
+  const top = topic || ls("rts-topic", "wizard"), vis = hqVis();
+  const seg = (name, items, on) => `<div class="dur-grid g4">${items.map(([v, label]) => `<label class="dur-b ${v === on ? "on" : ""}"><input type="radio" name="${name}" value="${v}" ${v === on ? "checked" : ""} hidden>${label}</label>`).join("")}</div>`;
+  dl.innerHTML = `<form method="dialog" class="dur"><div class="card-head"><h3>${KIND_ICON[kind]} ${ask || t(kind === "grind" ? "durGrind" : "durStudy")}</h3><button class="x" value="cancel" formnovalidate>×</button></div>
+    ${kind === "study" ? `<p class="lbl">${t("topicL")}</p>${seg("topic", Object.entries(TOPICS).map(([k, x]) => [k, `<span>${x.icon}</span>${t("topic_" + k)}`]), top in TOPICS ? top : "wizard")}` : ""}
+    <p class="lbl">${t("durL")}</p>
+    <div class="dur-grid g4">${DURATIONS.map((m) => `<label class="dur-b ${m === last ? "on" : ""}"><input type="radio" name="dur" value="${m}" ${m === last ? "checked" : ""} hidden>${fmtMin(m)}</label>`).join("")}
+      <label class="dur-b own ${last ? "" : "on"}"><input type="radio" name="dur" value="own" ${last ? "" : "checked"} hidden><input type="number" min="5" max="600" step="5" name="own" placeholder="45" value="${last ? "" : +ls("rts-dur-" + kind, 60)}"> min</label></div>
+    <p class="lbl">${t("visL")}</p>${seg("vis", VIS.map((v) => [v, `<span>${{ all: "🌍", team: "👥", staff: "🎓", incog: "🕶" }[v]}</span>${t("vis_" + v)}`]), vis)}
+    <p class="row-btns"><button class="btn btn-red" value="go">▶ ${t("durGo")}</button><button class="btn" value="cancel" formnovalidate>${t("cancel")}</button></p></form>`;
+  const f = dl.querySelector("form");
+  f.onchange = (e) => { if (e.target.type === "radio") $$(`input[name=${e.target.name}]`, f).forEach((r) => r.parentElement.classList.toggle("on", r.checked)); };
+  f.own.onfocus = () => { f.querySelector("input[name=dur][value=own]").checked = true; f.onchange({ target: f.querySelector("input[name=dur][value=own]") }); };
   dl.onclose = () => {
-    const v = dl.returnValue; if (!v || v === "cancel") return;
-    const m = v === "own" ? +dl.querySelector("[name=own]").value || last : +v;
-    sesStart(kind, Math.max(5, Math.min(600, m)));
+    if (dl.returnValue !== "go") return;
+    const d = f.querySelector("input[name=dur]:checked")?.value, m = d === "own" || !d ? +f.own.value || 60 : +d;
+    const tp = kind === "study" ? f.querySelector("input[name=topic]:checked")?.value || "wizard" : null, v = f.querySelector("input[name=vis]:checked")?.value || vis;
+    try { if (tp) localStorage.setItem("rts-topic", tp); } catch {}
+    if (v !== hqVis()) hqSetVis(v);
+    sesStart(kind, Math.max(5, Math.min(600, m)), tp);
   };
   dl.showModal();
 }
