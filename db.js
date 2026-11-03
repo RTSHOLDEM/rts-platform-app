@@ -125,6 +125,10 @@ function liveDb() {
     async setLook(nick, avatar) { const { error } = await sb.rpc("set_look", { p_nick: nick ?? null, p_avatar: avatar ?? null }); if (error) throw error; meCache = null; },
     async notes() { const me = await db.me(); return rows(sb.from("opp_notes").select("*").eq("player_id", me.id).order("updated_at", { ascending: false })); },
     async saveNote(n) { const me = await db.me(); return rows(sb.from("opp_notes").upsert({ ...n, player_id: me.id, updated_at: new Date().toISOString() }, { onConflict: "player_id,nick" }).select()); },
+    // feedback inbox (014): everyone sends, only admin reads all and ticks done
+    async sendFeedback(f) { const me = await db.me(); return rows(sb.from("feedback").insert({ ...f, author_id: me.id })); },
+    async feedback() { return rows(sb.from("feedback").select("*").order("created_at", { ascending: false })); },
+    async setFeedback(id, status) { return rows(sb.from("feedback").update({ status }).eq("id", id)); },
     /* RTS HQ: live presence (who is where) + chat bubbles. Realtime only, nothing stored. */
     /* Public HQ channel for everyone. Secret accounts (Supreme only) live on the private "hq-sup" channel,
        which only Supreme and admin can join (Realtime policies, supabase/007). */
@@ -260,6 +264,9 @@ function demoDb() {
     async setLook(nick, avatar) { const m = me(); if (nick !== null) m.nick = (nick || "").trim().slice(0, 20) || null; if (avatar !== null) m.avatar = avatar; save(); },
     async notes() { return (S.notes ||= []).filter((n) => n.player_id === meId()).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)); },
     async saveNote(n) { const l = (S.notes ||= []); const i = l.findIndex((x) => x.player_id === meId() && x.nick === n.nick); const row = { ...(i >= 0 ? l[i] : { id: "n" + Date.now() }), ...n, player_id: meId(), updated_at: new Date().toISOString() }; i >= 0 ? (l[i] = row) : l.push(row); save(); },
+    async sendFeedback(f) { (S.feedback ||= []).push({ id: "f" + Date.now(), status: "new", created_at: new Date().toISOString(), ...f, author_id: meId() }); save(); },
+    async feedback() { const m = me(); return (S.feedback || []).filter((f) => m.roles.includes("admin") || f.author_id === m.id).sort((a, b) => (a.created_at < b.created_at ? 1 : -1)); },
+    async setFeedback(id, status) { const f = (S.feedback || []).find((x) => x.id === id); if (f && me().roles.includes("admin")) { f.status = status; save(); } },
     /* Demo HQ: teammates wander between rooms, so the map is alive without a server. */
     hq(meState, onSync, onChat) {
       let mine = meState;

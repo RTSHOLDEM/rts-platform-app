@@ -4,7 +4,8 @@
    #/p/ID/TAB        player page: overview, journal, mentoring, coaching, money, contract
    #/coaching        program + quizzes      #/c/ID coaching    #/quiz/ID quiz    #/review retry deck
    #/library         strategy by situation  #/s/ID situation   #/submit research
-   #/calendar  #/team (staff)  #/admin (ops)  #/ceo (direction) */
+   #/calendar  #/team (staff)  #/admin (ops)  #/ceo #/inbox (direction)
+   💬 button on every page: feedback to the inbox */
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -1555,6 +1556,37 @@ async function viewAdmin() {
   });
 }
 
+/* ---------- feedback: 💬 button (everyone) + inbox (direction) ---------- */
+function bindFeedback() {
+  const dl = $("#fbd"), f = $("#fbf");
+  const pick = () => $$(".tagchip", f).forEach((l) => l.classList.toggle("on", $("input", l).checked));
+  $("#fbb").onclick = () => { f.reset(); pick(); $("#fbmsg").textContent = ""; dl.showModal(); f.body.focus(); };
+  $("[data-fbx]", f).onclick = () => dl.close();
+  f.onchange = pick;
+  f.onsubmit = async (ev) => {
+    ev.preventDefault(); const fd = new FormData(f), body = fd.get("body").trim(); if (!body) return;
+    $("#fbmsg").textContent = "…";
+    try { await db.sendFeedback({ kind: fd.get("kind"), body, page: location.hash || "#/" }); $("#fbmsg").textContent = t("fbThanks"); setTimeout(() => dl.close(), 900); }
+    catch (err) { $("#fbmsg").textContent = t("error") + " : " + err.message; }
+  };
+}
+
+async function viewInbox() {
+  if (!isAdmin()) { $("#main").innerHTML = empty(t("notFound")); return; }
+  const show = new URLSearchParams((location.hash.split("?")[1] || "")).get("show") || "new";
+  const all = await db.feedback(), list = all.filter((x) => show === "all" || x.status === show);
+  const who = (id) => VISIBLE.find((p) => p.id === id);
+  const when = (ts) => new Date(ts).toLocaleString(LANG === "fr" ? "fr-FR" : "en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  const n = (k) => all.filter((x) => k === "all" || x.status === k).length;
+  $("#main").innerHTML = `${head(t("inbox"), t("inboxTitle"), t("inboxSub"))}
+    <div class="chips static">${["new", "done", "all"].map((k) => `<a class="tagchip ${k === show ? "on" : ""}" href="#/inbox?show=${k}">${t("fbShow_" + k)} · ${n(k)}</a>`).join("")}</div>
+    ${list.map((x) => `<div class="card fb-item ${x.status}"><div class="card-head"><span><span class="tag ${x.kind === "bug" ? "warn" : x.kind === "idea" ? "ok" : ""}">${t("fb_" + x.kind)}</span>
+        <b>${nm(who(x.author_id))}</b> <span class="muted small">${when(x.created_at)} · <a class="small-link" href="${esc(x.page || "#/")}">${esc(x.page || "#/")}</a></span></span>
+        <button class="btn btn-sm ${x.status === "new" ? "btn-red" : "btn-ghost-red"}" data-fbdone="${x.id}" data-v="${x.status === "new" ? "done" : "new"}">${x.status === "new" ? "✓ " + t("fbDone") : t("fbReopen")}</button></div>
+      <p class="fb-body">${esc(x.body)}</p></div>`).join("") || empty(t("fbEmpty"))}`;
+  $$("[data-fbdone]").forEach((b) => b.onclick = async () => { b.disabled = true; await db.setFeedback(b.dataset.fbdone, b.dataset.v); route(); });
+}
+
 /* ---------- direction: CEO page ---------- */
 async function viewCeo() {
   if (!isAdmin()) { $("#main").innerHTML = empty(t("notFound")); return; }
@@ -1614,7 +1646,7 @@ function shell() {
   document.body.classList.toggle("ops", ME?.team_id === "supreme");
   const demo = db.mode === "demo";
   const links = [["", "home"], ["hq", "hq"]].concat(has(ME, "player") ? [["journal", "journal"], ["hands", "nbTab"], ["progress", "progress"], ["study", "study"]] : []).concat([["library", "library"], ["coaching", "coaching"], ["replayer", "replayer"], ["calendar", "calendar"]])
-    .concat(isStaff() ? [["team", "team"]] : []).concat(isOps() ? [["admin", "admin"]] : []).concat(isAdmin() ? [["ceo", "ceo"]] : []).concat([["account", "account"]]);
+    .concat(isStaff() ? [["team", "team"]] : []).concat(isOps() ? [["admin", "admin"]] : []).concat(isAdmin() ? [["ceo", "ceo"], ["inbox", "inbox"]] : []).concat([["account", "account"]]);
   $("#app").innerHTML = `
     <header class="top"><div class="wrap">
       <a href="#/" class="logo"><img src="img/logo.svg" alt="RTS"></a>
@@ -1627,7 +1659,14 @@ function shell() {
         ${demo ? `<span class="chip">${t("demo")}</span>` : `<button id="out" class="chip">${t("logout")}</button>`}
       </div>
     </div></header>
-    <main id="main" class="wrap"></main>`;
+    <main id="main" class="wrap"></main>
+    <button id="fbb" class="fb-btn" title="${t("fbSub")}">💬 ${t("fbBtn")}</button>
+    <dialog id="fbd" class="card"><form id="fbf"><div class="card-head"><h3>💬 ${t("fbTitle")}</h3><button class="x" type="button" data-fbx>×</button></div>
+      <p class="muted small">${t("fbSub")}</p>
+      <span class="chips">${["bug", "idea", "other"].map((k, i) => `<label class="tagchip"><input type="radio" name="kind" value="${k}" ${i === 0 ? "checked" : ""} hidden>${t("fb_" + k)}</label>`).join("")}</span>
+      <textarea name="body" rows="5" required placeholder="${t("fbPh")}"></textarea>
+      <div class="btns"><button class="btn btn-red" type="submit">${t("fbSend")}</button><span class="saved" id="fbmsg"></span></div></form></dialog>`;
+  bindFeedback();
   $("#camb").onclick = () => { cam.set(!cam.on); shell(); route(); };
   $("#pvb")?.addEventListener("click", () => { pv.set(!pv.on); ME = pv.on ? asPlayer(REAL) : REAL; location.hash = "#/"; shell(); route(); });
   $("#lang").onclick = () => { setLang(LANG === "en" ? "fr" : "en"); db.setLang(LANG).catch(() => {}); shell(); route(); };
@@ -1649,7 +1688,7 @@ async function route() {
   $("#main").innerHTML = `<p class="muted loading">${t("loading")}</p>`;
   const views = { "": viewHome, journal: viewJournal, p: () => viewPlayer(b, c), coaching: viewCoaching, c: () => viewCoachingOne(b), quiz: () => viewQuiz(b),
     review: viewReview, library: viewLibrary, s: () => viewSituation(b), submit: viewSubmit, calendar: viewCalendar, team: viewTeam, admin: viewAdmin, ceo: viewCeo,
-    session: viewSession, hands: viewHands, replayer: () => viewReplayer(b), study: viewStudy, recall: viewRecall, account: viewAccount, hero: viewHero, hq: viewHQ, notes: viewNotes, sizing: viewSizing, goals: viewGoals, progress: viewProgress };
+    session: viewSession, hands: viewHands, replayer: () => viewReplayer(b), study: viewStudy, recall: viewRecall, account: viewAccount, hero: viewHero, hq: viewHQ, notes: viewNotes, sizing: viewSizing, goals: viewGoals, progress: viewProgress, inbox: viewInbox };
   try { await (views[a] || viewHome)(); }
   catch (err) { $("#main").innerHTML = `<p class="card">${t("error")} : ${esc(err.message)}</p>`; console.error(err); }
   window.scrollTo(0, 0);
