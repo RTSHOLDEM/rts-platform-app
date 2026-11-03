@@ -152,97 +152,67 @@ function forMe(e) {
   return e.teams?.length ? e.teams.some((x) => mine.includes(x)) : true; // no team = open to all (conferences)
 }
 
+/* Home = the HQ (2026-11-03): the live map of everyone connected, always open, with my grind, what's next and the chat.
+   Starting a session lives in the bottom dock (timer.js). */
 async function viewHome() {
-  if (!has(ME, "player")) return viewHomeStaff();
-  const my = RENDER;
-  const [mine, goals, all, open, g] = await Promise.all([db.journal(ME.id, daysAgo(400)), db.goals(ME.id),
-    db.events(new Date(Date.now() - 864e5).toISOString(), addDays(14) + "T23:59"), db.openSession(ME.id), gameStats(ME)]);
+  const my = RENDER, player = has(ME, "player");
+  const go = new URLSearchParams(location.hash.split("?")[1] || "").get("go");
+  const [mine, goals, all, g, sess] = await Promise.all([player ? db.journal(ME.id, daysAgo(400)) : [], player ? db.goals(ME.id) : [],
+    db.events(new Date(Date.now() - 864e5).toISOString(), addDays(14) + "T23:59"), player ? gameStats(ME) : null, player ? [] : db.sessions(ME.id, weekStart()).catch(() => [])]);
   if (my !== RENDER) return; // a newer screen started while this one loaded
-  setGoals(ME, goals);
-  const s = stats(mine, ME), target = weekTarget(ME), wk = weekHours(mine) + (open ? elapsed(open) / 36e5 : 0);
-  const wkHands = mine.filter((e) => e.day >= weekStart()).reduce((a, e) => a + Number(e.hands || 0), 0);
   const now = new Date().toISOString(), coming = all.filter(forMe).filter((e) => new Date(new Date(e.starts_at).getTime() + e.minutes * 6e4).toISOString() >= now);
-  const skin = mySkin(ME, g), first = cam.on ? esc((ME.nick || ME.name)[0]) + "." : esc(ME.nick || ME.name.split(" ")[0]);
-  const todayE = mine.find((e) => e.day === today()) || { player_id: ME.id, day: today() };
+  const first = cam.on ? esc((ME.nick || ME.name)[0]) + "." : esc(ME.nick || ME.name.split(" ")[0]);
   const when = (e) => `${e.starts_at.slice(0, 10) === today() ? t("today") : dayName(e.starts_at.slice(0, 10))} · ${hhmm(e.starts_at)}`;
-  $("#main").innerHTML = `
-    <section class="lobby-top">
-      <h1 class="hi">${ME.team_id === "supreme" ? t("briefing") : t("hi")} ${first}</h1>
-      ${open ? `<a class="go-pill on ${open.kind}" href="#/session">${KIND_ICON[open.kind]} ${t(open.kind === "grind" ? "grindOn" : "studyOn")} <b data-since>${clock(elapsed(open))}</b> <em>${t("backCockpit")} →</em></a>`
-        : `<button class="go-pill grind" data-start="grind">♠ ${t("startPoker")}</button><button class="go-pill study" data-start="study">📚 ${t("startStudyS")}</button>`}
-    </section>
-    <div class="lobby">
-      <aside class="card char">
-        <a class="char-stage" href="#/hero" title="${t("charLink")}">${avatarSvg({ skin, av: ME.avatar }, 112, "idle")}</a>
+  let left = weekView(all, sess);
+  if (player) {
+    setGoals(ME, goals);
+    const s = stats(mine, ME), target = weekTarget(ME), wk = weekHours(mine) + (SES.s ? elapsed(SES.s) / 36e5 : 0), skin = mySkin(ME, g);
+    const wkHands = mine.filter((e) => e.day >= weekStart()).reduce((a, e) => a + Number(e.hands || 0), 0);
+    left = `<aside class="card char">
+        <a class="char-stage" href="#/hero" title="${t("charLink")}">${avatarSvg({ skin, av: ME.avatar }, 96, "idle")}</a>
         <h3 class="char-name">${nm({ name: ME.nick || ME.name })}</h3><p class="rank">${rankLine(ME, g)}</p>
         <div class="lvl-line"><span class="lvl-badge">${g.level}</span><div class="xpbar"><i style="width:${(g.into / g.need) * 100}%"></i></div></div>
         <p class="muted tiny">${fmtNum(g.into)} / ${fmtNum(g.need)} XP · ${t("lvl")} ${g.level + 1}</p>
         <div class="ach-row">${ACH.filter((a) => g.unlocked.includes(a.id)).slice(-6).map((a) => `<span title="${esc(L2(a))}">${a.icon}</span>`).join("") || `<span class="muted tiny">${t("noAch")}</span>`}</div>
-        <a class="btn btn-sm char-link" href="#/hero">${t("charLink")} · ${g.unlocked.length}/${ACH.length}</a>
-      </aside>
-      <section class="stack lobby-mid">
-        <div class="card grindbox">
-          <div class="card-head"><h3>${t("yourGrind")}</h3><a class="wk-num" href="#/goals" title="${t("goals")}">${fmtH(wk)} <small>/ ${target} h ✎</small></a></div>${xpBar(wk, target)}
-          <div class="stats-strip">
-            <div><span>♠ ${t("handsWeek")}</span><b>${fmtNum(wkHands)}</b></div>
-            <div><span>🔥 ${t("streak")}</span><b>${s.streak} <small>${s.streak === 1 ? t("day") : t("days")}</small></b></div>
-            <div><span>${t("handsMonth")}</span><b>${fmtNum(s.hands)} <small>/ ${fmtNum(s.handsTarget)}</small></b>${bar(s.hands, s.handsTarget, s.hands >= s.pace * 0.9 ? "" : "warn")}</div>
-            <div><span>⏱ ${t("hoursMonth")}</span><b>${fmtH(s.play + s.study)}</b></div>
-          </div></div>
-        <button class="btn btn-ghost-red eod-btn ${s.filledToday ? "done" : ""}" data-eod>🌙 ${t("endOfDay")}${s.filledToday ? " ✓" : " · +20 XP"}</button>
-        ${hqPreview()}
-      </section>
+        <a class="btn btn-sm char-link" href="#/hero">${t("charLink")} · ${g.unlocked.length}/${ACH.length}</a></aside>
+      <a class="card grindbox" href="#/log">
+        <div class="card-head"><h3>${t("yourGrind")}</h3><span class="wk-num">${fmtH(wk)} <small>/ ${target} h</small></span></div>${xpBar(wk, target)}
+        <div class="stats-strip">
+          <div><span>♠ ${t("handsWeek")}</span><b>${fmtNum(wkHands)}</b></div>
+          <div><span>🔥 ${t("streak")}</span><b>${s.streak} <small>${s.streak === 1 ? t("day") : t("days")}</small></b></div>
+          <div><span>${t("handsMonth")}</span><b>${fmtNum(s.hands)} <small>/ ${fmtNum(s.handsTarget)}</small></b>${bar(s.hands, s.handsTarget, s.hands >= s.pace * 0.9 ? "" : "warn")}</div>
+          <div><span>⏱ ${t("hoursMonth")}</span><b>${fmtH(s.play + s.study)}</b></div></div>
+        <span class="small-link">${s.filledToday ? "✓ " : "🌙 "}${t("logbook")} →</span></a>`;
+  }
+  $("#main").innerHTML = `
+    <section class="lobby-top"><h1 class="hi">${ME.team_id === "supreme" ? t("briefing") : t("hi")} ${first}</h1></section>
+    <div class="lobby home-hq">
+      <div class="stack lobby-left">${left}</div>
+      <section class="card hq-home"><div class="card-head"><h3>RTS HQ</h3><span class="muted small" id="hqcount"></span></div><div id="hqmap"></div></section>
       <aside class="stack lobby-right">
         <div class="card upcoming">
           ${coming[0] ? `<a class="nextup-in ${coming[0].starts_at <= now ? "live" : ""} ${isOperation(coming[0]) ? "op" : ""}" href="${coming[0].link ? esc(coming[0].link) : "#/calendar"}" ${coming[0].link ? 'target="_blank" rel="noopener"' : ""}>
             <span class="eyebrow">${coming[0].starts_at <= now ? t("liveNow") : t("nextUp")}</span><b>${KIND_ICON[coming[0].kind]} ${esc(opTitle(coming[0]))}</b><span class="muted small">${when(coming[0])}${coming[0].link ? " · " + t("join") + " →" : ""}</span></a>` : `<p class="muted small">${t("noEvents")}</p>`}
-          ${coming.slice(1, 5).map((e) => `<p class="hrow ${isOperation(e) ? "op" : ""}">${KIND_ICON[e.kind]} ${esc(opTitle(e))}<small class="muted"> · ${when(e)}</small></p>`).join("")}
+          ${coming.slice(1, 4).map((e) => `<p class="hrow ${isOperation(e) ? "op" : ""}">${KIND_ICON[e.kind]} ${esc(opTitle(e))}<small class="muted"> · ${when(e)}</small></p>`).join("")}
           <a class="small-link" href="#/calendar">${t("calendar")} →</a></div>
-        <div class="dock">
-          <a href="#/hq"><span>🏢</span>${t("hq")}</a>
-          <a href="https://app.gtowizard.com" target="_blank" rel="noopener"><span>🧙</span>GTO Wizard</a>
-          <a href="#/replayer"><span>▶</span>Replayer</a>
-          <a href="#/library"><span>📖</span>${t("library")}</a>
-          ${isAdmin() ? `<a href="#/sizing"><span>%</span>MonPetitSizing</a>` : ""}
-        </div>
+        <div class="card"><div class="card-head"><h3>${t("online")}</h3><span class="tag" id="hqn">1</span></div><div id="hqwho" class="hq-who"></div></div>
+        <div class="card hq-chat"><div id="hqlog" class="hq-log"></div><form id="hqsay" class="inline"><input name="m" maxlength="140" placeholder="${t("saySomething")}" autocomplete="off"><button class="btn btn-sm btn-red">↵</button></form></div>
       </aside>
-    </div>
-    <dialog id="eod" class="card journal-page"><form method="dialog" id="eodf"><div class="card-head"><h3>🌙 ${t("endOfDay")} · ${fmtDay(today())}</h3><button class="x" value="cancel" formnovalidate>×</button></div>
-      <div class="row2"><label>${t("hands")}<input name="hands" type="number" min="0" step="50" inputmode="numeric" value="${todayE.hands ?? ""}" placeholder="0"></label>
-        <div><p class="lbl" style="margin-top:0">${t("mood")}</p><div class="mood">${[1, 2, 3, 4, 5].map((n) => `<input type="radio" name="mood" id="em${n}" value="${n}" ${Number(todayE.mood) === n ? "checked" : ""}><label for="em${n}">${n}</label>`).join("")}</div></div></div>
-      <label class="ta">${t("eodHow")}<textarea name="played" rows="6" class="sensitive paper" placeholder="${t("journalPh")}">${esc(todayE.played || "")}</textarea></label>
-      <div class="prompts">${["pPlayed", "pLearned", "pWell", "pMistake", "pTomorrow"].map((k) => `<button type="button" class="chip" data-prompt="${k}">+ ${t(k)}</button>`).join("")}</div>
-      <button class="btn btn-red" value="save">${t("save")}${s.filledToday ? "" : " · +20 XP"}</button></form></dialog>`;
-  $$("[data-start]").forEach((b) => b.onclick = async () => { b.disabled = true; await db.startSession(b.dataset.start); hqMove(b.dataset.start === "grind" ? "grind" : "study"); location.hash = "#/session"; });
-  const since = $("[data-since]");
-  if (since && !open.paused_at) timerTick = every(() => { since.textContent = clock(elapsed(open)); }, 1000);
-  const dlg = $("#eod"), ta = dlg.querySelector("textarea");
-  dictateButton(ta);
-  $$("[data-prompt]").forEach((b) => b.onclick = () => { ta.value += (ta.value.trim() ? "\n\n" : "") + t(b.dataset.prompt) + " "; ta.focus(); });
-  $$("[data-eod]").forEach((b) => b.onclick = (e) => { e.preventDefault(); dlg.showModal(); });
-  $("#eodf").onsubmit = async (ev) => {
-    if (ev.submitter?.value !== "save") return;
-    const f = new FormData(ev.target);
-    await db.saveJournal({ ...todayE, hands: +f.get("hands") || 0, mood: +f.get("mood") || todayE.mood || null, played: f.get("played").trim() });
-    route();
-  };
-  bindHqPreview();
-  xpToast(g);
-}
-
-/* Staff without a player seat keep the overview home. */
-async function viewHomeStaff() {
-  const [events, sessions] = await Promise.all([db.events(new Date(Date.now() - 864e5).toISOString(), addDays(14) + "T23:59"), db.sessions(ME.id, weekStart())]);
-  const menu = [["#/coaching", t("coaching"), t("program") + " · " + t("quizzes")], ["#/library", t("library"), t("libSub")]]
-    .concat(isStaff() ? [["#/team", t("team"), t("teamSub").split(".")[0]]] : [])
-    .concat(isOps() ? [["#/admin", t("admin"), t("adminSub").split(".")[0]]] : [])
-    .concat(isAdmin() ? [["#/ceo", t("ceo"), t("ceoSub")]] : []);
-  $("#main").innerHTML = `
-    ${head(fmtDay(today()), `${t("hi")} ${cam.on ? esc(ME.name[0]) + "." : esc(ME.name.split(" ")[0])}`)}
-    ${nextUp(events)}
-    ${weekView(events, sessions)}
-    <div class="grid menu">${menu.map(([h, l, sub]) => `<a class="card menu-item" href="${h}"><b>${l}</b><span>${esc(sub)}</span></a>`).join("")}
-      <a class="card menu-item" href="#/hq"><b>${t("hq")}</b><span>${t("hqSub")}</span></a></div>`;
+    </div>`;
+  await presenceStart();
+  if (my !== RENDER) return;
+  const who = (p) => nm({ name: p?.name || "?" });
+  mountMap($("#hqmap"), { onList: (l) => {
+    const n = (r) => l.filter((p) => p.room === r).length;
+    $("#hqcount") && ($("#hqcount").textContent = `♠ ${n("grind")} · 📚 ${n("study")} · 🔍 ${n("review")}`);
+    $("#hqn") && ($("#hqn").textContent = l.length);
+    $("#hqwho") && ($("#hqwho").innerHTML = l.map((p) => `<p>${avatarSvg(p, 18)} <b>${who(p)}</b> <small class="muted">${t("room_" + p.room)}</small></p>`).join(""));
+  } });
+  const logLine = (m) => { const log = $("#hqlog"); if (!log) { PRES.chats.delete(logLine); return; } log.insertAdjacentHTML("beforeend", `<p><b>${who(PRES.list.find((p) => p.id === m.id))}</b> ${esc(m.text)}</p>`); log.scrollTop = log.scrollHeight; };
+  PRES.log.forEach(logLine); PRES.chats.add(logLine);
+  $("#hqsay").onsubmit = (ev) => { ev.preventDefault(); const v = ev.target.m.value.trim(); if (v) PRES.ch?.say(v); ev.target.reset(); };
+  if (go) setTimeout(() => hqMove(go), 900);
+  if (g) xpToast(g);
 }
 
 /* ---------- session cockpit (grind or study): one screen ---------- */
@@ -297,7 +267,7 @@ async function viewSession() {
   $("#main").innerHTML = `
     <section class="card cock-top ${s.paused_at ? "paused" : ""}">
       <div class="ct-side"><span class="eyebrow">${KIND_ICON[s.kind]} ${t(grind ? "grindCockpit" : "studyCockpit")}</span><small class="muted">${s.paused_at ? "⏸ " + t("paused") : t("startedAt") + " " + hhmm(s.started_at)}</small></div>
-      <div class="ct-mid"><div class="midclock" id="sclock">${clock(elapsed(s))}</div>
+      <div class="ct-mid"><div class="midclock" id="sclock" data-left>${sesClock(s)}</div>${s.planned_min ? `<small class="muted">${t("left")} · ${fmtMin(s.planned_min)}</small>` : ""}
         <div class="ct-week"><div class="xpbar big"><i id="wbar"></i></div><small class="muted" id="wtxt"></small></div></div>
       <div class="ct-side right">${grind ? `<div class="rng" title="Antho lance le rando · RNG 1-100, new roll every 5 s"><video id="rngv" class="rng-antho" src="img/antho-rng.mp4" poster="img/antho-rng.jpg" muted playsinline preload="auto"></video><small>Le RNG<br>d'Antho</small><b id="rngn">--</b><span class="rng-bar"><i id="rngbar"></i></span></div>` : ""}${grind && "documentPictureInPicture" in window ? `<button class="btn btn-sm" id="popb" title="${t("popOutTip")}">⧉ ${t("popOut")}</button>` : ""}<button class="btn btn-sm" id="pause">${s.paused_at ? "▶ " + t("resume") : "⏸ " + t("pause")}</button><button class="btn btn-sm btn-red" id="endb">■ ${t("end")}</button></div>
     </section>
@@ -333,9 +303,9 @@ async function viewSession() {
       <p class="row-btns"><button class="btn btn-red" value="end">■ ${t("endGo")}</button><button class="btn" value="cancel">${t("cancel")}</button></p></form></dialog>`;
   bindFocus(); bindOpp(notes);
   $$("textarea").forEach(dictateButton);
+  SES.s = s; SES.before = before; SES.target = target; paintDock();
   const tick = () => {
     const ms = elapsed(s), wk = before + ms / 36e5;
-    $("#sclock") && ($("#sclock").textContent = clock(ms));
     $("#wbar") && ($("#wbar").style.width = Math.min(100, (wk / target) * 100) + "%");
     $("#wtxt") && ($("#wtxt").textContent = `${fmtH(wk)} / ${target} h · ${t("weekHours").toLowerCase()}`);
   };
@@ -350,12 +320,8 @@ async function viewSession() {
   const notesNow = () => $("[name=notes]").value;
   const saveNotes = async () => { await db.saveSession({ id: s.id, notes: notesNow() }); $("#nsaved").textContent = t("saved"); };
   $("[name=notes]").onblur = saveNotes;
-  const pauseToggle = async () => {
-    const x = s.paused_at ? { paused_ms: Number(s.paused_ms || 0) + (Date.now() - new Date(s.paused_at)), paused_at: null } : { paused_at: new Date().toISOString() };
-    await db.saveSession({ id: s.id, notes: notesNow(), ...x }); route();
-  };
-  $("#pause").onclick = pauseToggle;
-  Object.assign(POP, { s, before, target, pause: pauseToggle });
+  $("#pause").onclick = sesPause;
+  if (timeUp(s)) askRelaunch();
   $("#popb") && ($("#popb").onclick = openPop);
   if (grind) {
     const save = async (h, file) => { $("#hsaved").textContent = "…"; try { await db.saveSession({ id: s.id, notes: notesNow() }); await db.addHand({ session_id: s.id, ...h }, file); route(); } catch (err) { $("#hsaved").textContent = t("error") + " : " + err.message; } };
@@ -387,20 +353,10 @@ async function viewSession() {
       await db.addCard({ session_id: s.id, situation: f.get("situation").trim(), conclusion: f.get("conclusion").trim(), shared: f.has("shared") }); route();
     };
   }
-  // End: hours go straight into today's journal (hands are counted once, in the End of day journal).
+  // End: hours go into the session's day in the journal (timer.js).
   const dlg = $("#endd");
-  $("#endb").onclick = () => { $("#edur").textContent = clock(elapsed(s)); dlg.showModal(); };
-  dlg.onclose = async () => {
-    if (dlg.returnValue !== "end") return;
-    const minutes = Math.max(1, Math.round(elapsed(s) / 60000));
-    await db.saveSession({ id: s.id, ended_at: new Date().toISOString(), minutes, notes: notesNow(),
-      ...(s.paused_at ? { paused_ms: Number(s.paused_ms || 0) + (Date.now() - new Date(s.paused_at)), paused_at: null } : {}) });
-    const day = s.started_at.slice(0, 10), e = (await db.journal(ME.id, day)).find((x) => x.day === day) || { player_id: ME.id, day };
-    const k = grind ? "play_h" : "study_h";
-    await db.saveJournal({ ...e, [k]: Math.round((Number(e[k] || 0) + minutes / 60) * 100) / 100 });
-    hqMove("lobby");
-    location.hash = grind ? (mineHere.length ? "#/hands" : "#/") : "#/study";
-  };
+  $("#endb").onclick = () => { $("#edur").textContent = clock(s.planned_min ? Math.min(elapsed(s), s.planned_min * 6e4) : elapsed(s)); dlg.showModal(); };
+  dlg.onclose = () => { if (dlg.returnValue === "end") sesEnd(notesNow()); };
 }
 
 /* All opponent notes, searchable, editable. Player only. */
@@ -456,13 +412,13 @@ async function viewGoals() {
    One place for the player. Staff open the same view from the player page (drafts, transcript and Approve on top). */
 const CALL_KIND = { mentor: "pgkMentor", review: "pgkReview", coach: "pgkCoach" };
 const callBy = (c) => c.by_label || (person(c.mentor_id) ? nm(person(c.mentor_id)) : "");
-async function progressHtml(p) {
+async function progressHtml(p, { callsOnly = false } = {}) {
   const now = new Date(), since = iso(new Date(now.getFullYear(), now.getMonth() - 11, 1)), own = p.id === ME.id, staff = !own && isStaff();
   const [calls, goals, jr, evs] = await Promise.all([db.mentorings(p.id), db.goals(p.id), db.journal(p.id, since),
     own ? db.events(now.toISOString(), new Date(+now + 60 * 864e5).toISOString()).catch(() => []) : []]);
   const ym = (d) => String(d || "").slice(0, 7), cur = ym(today()), tm = teamOf(p);
   const months = [...new Set([cur, ...calls.map((c) => ym(c.day)), ...goals.map((g) => ym(g.label)).filter((m) => /^\d{4}-\d{2}$/.test(m)), ...jr.map((e) => ym(e.day))])]
-    .filter((m) => m >= ym(since)).sort().reverse();
+    .filter((m) => m >= ym(since) && (!callsOnly || calls.some((c) => ym(c.day) === m))).sort().reverse();
   const canTick = (c) => c.status === "validated" && (own || staff);
   const step = (c, x, i) => `<label class="pg-step ${(c.steps_done || []).includes(i) ? "done" : ""}"><input type="checkbox" data-step="${esc(c.id)}:${i}" ${(c.steps_done || []).includes(i) ? "checked" : ""} ${canTick(c) ? "" : "disabled"}><span class="sensitive">${esc(x)}</span></label>`;
   const list = (l) => `<ul class="sensitive">${l.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
@@ -490,13 +446,13 @@ async function progressHtml(p) {
     const stat = (label, v, target, shown, fmt = (x) => x) => `<div class="pg-stat"><span class="sub">${label}</span><b>${shown}${target ? ` <small class="muted">/ ${fmt(target)}</small>` : ""}</b>${target ? xpBar(v, +target) : ""}</div>`;
     return `<details class="pg-month" ${first || cs.length && m === months.find((x) => calls.some((c) => ym(c.day) === x)) ? "open" : ""}>
       <summary><h2>${fmtMonth(m + "-01")}</h2><span class="muted small">${cs.length} ${t("pgCalls").toLowerCase()} · ${fmtH(hours)} · ${fmtNum(hands)} ${t("hands").toLowerCase()}</span></summary>
-      <div class="card pg-goals">
+      ${callsOnly ? "" : `<div class="card pg-goals">
         <div class="card-head"><h3>${t("objectives")}</h3><span>${g ? `<span class="tag ${g.status === "confirmed" ? "ok" : "warn"}">${g.status === "confirmed" ? t("confirmed") : t("proposed")}</span>` : `<span class="muted small">${t("pgTeamDefault")}</span>`}
-          ${own && m === cur ? ` <a class="small-link" href="#/goals">✎ ${t("pgEdit")}</a>` : ""}</span></div>
+          ${own && m === cur ? ` <a class="small-link" href="#/log?m=${m}">✎ ${t("pgEdit")}</a>` : ""}</span></div>
         <div class="pg-stats">${stat(t("goalWeekH"), perWeek, weekT, fmtH(perWeek))}${stat(t("goalHands"), hands, handsT, fmtNum(hands), fmtNum)}
           ${stat(t("goalPlayH"), sum("play_h"), g?.play_h_target, fmtH(sum("play_h")))}${stat(t("goalStudyH"), sum("study_h"), g?.study_h_target, fmtH(sum("study_h")))}</div>
         ${(g?.items || []).length ? `<p class="sub">${t("goalOther")}</p>${list(g.items)}` : ""}
-      </div>
+      </div>`}
       ${cs.length ? cs.map(callCard).join("") : `<p class="muted small pg-none">${t("pgNoCalls")}</p>`}
     </details>`;
   };
@@ -505,7 +461,7 @@ async function progressHtml(p) {
         ${open.map(([c, x, i]) => `<div class="pg-open">${step(c, x, i)}<small class="muted">${esc(callBy(c))} · ${fmtDay(c.day)}</small></div>`).join("")}</div>` : ""}
       ${next ? `<div class="card"><div class="card-head"><h3>${t("pgNextCall")}</h3></div><p><b>${KIND_ICON.mentoring} ${esc(next.title)}</b></p><p class="muted">${when(next)}</p></div>` : ""}
     </div>` : ""}
-    ${months.map((m, i) => month(m, i === 0)).join("")}`;
+    ${months.map((m, i) => month(m, i === 0)).join("") || (callsOnly ? empty(t("pgNoCalls")) : "")}`;
 }
 function bindProgress() {
   $$("[data-step]").forEach((cb) => cb.onchange = async () => { const [id, i] = cb.dataset.step.split(":"); cb.disabled = true; await db.tickStep(id, +i, cb.checked); route(); });
@@ -531,45 +487,6 @@ async function viewNotes() {
       <button class="btn btn-sm">${t("save")}</button></form>`).join("") || empty(t("noNotes"))}</div>`;
   $("#nq").oninput = (e) => $$(".onote").forEach((f) => { f.hidden = !f.dataset.nick.includes(e.target.value.toLowerCase()); });
   $$(".onote").forEach((f) => { bindKind(f); f.onsubmit = async (ev) => { ev.preventDefault(); await db.saveNote({ nick: f.nick.value, note: f.note.value.trim(), kind: kindOf(f) }); ev.submitter.textContent = t("saved"); }; });
-}
-
-/* ---------- session notebook (player only): every grind and study session, its notes and its hands to review ---------- */
-async function viewHands() {
-  const my = RENDER;
-  const [hands, sessions] = await Promise.all([db.hands(), db.sessions(ME.id, daysAgo(90)).catch(() => [])]);
-  if (my !== RENDER) return;
-  const onlyTodo = new URLSearchParams(location.hash.split("?")[1] || "").get("f") === "todo";
-  const todoN = hands.filter((h) => !h.reviewed).length;
-  const card = (h) => `<article class="card hand ${h.reviewed ? "done" : ""}">
-    <div class="card-head"><h3>${fmtDay(h.created_at.slice(0, 10))} · ${hhmm(h.created_at)}</h3>
-      <span>${h.hh ? `<button class="btn btn-sm" data-copy="${h.id}">${t("copyHH")}</button> ` : ""}<button class="btn btn-sm ${h.reviewed ? "" : "btn-red"}" data-rev="${h.id}" data-v="${h.reviewed ? "" : "1"}">${h.reviewed ? t("undo") : "✓ " + t("reviewed")}</button></span></div>
-    ${h.note ? `<p>${esc(h.note)}</p>` : ""}
-    ${h.image_path || h.image_data ? `<img class="hshot sensitive" data-img="${esc(h.image_path || "")}" ${h.image_data ? `src="${h.image_data}"` : ""} alt="">` : ""}
-    ${h.hh ? `<pre class="hh sensitive">${esc(h.hh)}</pre>` : ""}</article>`;
-  const ids = new Set(sessions.map((x) => x.id));
-  const block = (x) => {
-    const hs = hands.filter((h) => h.session_id === x.id), todo = hs.filter((h) => !h.reviewed).length;
-    const shown = onlyTodo ? hs.filter((h) => !h.reviewed) : hs;
-    if (onlyTodo && !shown.length) return "";
-    if (!hs.length && !(x.notes || "").trim() && (x.minutes || 0) < 5 && x.ended_at) return ""; // skip empty test sessions
-    const min = x.ended_at ? Number(x.minutes || 0) : Math.round(elapsed(x) / 6e4);
-    const dur = min >= 60 ? `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, "0")}` : `${min} min`;
-    return `<details class="card nb-sess" ${todo || !x.ended_at ? "open" : ""}><summary>
-      <span class="nb-when">${KIND_ICON[x.kind] || "•"} <b>${new Date(x.started_at).toLocaleDateString(LANG === "fr" ? "fr-FR" : "en-GB", { weekday: "long" })}</b> ${fmtDay(iso(new Date(x.started_at)))} · ${hhmm(x.started_at)}${x.ended_at ? " → " + hhmm(x.ended_at) : ` · <span class="live">${t("nbLive")}</span>`}</span>
-      <span class="nb-meta">${dur}${hs.length ? ` · ${hs.length} ${t("hands").toLowerCase()}` : ""}${todo ? ` <span class="tag red">${todo} ${t("handsToReview")}</span>` : ""}</span></summary>
-      ${(x.notes || "").trim() ? `<p class="nb-notes sensitive">${esc(x.notes)}</p>` : ""}
-      <div class="stack">${shown.map(card).join("")}</div></details>`;
-  };
-  const loose = hands.filter((h) => !ids.has(h.session_id) && !(onlyTodo && h.reviewed));
-  const body = sessions.map(block).join("");
-  $("#main").innerHTML = `${head(t("nbTab"), t("nbTitle"), t("handsPrivate"))}
-    <div class="nb-bar"><a class="chip ${onlyTodo ? "" : "on"}" href="#/hands">${t("nbAll")}</a><a class="chip ${onlyTodo ? "on" : ""}" href="#/hands?f=todo">${t("nbTodo")} (${todoN})</a>
-      <span class="grow"></span><a class="btn btn-sm" href="#/notes">${t("oppNotes")}</a> <a class="btn btn-sm btn-ghost-red" href="#/replayer">▶ RTS Replayer</a></div>
-    <div class="stack">${body || empty(onlyTodo ? t("noHands") : t("nbEmpty"))}</div>
-    ${loose.length ? `<h3 class="nb-other">${t("nbOther")}</h3><div class="stack">${loose.map(card).join("")}</div>` : ""}`;
-  $$("[data-img]").forEach(async (im) => { if (im.dataset.img) im.src = (await db.handImage(im.dataset.img)) || ""; });
-  $$("[data-rev]").forEach((b) => b.onclick = async () => { await db.setHand(b.dataset.rev, { reviewed: !!b.dataset.v }); route(); });
-  $$("[data-copy]").forEach((b) => b.onclick = async () => { try { await navigator.clipboard.writeText(hands.find((h) => h.id === b.dataset.copy).hh); b.textContent = t("copied"); } catch {} });
 }
 
 /* ---------- study hub: sessions, conclusions, recall cards ---------- */
@@ -799,6 +716,11 @@ html,body{height:100%;background:#0b0b0d;color:#f4f4f2;font:500 13px Inter,syste
 .ant small{font-size:9px;letter-spacing:.08em;line-height:1.2}
 .ant .rb{grid-column:2/-1}
 @keyframes rngdrain{from{width:100%}to{width:0}}
+.bar{position:relative}
+.tu,.brk{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:8px;background:#0b0b0d;padding:0 10px;z-index:2}
+.tu[hidden],.brk[hidden]{display:none}
+.tu b{color:#f0b429;font-size:12px;margin-right:4px;white-space:nowrap}.tu .end{background:#fd0606;border-color:#fd0606}
+.brk video{height:calc(100% - 8px);aspect-ratio:1;border-radius:8px;object-fit:cover}.brk b{font-size:15px}
 button{font:600 13px Inter,system-ui,sans-serif;color:#f4f4f2;background:#141417;border:1px solid #2c2c31;border-radius:999px;padding:9px 14px;cursor:pointer}
 button:hover{background:#1c1c20}
 .bar{gap:10px;padding:6px 10px}
@@ -821,16 +743,19 @@ async function openPop() {
   d.body.innerHTML = `<div class="bar"><div class="clock" id="c">0:00:00</div>
     <div class="wk"><div class="wkbar"><i id="w"></i></div><small id="wt"></small></div>
     <div class="rng ant" title="Antho lance le rando · RNG 1-100"><video id="av" src="${new URL("img/antho-rng.mp4", location.href).href}" poster="${new URL("img/antho-rng.jpg", location.href).href}" muted playsinline preload="auto"></video><small>Le RNG<br>d'Antho</small><b id="n">--</b><span class="rb"><i id="nb"></i></span></div>
-    <button id="p"></button></div>`;
+    <button id="p"></button>
+    <div class="tu" id="tu" hidden><b>⏰ ${t("tuTitle")}</b>${[30, 60, 120].map((m) => `<button data-add="${m}">+${fmtMin(m)}</button>`).join("")}<button data-add="end" class="end">■</button></div>
+    <div class="brk" id="brk" hidden><video src="${new URL("img/alexis-break.mp4", location.href).href}" muted autoplay loop playsinline></video><b>${t("brkTitle")}</b></div></div>`;
   const q = (id) => d.getElementById(id);
-  q("p").onclick = () => POP.pause && POP.pause();
+  q("p").onclick = () => sesPause();
+  q("tu").onclick = (e) => { const v = e.target.dataset.add; if (v === "end") sesEnd(null); else if (v) sesRelaunch(+v); };
   const tick = () => {
-    const s = POP.s; if (!s) return;
-    const ms = elapsed(s), wk = POP.before + ms / 36e5;
+    const s = SES.s; if (!s) { w.close(); return; }
+    const ms = elapsed(s), wk = SES.before + ms / 36e5;
     d.querySelector(".bar").classList.toggle("paused", !!s.paused_at);
-    q("c").textContent = clock(ms);
-    q("w").style.width = Math.min(100, (wk / POP.target) * 100) + "%";
-    q("wt").textContent = `${fmtH(wk)} / ${POP.target} h`;
+    q("c").textContent = sesClock(s); q("tu").hidden = !timeUp(s);
+    q("w").style.width = Math.min(100, (wk / SES.target) * 100) + "%";
+    q("wt").textContent = `${fmtH(wk)} / ${SES.target} h`;
     q("p").textContent = s.paused_at ? "▶" : "⏸"; q("p").title = s.paused_at ? t("resume") : t("pause");
     if (paintRng(q("n"), q("nb")) && av) { av.currentTime = 0; av.play().catch(() => {}); }
   };
@@ -838,7 +763,8 @@ async function openPop() {
   tick(); w.setInterval(tick, 200);
   w.addEventListener("pagehide", () => { POP.win = null; });
 }
-function closePop() { if (POP.win && !POP.win.closed) POP.win.close(); POP.win = null; POP.s = null; }
+function closePop() { if (POP.win && !POP.win.closed) POP.win.close(); POP.win = null; }
+const popPaint = () => {}; // the pop out redraws itself 5 times a second
 
 /* Daily journal: one paper page per day, written at the end of the day. Free writing, prompts only help.
    Hours come from the cockpit sessions (editable). The old 4 boxes are merged into the page text. */
@@ -1466,7 +1392,7 @@ async function viewCalendar() {
     $("[data-edit]", dl)?.addEventListener("click", () => { dl.close(); openForm(e); });
     $("[data-join]", dl)?.addEventListener("click", async (x) => {
       const v = !!x.target.dataset.v; await db.join(e.id, v);
-      if (v && e.kind === "review") location.hash = "#/hq?go=review"; else route();
+      if (v && e.kind === "review") location.hash = "#/?go=review"; else route();
     });
     $("[data-del]", dl)?.addEventListener("click", async () => { if (confirm(t("removeEvent"))) { await db.dropEvent(e.id); route(); } });
     dl.showModal();
@@ -1635,32 +1561,43 @@ function viewLogin(msg = "") {
 /* ---------- shell + router ---------- */
 /* Player view: Alexis (admin) sees the app exactly as a player of his own team sees it, with his own data. */
 let REAL = null;
+/* View switcher (Alexis 2026-11-03): CEO (real), coach, mentor, player, staff (ops, Mehdi). Only the interface changes: the data stays what Alexis may see. */
+const VIEWS = ["ceo", "coach", "mentor", "player", "staff"];
 const pv = {
-  get on() { try { return localStorage.getItem("rts-pv") === "on"; } catch { return false; } },
-  set(v) { try { localStorage.setItem("rts-pv", v ? "on" : "off"); } catch {} },
+  get view() { try { const v = localStorage.getItem("rts-view") || (localStorage.getItem("rts-pv") === "on" ? "player" : "ceo"); return VIEWS.includes(v) ? v : "ceo"; } catch { return "ceo"; } },
+  set(v) { try { localStorage.setItem("rts-view", v); localStorage.removeItem("rts-pv"); } catch {} },
+  get on() { return this.view !== "ceo"; },
 };
 const asPlayer = (p) => ({ ...p, roles: ["player"], coaches: [], manages: [], team_id: p.team_id || "supreme", team: p.team === "staff" ? "elite" : p.team });
+const asView = (p, v) => v === "player" ? asPlayer(p)
+  : v === "coach" ? { ...asPlayer(p), roles: ["coach", "player"], coaches: p.coaches?.length ? p.coaches : ["academy", "elite"] }
+  : v === "mentor" ? { ...asPlayer(p), roles: ["mentor", "player"] }
+  : v === "staff" ? { ...p, roles: ["ops"], coaches: [], manages: [] } : p;
 
 function shell() {
   document.body.classList.remove("is-login");
   document.body.classList.toggle("ops", ME?.team_id === "supreme");
   const demo = db.mode === "demo";
-  const links = [["", "home"], ["hq", "hq"]].concat(has(ME, "player") ? [["journal", "journal"], ["hands", "nbTab"], ["progress", "progress"], ["study", "study"]] : []).concat([["library", "library"], ["coaching", "coaching"], ["replayer", "replayer"], ["calendar", "calendar"]])
-    .concat(isStaff() ? [["team", "team"]] : []).concat(isOps() ? [["admin", "admin"]] : []).concat(isAdmin() ? [["ceo", "ceo"], ["inbox", "inbox"]] : []).concat([["account", "account"]]);
+  // 2026-11-03: few tabs, no repeats. Home = HQ; Logbook = grind + study + journal + goals; Resources = mine + RTS (sub nav); tools in the bottom dock.
+  const links = [["", "home", "#/"]].concat(has(ME, "player") ? [["log", "logbook", "#/log"]] : []).concat([["res", "resources", "#/coaching"], ["calendar", "calendar", "#/calendar"]])
+    .concat(isStaff() ? [["team", "team", "#/team"]] : []).concat(isOps() ? [["dir", isAdmin() ? "direction" : "admin", isAdmin() ? "#/ceo" : "#/admin"]] : []);
   $("#app").innerHTML = `
     <header class="top"><div class="wrap">
       <a href="#/" class="logo"><img src="img/logo.svg" alt="RTS"></a>
-      <nav class="links">${links.map(([k, l]) => `<a href="#/${k}" data-nav="${k}">${t(l)}</a>`).join("")}</nav>
+      <nav class="links">${links.map(([k, l, h]) => `<a href="${h}" data-nav="${k}">${t(l)}</a>`).join("")}</nav>
       <div class="tools">
         ${demo ? `<select id="asuser" title="View as">${db.users.map((u) => `<option value="${u.id}" ${u.id === ME.id ? "selected" : ""}>${esc(u.label)}</option>`).join("")}</select>` : ""}
-        ${isAdmin(REAL) ? `<button id="pvb" class="chip ${pv.on ? "on" : ""}" title="${t("playerViewSub")}">👤 ${t("playerView")}</button>` : ""}
+        ${isAdmin(REAL) ? `<select id="pvb" class="chip ${pv.on ? "on" : ""}" title="${t("playerViewSub")}">${VIEWS.map((v) => `<option value="${v}" ${pv.view === v ? "selected" : ""}>👤 ${t("view_" + v)}</option>`).join("")}</select>` : ""}
+        <a class="chip" href="#/account" data-nav="account" title="${t("account")}">⚙</a>
         <button id="lang" class="chip">${LANG === "en" ? "FR" : "EN"}</button>
         <button id="camb" class="chip ${cam.on ? "on" : ""}" title="${t("camera")}">● ${t("camera")}</button>
         ${demo ? `<span class="chip">${t("demo")}</span>` : `<button id="out" class="chip">${t("logout")}</button>`}
       </div>
     </div></header>
+    <nav id="subnav" class="subnav wrap" hidden></nav>
     <main id="main" class="wrap"></main>
-    <button id="fbb" class="fb-btn" title="${t("fbSub")}">💬 ${t("fbBtn")}</button>
+    ${dockHtml()}
+    <dialog id="lb" class="lightbox" onclick="this.close()"><img alt=""></dialog>
     <dialog id="fbd" class="card"><form id="fbf"><div class="card-head"><h3>💬 ${t("fbTitle")}</h3><button class="x" type="button" data-fbx>×</button></div>
       <p class="muted small">${t("fbSub")}</p>
       <span class="chips">${["bug", "idea", "other"].map((k, i) => `<label class="tagchip"><input type="radio" name="kind" value="${k}" ${i === 0 ? "checked" : ""} hidden>${t("fb_" + k)}</label>`).join("")}</span>
@@ -1668,7 +1605,7 @@ function shell() {
       <div class="btns"><button class="btn btn-red" type="submit">${t("fbSend")}</button><span class="saved" id="fbmsg"></span></div></form></dialog>`;
   bindFeedback();
   $("#camb").onclick = () => { cam.set(!cam.on); shell(); route(); };
-  $("#pvb")?.addEventListener("click", () => { pv.set(!pv.on); ME = pv.on ? asPlayer(REAL) : REAL; location.hash = "#/"; shell(); route(); });
+  $("#pvb")?.addEventListener("change", (e) => { pv.set(e.target.value); ME = asView(REAL, pv.view); location.hash = "#/"; shell(); route(); sesLoad(); });
   $("#lang").onclick = () => { setLang(LANG === "en" ? "fr" : "en"); db.setLang(LANG).catch(() => {}); shell(); route(); };
   $("#asuser")?.addEventListener("change", (e) => { db.setUser(e.target.value); boot(); });
   $("#out")?.addEventListener("click", async () => { await db.signOut(); boot(); });
@@ -1679,16 +1616,20 @@ async function route() {
   if (!ME) return;
   clearInterval(timerTick); clearInterval(rngTick);
   TICKS.splice(0).forEach(clearInterval); RENDER++;
-  if (!(location.hash || "").startsWith("#/session")) closePop();
   document.onpaste = null;
   const [path] = (location.hash || "#/").split("?");
   const [, a = "", b, c] = path.split("/");
-  const navKey = a === "p" ? "" : ["c", "quiz", "review"].includes(a) ? "coaching" : ["s", "submit"].includes(a) ? "library" : a === "recall" ? "study" : ["session", "hero"].includes(a) ? "" : a === "notes" ? "hands" : a === "goals" ? "progress" : a;
+  // Old addresses still work: journal and goals live in the Logbook, progress is My calls, the HQ is the home.
+  const moved = { journal: () => `#/log${location.hash.includes("day=") ? "?d=" + location.hash.split("day=")[1] : ""}`, goals: () => "#/log?m=" + monthStart().slice(0, 7), progress: () => "#/calls", hq: () => "#/" + (location.hash.split("?")[1] ? "?" + location.hash.split("?")[1] : "") };
+  if (moved[a]) { location.replace(moved[a]()); return; }
+  const group = GROUP[a] || a, navKey = a === "p" || ["session", "hero"].includes(a) ? "" : group;
+  const sub = subnavHtml(group, a); $("#subnav").innerHTML = sub; $("#subnav").hidden = !sub;
+  paintDock();
   $$("[data-nav]").forEach((l) => l.classList.toggle("on", l.dataset.nav === navKey));
   $("#main").innerHTML = `<p class="muted loading">${t("loading")}</p>`;
   const views = { "": viewHome, journal: viewJournal, p: () => viewPlayer(b, c), coaching: viewCoaching, c: () => viewCoachingOne(b), quiz: () => viewQuiz(b),
     review: viewReview, library: viewLibrary, s: () => viewSituation(b), submit: viewSubmit, calendar: viewCalendar, team: viewTeam, admin: viewAdmin, ceo: viewCeo,
-    session: viewSession, hands: viewHands, replayer: () => viewReplayer(b), study: viewStudy, recall: viewRecall, account: viewAccount, hero: viewHero, hq: viewHQ, notes: viewNotes, sizing: viewSizing, goals: viewGoals, progress: viewProgress, inbox: viewInbox };
+    session: viewSession, hands: viewHands, log: viewLog, calls: viewCalls, replayer: () => viewReplayer(b), study: viewStudy, recall: viewRecall, account: viewAccount, hero: viewHero, hq: viewHQ, notes: viewNotes, sizing: viewSizing, goals: viewGoals, progress: viewProgress, inbox: viewInbox };
   try { await (views[a] || viewHome)(); }
   catch (err) { $("#main").innerHTML = `<p class="card">${t("error")} : ${esc(err.message)}</p>`; console.error(err); }
   window.scrollTo(0, 0);
@@ -1699,7 +1640,7 @@ async function route() {
 async function needFiles() {
   const add = (tag, attrs) => new Promise((ok) => { const el = Object.assign(document.createElement(tag), attrs); el.onload = el.onerror = ok; document.head.appendChild(el); });
   const v = "?v=" + Date.now();
-  for (const [fn, file] of [["viewHQ", "game"], ["viewReplayer", "replayer"]]) {
+  for (const [fn, file] of [["viewHQ", "game"], ["viewReplayer", "replayer"], ["sesLoad", "timer"], ["viewLog", "logbook"]]) {
     if (typeof window[fn] === "function") continue;
     if (file === "replayer" && !document.querySelector('link[href^="replayer.css"]')) add("link", { rel: "stylesheet", href: "replayer.css" + v });
     await add("script", { src: file + ".js" + v });
@@ -1715,13 +1656,13 @@ async function boot() {
   if (!s) return viewLogin();
   REAL = ME = await db.me();
   if (!ME) { await db.signOut(); return viewLogin(t("notRegistered")); }
-  if (isAdmin(REAL) && pv.on) ME = asPlayer(REAL);
+  if (isAdmin(REAL) && pv.on) ME = asView(REAL, pv.view);
   applyAccent(REAL.accent);
   let saved = null; try { saved = localStorage.getItem("rts-lang"); } catch {}
   if (ME.lang && !saved) setLang(ME.lang);
   [VISIBLE, TEAMS] = await Promise.all([db.people(), db.teams()]);
   shell(); route();
-  presenceStart();
+  presenceStart(); sesLoad();
 }
 
 window.addEventListener("hashchange", route);

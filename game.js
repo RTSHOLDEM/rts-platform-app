@@ -182,9 +182,9 @@ async function gameStats(p) {
   g.skins = SKINS.filter((s) => !s.unlock || g.unlocked.includes(s.unlock)).map((s) => s.id);
   return g;
 }
-/* Secret agent look for Supreme (Alexis 2026-10-28: "online poker secret agent team", replaced the army look). Ranks = clearance levels. */
-const OPS_RANKS = [[1, "Recruit", "Recrue"], [3, "Field agent", "Agent de terrain"], [6, "Special agent", "Agent spécial"], [10, "Senior agent", "Agent senior"],
-  [15, "Handler", "Officier traitant"], [22, "Station chief", "Chef de station"], [30, "Director", "Directeur"]];
+/* Supreme look: "mission to the sky" crew (Alexis 2026-11-03: less secret agent, more rocket mission; replaced the agent look of 2026-10-28). Ranks = space crew. */
+const OPS_RANKS = [[1, "Cadet", "Cadet"], [3, "Crew", "Équipage"], [6, "Pilot", "Pilote"], [10, "Flight engineer", "Ingénieur de vol"],
+  [15, "Mission specialist", "Spécialiste de mission"], [22, "Flight director", "Directeur de vol"], [30, "Commander", "Commandant"]];
 const opsRank = (lvl) => { const r = OPS_RANKS.filter((x) => lvl >= x[0]).pop(); return LANG === "fr" ? r[2] : r[1]; };
 const isOperation = (e) => e.kind === "coaching" && e.teams?.length === 1 && e.teams[0] === "supreme";
 const opTitle = (e) => (isOperation(e) ? `MISSION · ${e.title}` : e.title);
@@ -218,6 +218,7 @@ function bindSwatches() {
 /* Avatar catalog (pixel art from Higgsfield sheets, app/img/av/<id>.png, sliced by tools/slice_avatars.py).
    Army tab replaced by Agents 2026-10-28; the old army PNGs stay so players who picked one keep it. */
 const AV_CATALOG = {
+  astro: ["apollo", "redline", "orbit", "commander", "engineer", "drone", "martian", "control", "cosmonaut", "flyer", "doctor", "borg", "stealth", "cadet", "welder", "scientist"].map((x) => "astro/" + x),
   animals: ["whale", "frog", "fox", "owl", "shark", "bear", "cat", "panda", "octopus", "penguin", "lion", "wolf", "rabbit", "tiger", "monkey", "eagle"],
   poker: ["chip", "ace", "king", "queen", "dice", "dealer", "cowboy", "highroller", "fish", "donkey", "suitshark", "luckycat", "crown", "moneybag", "slots", "tophat"],
   agents: ["agent", "agentw", "hacker", "tuxedo", "director", "phantom", "burglar", "analyst", "rider", "dealerspy", "nightvision", "trench", "pug", "android", "shadow", "diplomat"],
@@ -407,5 +408,5 @@ async function viewHQ() {
   $("#hqsay").onsubmit = (ev) => { ev.preventDefault(); const v = ev.target.m.value.trim(); if (v) PRES.ch?.say(v); ev.target.reset(); };
   if (go) setTimeout(() => hqMove(go), 900);
 }
-/* Map art (Higgsfield, 2026-10-28): the HQ for everyone, the secret agent HQ for Supreme. */
-const hqArt = () => (document.body.classList.contains("ops") ? "img/hq/hq-ops.webp" : "img/hq/hq.webp");
+/* Map art (Higgsfield): the rocket launch base for everyone, mission control at night for Supreme. */
+const hqArt = () => (document.body.classList.contains("ops") ? "img/hq/hq-mission.webp" : "img/hq/hq-rocket.webp"); // rocket base, Supreme = mission control (2026-11-03)
