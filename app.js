@@ -165,7 +165,7 @@ async function viewHome() {
   const now = new Date().toISOString(), coming = all.filter(forMe).filter((e) => new Date(new Date(e.starts_at).getTime() + e.minutes * 6e4).toISOString() >= now);
   const when = (e) => `${e.starts_at.slice(0, 10) === today() ? t("today") : dayName(e.starts_at.slice(0, 10))} · ${hhmm(e.starts_at)}`;
   const live = SES.s ? elapsed(SES.s) / 36e5 : 0;
-  let wk = sess.reduce((a, x) => a + (x.ended_at ? Number(x.minutes || 0) / 60 : 0), 0) + live, target = 0, extra = "";
+  let wk = sess.filter((x) => x.kind !== "coaching").reduce((a, x) => a + (x.ended_at ? Number(x.minutes || 0) / 60 : 0), 0) + live, target = 0, extra = "";
   if (player) {
     setGoals(ME, goals);
     const st = stats(mine, ME), wkHands = mine.filter((e) => e.day >= weekStart()).reduce((a, e) => a + Number(e.hands || 0), 0);
