@@ -11,7 +11,7 @@ Object.assign(STRINGS.en, {
   noSessionDay: "No session this day.", hoursWeek: "Hours this week", openSteps: "open next steps", seeCalls: "See my calls",
   totalPlay: "Play", totalStudy: "Study", totalHands: "Hands", daysLogged: "days logged", journalSaved: "Journal saved ✓",
   toReviewT: "To review", reviewedT: "Reviewed", allT: "All", noHandsT: "No hand here.", hhText: "Hand history", openFull: "Full size",
-  durGrind: "How long do you play?", durStudy: "How long do you study?", durSub: "The clock counts down. At zero you choose: go again or stop.",
+  lgTracked: "tracked", durGrind: "How long do you play?", durStudy: "How long do you study?", durSub: "The clock counts down. At zero you choose: go again or stop.",
   durOwn: "Or", durGo: "Start", left: "left", tuTitle: "Time is up", tuSub: "Your {t} are done. Go again?",
   tuAuto: "No answer: the session ends at the planned time in", brkTitle: "Take a break", brkSub: "5 minutes away from the screen. Water, stretch, breathe.",
   calls: "Calls", hcTitle: "Hours check", hcBelow: "You wrote {w} of {k}, but {t} were tracked in your sessions. A gap of {d}: did you forget some?",
@@ -27,7 +27,7 @@ Object.assign(STRINGS.fr, {
   noSessionDay: "Aucune session ce jour-là.", hoursWeek: "Heures cette semaine", openSteps: "prochaines étapes ouvertes", seeCalls: "Voir mes calls",
   totalPlay: "Jeu", totalStudy: "Étude", totalHands: "Mains", daysLogged: "jours remplis", journalSaved: "Journal enregistré ✓",
   toReviewT: "À revoir", reviewedT: "Revues", allT: "Toutes", noHandsT: "Aucune main ici.", hhText: "Historique", openFull: "Plein écran",
-  durGrind: "Tu joues combien de temps ?", durSub: "Le chrono descend. À zéro, tu choisis : on relance ou on arrête.", durStudy: "Tu étudies combien de temps ?",
+  lgTracked: "chrono", durGrind: "Tu joues combien de temps ?", durSub: "Le chrono descend. À zéro, tu choisis : on relance ou on arrête.", durStudy: "Tu étudies combien de temps ?",
   durOwn: "Ou", durGo: "Lancer", left: "restant", tuTitle: "Temps écoulé", tuSub: "Tes {t} sont faites. On relance ?",
   tuAuto: "Sans réponse, la session se termine à l'heure prévue dans", brkTitle: "Prends une pause", brkSub: "5 minutes loin de l'écran. De l'eau, des étirements, respire.",
   calls: "Calls", hcTitle: "Vérification des heures", hcBelow: "Tu as mis {w} de {k}, mais tes sessions en ont traqué {t}. Il y a un décalage de {d} : tu en as oublié ?",
@@ -230,6 +230,7 @@ async function viewLog() {
           const todo = hs.filter((h) => !h.reviewed).length;
           // One session = one dropdown line (Alexis 2026-11-03): time and length at a glance, × deletes, open it to change the time.
           return `<details class="lg-sess" data-ses="${x.id}"><summary><span class="lg-st"><b>${hhmm(x.started_at)}${x.ended_at ? " → " + hhmm(x.ended_at) : ""}</b>
+              ${x.topic && TOPICS[x.topic] ? `<span class="tag">${TOPICS[x.topic].icon} ${t("topic_" + x.topic)}</span>` : ""}
               ${x.ended_at ? "" : `<span class="live">${t("nbLive")}</span>`}<span class="muted">${dur(min)}${x.planned_min ? " / " + fmtMin(x.planned_min) : ""}</span>
               ${hs.length ? `<span class="tag">${hs.length} ${t("hands").toLowerCase()}</span>` : ""}${todo ? `<span class="tag red">${todo} ${t("toReviewT").toLowerCase()}</span>` : ""}</span>
               ${x.ended_at ? `<button class="x" data-sesdel="${x.id}" title="${t("sesDel")}">×</button>` : ""}</summary>
@@ -241,12 +242,16 @@ async function viewLog() {
             ${cs.map((c) => `<p class="hrow"><b>${esc(c.situation)}</b><br><span class="muted sensitive">${esc(c.conclusion)}</span></p>`).join("")}</div></details>`; }).join("") || `<p class="muted small">${t("noSessionDay")}</p>`}
         ${kind === "grind" && loose.length ? loose.map(handRow).join("") : ""}</div>`;
     };
+    // Hours (Alexis 2026-11-03): ended sessions already add their time to the journal; an empty day starts with what was tracked,
+    // and each box shows the timer's count so nobody types it twice. Running sessions are left out: they add themselves when they end.
+    const trk = (k) => Math.round(ss.filter((x) => x.kind === k && x.ended_at).reduce((a, x) => a + Number(x.minutes || 0), 0) / 60 * 100) / 100;
+    const hv = (k, kind) => e[k] ?? (trk(kind) || ""), hint = (kind) => (trk(kind) ? ` <small class="muted">⏱ ${dur(Math.round(trk(kind) * 60))} ${t("lgTracked")}</small>` : "");
     const text = [e.played, e.learned && `${t("pLearned")} ${e.learned}`, e.did_well && `${t("pWell")} ${e.did_well}`, e.mistakes && `${t("pMistake")} ${e.mistakes}`].filter((x) => (x || "").trim()).join("\n\n");
     return `<div class="grid two lg-day">${sessBox("grind")}${sessBox("study")}</div>
       <form class="card journal-page jbook" id="jform"><div class="card-head"><h3>✎ ${t("journalW")}</h3><span class="saved" id="jsaved"></span></div>
         <div class="row3">
-          <label>♠ ${t("play")} (h)<input name="play_h" type="number" step="0.25" min="0" max="16" inputmode="decimal" value="${e.play_h ?? ""}" placeholder="0"></label>
-          <label>📚 ${t("study")} (h)<input name="study_h" type="number" step="0.25" min="0" max="16" inputmode="decimal" value="${e.study_h ?? ""}" placeholder="0"></label>
+          <label>♠ ${t("play")} (h)${hint("grind")}<input name="play_h" type="number" step="0.01" min="0" max="16" inputmode="decimal" value="${hv("play_h", "grind")}" placeholder="0"></label>
+          <label>📚 ${t("study")} (h)${hint("study")}<input name="study_h" type="number" step="0.01" min="0" max="16" inputmode="decimal" value="${hv("study_h", "study")}" placeholder="0"></label>
           <label>${t("hands")}<input name="hands" type="number" step="50" min="0" inputmode="numeric" value="${e.hands ?? ""}" placeholder="0"></label></div>
         <div class="jmood">${MOODS.map((m, i) => `<input type="radio" name="mood" id="m${i + 1}" value="${i + 1}" ${Number(e.mood) === i + 1 ? "checked" : ""}><label for="m${i + 1}">${m}</label>`).join("")}</div>
         <textarea name="text" class="paper sensitive" rows="8" placeholder="${t("journalPh")}">${esc(text)}</textarea>
@@ -255,6 +260,7 @@ async function viewLog() {
         <button class="btn btn-red" type="submit">${t("save")}${e.day ? "" : " · +20 XP"}</button></form><dialog id="hchk" class="card timeup"></dialog>`;
   }
 
+  fitToDock(".logbook");
   // bindings
   bindHands(hands);
   bindSessions(sessions);
@@ -304,6 +310,18 @@ async function viewLog() {
   });
   bindAway();
   $(".lt-m2.on")?.scrollIntoView({ block: "nearest" });
+}
+
+/* One screen (Alexis 2026-11-03): the block ends just above the dock, its columns scroll inside, the page never scrolls.
+   Below 1100 px the columns stack and the page scrolls as usual. */
+function fitToDock(selector) {
+  const fit = () => {
+    const el = $(selector); if (!el) { removeEventListener("resize", fit); return; }
+    if (innerWidth <= 1100) { el.style.height = ""; return; }
+    const dock = $("#dock")?.getBoundingClientRect(), bottom = dock && dock.height ? dock.top - 10 : innerHeight - 12;
+    el.style.height = Math.max(380, bottom - el.getBoundingClientRect().top) + "px";
+  };
+  fit(); addEventListener("resize", fit);
 }
 
 /* Session list (Logbook day): × deletes a session, the form changes its start and length.

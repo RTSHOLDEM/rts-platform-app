@@ -1002,3 +1002,14 @@ body:has(.home1) { padding-bottom: 0; }
 .dur-b.own { grid-auto-flow: column; gap: 4px; }
 .dur-b.own input[type=number] { width: 52px; padding: 4px; font-size: 13px; text-align: center; }
 #durd { width: min(520px, 100% - 32px); }
+
+/* Logbook on one screen (2026-11-03): columns scroll inside, the page does not */
+@media (min-width: 1101px) {
+  #app:has(.logbook) #main { padding: 10px 0 0; }
+  body:has(.logbook) { padding-bottom: 0; }
+  .logbook { align-items: stretch; margin-top: 0; grid-template-rows: minmax(0, 1fr); }
+  .logbook > * { min-height: 0; overflow: auto; scrollbar-width: thin; }
+  .lg-tree { position: static; max-height: none; }
+  .lg-mid { align-content: start; padding-right: 4px; }
+  .lg-right { align-content: start; }
+}
