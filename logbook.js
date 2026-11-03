@@ -3,6 +3,15 @@
    one bubble per day), right: ONE goal card, the one of the period you look at
    #/calls   my calls with mentor and coaches (Resources > Mine)      #/hands   saved hands by title (Resources > Mine) */
 Object.assign(STRINGS.en, {
+  mtMine: "My monthly reviews", mtMineSub: "My mentor's feedback", mtHasFb: "Mentor feedback ✓", mtNoFb: "No feedback yet", mtFb: "My mentor's feedback", mtFbNone: "Your mentor has not written his feedback for this month yet.",
+  mtMyReport: "What I wrote", mtNoMine: "You have not written your review for this month.", mtWrite: "Write",
+  tabMentor: "Mentoring", mtMy: "My players", mtNone: "No player to mentor yet.", mtPick: "Pick a player", mtOpen: "Player page →", mtWeekG: "Grind this week", mtWeekS: "Study this week",
+  mtReport: "His monthly review", mtNoReport: "The player has not written his review for this month yet.", mtNotes: "My review notes", mtNotesPh: "What we said, his strengths, what he works on this month…",
+  ckWkGrind: "Grind this week", ckWkStudy: "Study this week", ckStMonth: "this month",
+  fNote: "Note", fNoteHere: "Write a note here",
+  hcNoToday: "Nothing planned today.",
+  fTitle: "Folders", fTitle1: "Folder", fNew: "Folder", fSub: "Sub-folder", fAll: "All notes", fNone: "No folder", fMove: "Move to a folder", fNamePh: "e.g. SRP or BB vs BTN", fEmpty: "No note in this folder yet.", fStarter: "Add suggested folders", fDelAsk: "Delete the folder \"{f}\" and its sub-folders? Its notes stay, without a folder.",
+  stNotesT: "My study notes", stNotesN: "notes", stNewNote: "New note", stNewNoteSub: "Outside a session", stSearch: "Search my notes…", stNotePh: "What I worked on, what I learned, what to check next…", stNoNotes: "No note yet. Start a study session or write a note.",
   tabGrind: "Grind", tabStudy: "Study", tabCoach: "Coachings", stNew: "New card", stNewT: "New study card", stSit: "The spot", stSitPh: "e.g. BTN vs BB, single raised pot, K72r, villain checks turn",
   stConc: "My conclusion", stConcPh: "What I do and why", stShare: "Share with my team", stStart: "Start a study session", calendarT: "Calendar",
   gtoTip: "Copies the hand and opens GTO Wizard", gtoCopied: "Hand copied. In GTO Wizard: <b>Upload</b> (top right), <b>Cmd+V</b>, <b>Enter</b>.",
@@ -31,6 +40,15 @@ Object.assign(STRINGS.en, {
   hcUseTracked: "Use the tracked {t}", hcKeep: "Keep {w}",
 });
 Object.assign(STRINGS.fr, {
+  mtMine: "Mes bilans mensuels", mtMineSub: "Les retours de mon mentor", mtHasFb: "Retour du mentor ✓", mtNoFb: "Pas encore de retour", mtFb: "Le retour de mon mentor", mtFbNone: "Ton mentor n'a pas encore écrit son retour pour ce mois.",
+  mtMyReport: "Ce que j'ai écrit", mtNoMine: "Tu n'as pas encore écrit ton bilan pour ce mois.", mtWrite: "Écrire",
+  tabMentor: "Mentoring", mtMy: "Mes joueurs", mtNone: "Aucun joueur à mentorer pour l'instant.", mtPick: "Choisis un joueur", mtOpen: "Fiche joueur →", mtWeekG: "Grind cette semaine", mtWeekS: "Études cette semaine",
+  mtReport: "Son bilan du mois", mtNoReport: "Le joueur n'a pas encore écrit son bilan pour ce mois.", mtNotes: "Mes notes de bilan", mtNotesPh: "Ce qu'on s'est dit, ses points forts, ce qu'il travaille ce mois-ci…",
+  ckWkGrind: "Grind cette semaine", ckWkStudy: "Études cette semaine", ckStMonth: "ce mois",
+  fNote: "Note", fNoteHere: "Écrire une note ici",
+  hcNoToday: "Rien de prévu aujourd'hui.",
+  fTitle: "Dossiers", fTitle1: "Dossier", fNew: "Dossier", fSub: "Sous-dossier", fAll: "Toutes les notes", fNone: "Sans dossier", fMove: "Ranger dans un dossier", fNamePh: "ex. SRP ou BB vs BTN", fEmpty: "Pas encore de note dans ce dossier.", fStarter: "Ajouter les dossiers proposés", fDelAsk: "Supprimer le dossier \"{f}\" et ses sous-dossiers ? Ses notes restent, sans dossier.",
+  stNotesT: "Mes notes d'études", stNotesN: "notes", stNewNote: "Nouvelle note", stNewNoteSub: "Hors session", stSearch: "Chercher dans mes notes…", stNotePh: "Sur quoi j'ai bossé, ce que j'ai appris, ce que je dois revoir…", stNoNotes: "Pas encore de note. Lance une session d'études ou écris une note.",
   tabGrind: "Grind", tabStudy: "Études", tabCoach: "Coachings", stNew: "Nouvelle carte", stNewT: "Nouvelle carte d'étude", stSit: "Le spot", stSitPh: "ex. BTN vs BB, pot simple relancé, K72r, villain check le turn",
   stConc: "Ma conclusion", stConcPh: "Ce que je fais et pourquoi", stShare: "Partager avec mon équipe", stStart: "Lancer une session d'études", calendarT: "Calendrier",
   gtoTip: "Copie la main et ouvre GTO Wizard", gtoCopied: "Main copiée. Dans GTO Wizard : <b>Upload</b> (en haut à droite), <b>Cmd+V</b>, <b>Entrée</b>.",
@@ -251,7 +269,8 @@ async function viewLog() {
   const gLines = [gPlay ? `<span class="ck-gl">♠ <b>${fmtH(wkPlay)}</b> / ${gPlay} h</span>` : "", gHands ? `<span class="ck-gl">🃏 <b>${fmtNum(wkSum.hands)}</b> / ${fmtNum(gHands)}</span>` : "",
     ...wkGi.slice(0, 3).map((x, i) => `<label class="ck-gl ${x.startsWith("✓ ") ? "done" : ""}"><input type="checkbox" data-gtick="week|${wkLabel}|${i}" ${x.startsWith("✓ ") ? "checked" : ""}><span>${esc(x.replace(/^✓ /, ""))}</span></label>`),
     wkGi.length > 3 ? `<span class="ck-gl muted">+${wkGi.length - 3}</span>` : ""].filter(Boolean).join("");
-  const wkPanel = `<div class="ck-week"><div class="ck-wk-l"><span class="ck-eb">${t("hoursWeek")}</span>
+  const wkPanel = weekPanelHtml({ label: wkLabel, play: wkPlay, study: wkStudy, hands: wkSum.hands, target: wkT, wG, mode: "grind", nav: "#/log?" });
+  const wkPanelAll = `<div class="ck-week"><div class="ck-wk-l"><span class="ck-eb">${t("hoursWeek")}</span>
       <div class="ck-wk-nav"><a class="btn btn-sm" href="#/log?w=${wkPrev}" title="${t("ckPrevW")}">←</a><a class="ck-wk-t" href="#/log?w=${wkLabel}">${t("weekN")} ${isoWeekN(wkLabel)}</a>${wkNext <= T ? `<a class="btn btn-sm" href="#/log?w=${wkNext}" title="${t("ckNextW")}">→</a>` : `<span class="btn btn-sm ck-off">→</span>`}</div>
       <small>${fmtDay(wkLabel)} → ${fmtDay(addDays(6, new Date(wkLabel + "T12:00:00")))}</small></div>
     <div class="ck-bars"><div class="ck-tot"><span>⚡ ${t("ckWork")}</span><b>${fmtH(wkHrs)} <small>/ ${wkT} h</small></b></div>
@@ -273,7 +292,7 @@ async function viewLog() {
         <div class="ck-row">${stepper("min", 60, 15, 15, 3000)}${kind === "study" ? topicSel("wizard") : ""}<button class="btn btn-red">+ ${t("ckAddGo")}</button></div><p class="muted small">${t("ckWkSub")}</p></form>`;
     const wPanes = { grind: () => wAdd("grind"), study: () => wAdd("study"),
       hands: () => `<form class="ck-addf ck-hands" data-hands="${wd.join(",")}"><h4>🃏 ${t("hands")} · ${fmtWeek(sel.v)}</h4><div class="ck-row">${stepper("n", x.hands, 500, 0, 9999999, "n")}<button class="btn btn-red">${t("save")}</button></div><p class="muted small">${t("ckHandsSub")}</p></form>` };
-    mid = `<div class="ck-strip w2">${tile("grind", "♠", t("grindW"), fmtH(x.play))}${tile("study", "📚", t("studyW"), fmtH(x.study))}</div>
+    mid = `<div class="ck-strip w1">${tile("grind", "♠", t("grindW"), fmtH(x.play))}</div>
       ${wPanes[pane] && wd.length ? `<div class="card ck-pane">${wPanes[pane]()}</div>` : ""}
       ${rows(wd.map((d) => [`#/log?d=${d}`, longDay(d), { ...dayN(d), logged: dayN(d).j }, `<span>${dayN(d).mood ? MOODS[dayN(d).mood - 1] : ""}</span>`]))}
       ${stepsLink ? `<p class="row-btns">${stepsLink}</p>` : ""}`;
@@ -347,9 +366,8 @@ async function viewLog() {
     const written = (e.played || "").trim();
     const jTile = `<button type="button" class="ck-t ck-jt ${pane === "journal" ? "on" : ""}" data-pane="journal" title="${t("journalW")} · ${t("ckJournalSub")}" aria-label="${t("journalW")}">
         <span class="ck-nb"><i>${e.mood ? MOODS[e.mood - 1] : written ? "✓" : "✎"}</i>${written ? `<small>✓ ${t("ckWritten")}</small>` : ""}</span></button>`;
-    return `<div class="ck-strip w3">${tile("grind", "♠", t("grindW"), fmtH(Number(e.play_h || 0)))}
-        ${jTile}
-        ${tile("study", "📚", t("studyW"), fmtH(Number(e.study_h || 0)), t("ckStudyNotes"), `#/study?day=${d}`)}</div>
+    return `<div class="ck-strip w2">${tile("grind", "♠", t("grindW"), fmtH(Number(e.play_h || 0)))}
+        ${jTile}</div>
       ${panes[pane] ? `<div class="card ck-pane ${pane === "journal" ? "ck-jpane" : ""}">${panes[pane]()}</div>` : ""}`;
   }
   function topicSel(cur) { return `<label>${t("topicL")} <select name="topic">${Object.keys(TOPICS).map((k) => `<option value="${k}" ${k === cur ? "selected" : ""}>${TOPICS[k].icon} ${t("topic_" + k)}</option>`).join("")}</select></label>`; }
@@ -442,6 +460,41 @@ async function viewLog() {
 
 /* Week goals (Alexis 2026-11-03): play hours, hands, and any goal in words, all optional. Shown at the top right of the Cockpit.
    ask: the new-week question (first login of the week, or Sunday evening if the player chose it). */
+/* One week panel (Alexis 2026-11-03): the whole week on Home (grind + study on one bar, week goals), grind only on Grind, study only on Études.
+   o: label (Monday), play, study, hands, target (week hours), wG (week goal), mode "all" | "grind" | "study", nav ("#/log?" for week arrows, or null) */
+function weekPanelHtml(o) {
+  const T = today(), L = o.label, prev = addDays(-7, new Date(L + "T12:00:00")), next = addDays(7, new Date(L + "T12:00:00"));
+  const wkN = `${t("weekN")} ${isoWeekN(L)}`, gP = Number(o.wG?.play_h_target || 0), gH = Number(o.wG?.hands_target || 0), gS = Number(o.wG?.study_h_target || 0);
+  const nav = o.nav ? `<a class="btn btn-sm" href="${o.nav}w=${prev}" title="${t("ckPrevW")}">←</a><a class="ck-wk-t" href="${o.nav}w=${L}">${wkN}</a>${next <= T ? `<a class="btn btn-sm" href="${o.nav}w=${next}" title="${t("ckNextW")}">→</a>` : `<span class="btn btn-sm ck-off">→</span>`}`
+    : `<span class="ck-wk-t">${wkN}</span>`;
+  const eb = { all: "hoursWeek", grind: "ckWkGrind", study: "ckWkStudy" }[o.mode];
+  const left = `<div class="ck-wk-l"><span class="ck-eb">${t(eb)}</span><div class="ck-wk-nav">${nav}</div><small>${fmtDay(L)} → ${fmtDay(addDays(6, new Date(L + "T12:00:00")))}</small></div>`;
+  const pc = (v, max) => Math.min(100, max ? (v / max) * 100 : 0);
+  if (o.mode === "grind") { const tg = gP || o.target;
+    return `<div class="ck-week ck-one">${left}<div class="ck-bars"><div class="ck-tot"><span>♠ ${t("grindW")}</span><b>${fmtH(o.play)} <small>/ ${tg} h</small></b></div>
+      <div class="ck-track ck-stack"><i class="g" style="width:${pc(o.play, tg)}%"></i></div>
+      <div class="ck-key"><span>🃏 ${t("hands")} <b>${fmtNum(o.hands)}</b>${gH ? ` / ${fmtNum(gH)}` : ""}</span></div></div></div>`; }
+  if (o.mode === "study") { const tg = gS || null;
+    return `<div class="ck-week ck-one">${left}<div class="ck-bars"><div class="ck-tot"><span>📚 ${t("studyW")}</span><b>${fmtH(o.study)}${tg ? ` <small>/ ${tg} h</small>` : ""}</b></div>
+      ${tg ? `<div class="ck-track ck-stack"><i class="s" style="width:${pc(o.study, tg)}%"></i></div>` : ""}
+      <div class="ck-key"><span>${o.extra || ""}</span></div></div></div>`; }
+  const gi = o.wG?.items || [], pG = pc(o.play, o.target), pS = Math.min(100 - pG, pc(o.study, o.target));
+  const lines = [gP ? `<span class="ck-gl">♠ <b>${fmtH(o.play)}</b> / ${gP} h</span>` : "", gH ? `<span class="ck-gl">🃏 <b>${fmtNum(o.hands)}</b> / ${fmtNum(gH)}</span>` : "",
+    ...gi.slice(0, 3).map((x, i) => `<label class="ck-gl ${x.startsWith("✓ ") ? "done" : ""}"><input type="checkbox" data-wgtick="${i}" ${x.startsWith("✓ ") ? "checked" : ""}><span>${esc(x.replace(/^✓ /, ""))}</span></label>`),
+    gi.length > 3 ? `<span class="ck-gl muted">+${gi.length - 3}</span>` : ""].filter(Boolean).join("");
+  return `<div class="ck-week">${left}
+    <div class="ck-bars"><div class="ck-tot"><span>⚡ ${t("ckWork")}</span><b>${fmtH(o.play + o.study)} <small>/ ${o.target} h</small></b></div>
+      <div class="ck-track ck-stack"><i class="g" style="width:${pG}%"></i><i class="s" style="width:${pS}%"></i></div>
+      <div class="ck-key"><span><i class="g"></i>♠ ${t("grindW")} <b>${fmtH(o.play)}</b></span><span><i class="s"></i>📚 ${t("studyW")} <b>${fmtH(o.study)}</b></span></div></div>
+    <div class="ck-wk-g"><button type="button" class="ck-gh" id="wpgoals">🎯 ${t("ckWeekGoals")} <span>✎</span></button>${lines || `<button type="button" class="ck-gl ck-gset" data-wpgopen>+ ${t("ckGSet")}</button>`}</div></div>`;
+}
+function bindWeekPanel(label, wG) {
+  $$("#wpgoals, [data-wpgopen]").forEach((b) => b.onclick = () => openWeekGoals(label, wG, false));
+  $$("[data-wgtick]").forEach((cb) => cb.onchange = async () => {
+    const items = [...(wG?.items || [])], i = +cb.dataset.wgtick; items[i] = (cb.checked ? "✓ " : "") + items[i].replace(/^✓ /, ""); cb.disabled = true;
+    await db.saveGoal({ player_id: ME.id, period: "week", label, status: wG?.status || "proposed", items, play_h_target: wG?.play_h_target ?? null, hands_target: wG?.hands_target ?? null }); route();
+  });
+}
 function openWeekGoals(label, g, ask) {
   let dl = $("#wgoalsd");
   if (!dl) { dl = document.createElement("dialog"); dl.id = "wgoalsd"; dl.className = "card"; document.body.appendChild(dl); }

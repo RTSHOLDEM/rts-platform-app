@@ -181,14 +181,14 @@ async function viewHome() {
   // Home (Alexis 2026-11-03): calendar on the left, the two ways to start working in the middle with my last sessions under each
   // (click one to add to it in the Cockpit), the HQ map small on the right (⤢ opens it big). No online list, no chat: talk is on Discord.
   const dayL = (d) => { const s = d === today() ? t("today") : fmtDay(d); return s[0].toUpperCase() + s.slice(1); };
-  const calDays = [...new Set(coming.map((e) => e.starts_at.slice(0, 10)))].slice(0, 6);
-  const cal = `<aside class="hcal card"><a class="card-head hc-head" href="#/calendar"><h3>📅 ${t("calendar")}</h3><span class="small-link">${t("hbCkOpen")} →</span></a>
-      <div class="hc-list">${calDays.map((d) => `<p class="hc-day">${dayL(d)}</p>${coming.filter((e) => e.starts_at.slice(0, 10) === d).map((e) => { const on = e.starts_at <= now;
+  const calDays = coming.some((e) => e.starts_at.slice(0, 10) === today()) ? [today()] : []; // today only (Alexis 2026-11-03)
+  const cal = `<aside class="hcal card"><a class="card-head hc-head" href="#/calendar"><h3>📅 ${dayL(today())}</h3><span class="small-link">${t("hbCkOpen")} →</span></a>
+      <div class="hc-list">${calDays.map((d) => `${coming.filter((e) => e.starts_at.slice(0, 10) === d).map((e) => { const on = e.starts_at <= now;
         return `<a class="hc-ev ${on ? "live" : ""}" href="${e.link ? esc(e.link) : "#/calendar"}" ${e.link ? 'target="_blank" rel="noopener"' : ""}><span class="hc-t">${hhmm(e.starts_at)}</span>
-          <span class="hc-b"><b>${KIND_ICON[e.kind] || ""} ${esc(evTitle(e))}</b><small>${on ? t("liveNow") + " · " : ""}${dur(Number(e.minutes || 60))}${e.link ? " · " + t("join") + " →" : ""}</small></span></a>`; }).join("")}`).join("") || `<p class="muted small">${t("noEvents")}</p>`}</div></aside>`;
+          <span class="hc-b"><b>${KIND_ICON[e.kind] || ""} ${esc(evTitle(e))}</b><small>${on ? t("liveNow") + " · " : ""}${dur(Number(e.minutes || 60))}${e.link ? " · " + t("join") + " →" : ""}</small></span></a>`; }).join("")}`).join("") || `<p class="muted small">${t("hcNoToday")}</p>`}</div></aside>`;
   // Home (Alexis 2026-11-03): HQ, this week's goals, start a grind or study session, the calendar. No news.
   const wkL = mondayOf(today()), wG = wq.find((x) => x.period === "week" && x.label === wkL), wkDays = mine.filter((e) => e.day >= wkL);
-  const wPlay = wkDays.reduce((a, e) => a + Number(e.play_h || 0), 0), wHands = wkDays.reduce((a, e) => a + Number(e.hands || 0), 0);
+  const wStudy = wkDays.reduce((a, e) => a + Number(e.study_h || 0), 0), wPlay = wkDays.reduce((a, e) => a + Number(e.play_h || 0), 0), wHands = wkDays.reduce((a, e) => a + Number(e.hands || 0), 0);
   const gP = Number(wG?.play_h_target || 0), gH = Number(wG?.hands_target || 0), gItems = wG?.items || [];
   const gBar = (v, max) => `<span class="hg-bar"><i style="width:${Math.min(100, max ? (v / max) * 100 : 0)}%"></i></span>`;
   const goalsBox = `<button type="button" class="card hgoals" id="hgoals" title="${t("ckGTitle")}"><span class="hg-head"><b>🎯 ${t("ckGTitle")}</b><small>${t("weekN")} ${isoWeekN(wkL)} ✎</small></span>
@@ -201,17 +201,16 @@ async function viewHome() {
         <b>${dayL(x.started_at.slice(0, 10))}</b><span>${hhmm(x.started_at)} · ${dur(Number(x.minutes || 0))}${kind === "study" && TOPICS[x.topic] ? " · " + TOPICS[x.topic].icon + " " + t("topic_" + x.topic) : ""}</span><i>✎</i></a>`).join("") || `<p class="muted small">${t("hsNone")}</p>`}</div>`; };
   const startBox = `${SES.s ? `<a class="hs-live" href="#/session">${KIND_ICON[SES.s.kind]} ${t("hsLive")} · <b>${t("backCockpit")} →</b></a>` : `<span class="eyebrow">${t("hsReady")}</span>`}<h2 class="hs-title">${t("hsTitle")}</h2>
       <div class="hs-btns"><div class="hs-col"><button type="button" class="hs-btn grind" data-hsgo="grind"><span>♠</span><b>${t("hsGrind")}</b><small>${t("hsGrindSub")}</small></button></div>
-        <div class="hs-col"><button type="button" class="hs-btn study" data-hsgo="study"><span>📚</span><b>${t("hsStudy")}</b><small>${t("hsStudySub")}</small></button></div></div>
-      ${goalsBox}`;
+        <div class="hs-col"><button type="button" class="hs-btn study" data-hsgo="study"><span>📚</span><b>${t("hsStudy")}</b><small>${t("hsStudySub")}</small></button></div></div>`;
   $("#main").innerHTML = `
     <div class="home1">
       <section class="hbanner card">
         <a class="hb-me" href="#/hero" title="${t("charLink")}">${avatarSvg({ skin: g ? mySkin(ME, g) : "rookie", av: ME.avatar }, 46, "idle")}
           <span><b>${nm({ name: ME.nick || ME.name })}</b>${g ? `<small><span class="lvl-badge">${g.level}</span> ${esc(teamOf(ME).label)}</small><span class="xpbar"><i style="width:${(g.into / g.need) * 100}%"></i></span>` : ""}</span></a>
-        <a class="hb-grind" href="#/log">
+        ${player ? weekPanelHtml({ label: wkL, play: wPlay, study: wStudy, hands: wHands, target: target || weekTarget(ME), wG, mode: "all", nav: null }) : `<a class="hb-grind" href="#/log">
           <span class="hb-top"><span class="hb-ck">🧭 ${t("hbCk")} <small>· ${t("hqWeekGrind")}</small></span><b class="hb-num">${fmtH(wk)}${target ? ` <small>/ ${target} h</small>` : ""}</b></span>
           ${target ? `<span class="hb-bar"><i style="width:${pct}%"></i></span>` : ""}
-          ${extra ? `<span class="hb-stats">${extra}<span class="hb-open">${t("hbCkOpen")} →</span></span>` : ""}</a>
+          ${extra ? `<span class="hb-stats">${extra}<span class="hb-open">${t("hbCkOpen")} →</span></span>` : ""}</a>`}
       </section>
       <div class="hmain ${mapBig ? "map-big" : ""}">
         ${cal}
@@ -227,7 +226,7 @@ async function viewHome() {
     el.style.height = Math.max(380, bottom - el.getBoundingClientRect().top) + "px";
   };
   fit(); addEventListener("resize", fit);
-  $("#hgoals")?.addEventListener("click", () => openWeekGoals(wkL, wG, false));
+  if (player) bindWeekPanel(wkL, wG); // the whole week sits on Home: one bar grind + study, the week goals (Alexis 2026-11-03)
   $$("[data-ckpane]").forEach((a) => a.onclick = () => { try { sessionStorage.setItem("ck-pane", a.dataset.ckpane); } catch {} });
   $$("[data-hsgo]").forEach((b) => b.onclick = () => (SES.s ? (location.hash = "#/session") : askDuration(b.dataset.hsgo))); // the session may have loaded after this page
   $("#hqzoom").onclick = () => {
@@ -553,7 +552,96 @@ function parseStudy(raw, name = "") {
   return out;
 }
 
+// Études = note taking for now (Alexis 2026-11-03: "avant de mettre des cartes, juste des prises de notes; les cartes viendront").
+// Every note is a study session's notes; a note written outside a session is a 0 min study entry, so hours never change.
+// Set SHOW_CARDS true to bring back the strategy map and the cards.
+const SHOW_CARDS = false;
+async function viewStudyNotes() {
+  const q = Object.fromEntries(new URLSearchParams(location.hash.split("?")[1] || ""));
+  const href = (o) => { const p = new URLSearchParams(Object.entries({ ...q, ...o }).filter(([, v]) => v)); return "#/study" + (p.toString() ? "?" + p : ""); };
+  const wkL = mondayOf(today());
+  const [sess, saved, jr, wq] = await Promise.all([db.sessions(ME.id, daysAgo(365)), db.folders().catch(() => []), db.journal(ME.id, wkL).catch(() => []), db.weekGoals(ME.id).catch(() => [])]);
+  const all = sess.filter((s) => s.kind === "study" && s.ended_at).sort((a, b) => (a.started_at < b.started_at ? 1 : -1));
+  // Folders (Alexis 2026-11-03): the player's own tree, any depth ("SRP/BB vs BTN"). A folder used by a note shows even if it was never saved.
+  const paths = [...new Set([...saved, ...all.map((s) => s.folder).filter(Boolean)].flatMap((p) => p.split("/").map((_, i, a) => a.slice(0, i + 1).join("/"))))].sort((a, b) => a.localeCompare(b, "fr"));
+  const inF = (s, f) => f === "~" ? !s.folder : !f || s.folder === f || (s.folder || "").startsWith(f + "/");
+  const list = all.filter((s) => inF(s, q.f) && (!q.day || s.started_at.slice(0, 10) === q.day));
+  const hours = all.filter((s) => s.started_at >= monthStart()).reduce((a, s) => a + Number(s.minutes || 0), 0) / 60;
+  const written = all.filter((s) => (s.notes || "").trim()).length;
+  const byDay = {}; list.forEach((s) => (byDay[s.started_at.slice(0, 10)] ||= []).push(s));
+  const dayL = (d) => { const s = d === today() ? t("today") : longDay(d); return s[0].toUpperCase() + s.slice(1); };
+  const topicOpts = (cur) => Object.keys(TOPICS).map((k) => `<option value="${k}" ${k === cur ? "selected" : ""}>${TOPICS[k].icon} ${t("topic_" + k)}</option>`).join("");
+  const leaf = (p) => p.split("/").pop(), depth = (p) => p.split("/").length - 1;
+  const fOpts = (cur) => `<option value="">📥 ${t("fNone")}</option>` + paths.map((p) => `<option value="${esc(p)}" ${p === cur ? "selected" : ""}>${"  ".repeat(depth(p))}📁 ${esc(leaf(p))}</option>`).join("");
+  const n = (f) => all.filter((s) => inF(s, f)).length;
+  const node = (p) => { const kids = paths.filter((x) => x.startsWith(p + "/") && depth(x) === depth(p) + 1);
+    const row = `<span class="fd-row ${q.f === p ? "on" : ""}"><a href="${href({ f: p, day: "" })}">📁 ${esc(leaf(p))} <small>${n(p)}</small></a>
+      <button type="button" class="fd-b" data-fnote="${esc(p)}" title="${t("fNoteHere")}">✎</button><button type="button" class="fd-b" data-fadd="${esc(p)}" title="${t("fSub")}">+</button><button type="button" class="fd-b" data-fdel="${esc(p)}" title="${t("del")}">×</button></span>`;
+    return kids.length ? `<details open><summary>${row}</summary><div class="fd-kids">${kids.map(node).join("")}</div></details>` : `<div class="fd-leaf">${row}</div>`; };
+  const tree = `<nav class="card fd-tree"><div class="card-head"><h3>${t("fTitle")}</h3><small class="muted">${fmtH(hours)} · ${written} ${t("stNotesN")}</small></div>
+      <div class="fd-acts"><button type="button" class="btn btn-sm btn-ghost-red" data-fadd="">+ ${t("fNew")}</button><button type="button" class="btn btn-sm btn-red" data-fnote="${q.f && q.f !== "~" ? esc(q.f) : ""}">✎ ${t("fNote")}</button></div>
+      <span class="fd-row ${!q.f ? "on" : ""}"><a href="${href({ f: "", day: "" })}">📒 ${t("fAll")} <small>${all.length}</small></a></span>
+      <span class="fd-row ${q.f === "~" ? "on" : ""}"><a href="${href({ f: "~", day: "" })}">📥 ${t("fNone")} <small>${n("~")}</small></a></span>
+      <div class="fd-list">${paths.filter((p) => !p.includes("/")).map(node).join("")}
+        ${paths.length ? "" : `<button type="button" class="fd-starter" id="fstarter">✨ ${t("fStarter")}<small>SRP › BB vs BTN, 3BP, 4BP, Preflop…</small></button>`}</div></nav>`;
+  const where = q.f === "~" ? t("fNone") : q.f ? q.f.split("/").join(" › ") : "";
+  // the study start button sits where the poker button sits on Grind: centred on top, same size (Alexis 2026-11-03)
+  const wkStudy = jr.filter((e) => e.day >= wkL).reduce((a, e) => a + Number(e.study_h || 0), 0);
+  const stPanel = weekPanelHtml({ label: wkL, play: 0, study: wkStudy, hands: 0, target: 0, wG: wq.find((x) => x.period === "week" && x.label === wkL), mode: "study", nav: null,
+    extra: `${t("ckStMonth")} <b>${fmtH(hours)}</b> · ${written} ${t("stNotesN")}` });
+  $("#main").innerHTML = `${stPanel}<div class="ck-start st-start">${SES.s ? `<a class="hs-live" href="#/session">${KIND_ICON[SES.s.kind]} ${t("hsLive")} · <b>${t("backCockpit")} →</b></a>` : `<button type="button" class="hs-btn study" data-stgo><span>📚</span><b>${t("hsStudy")}</b><small>${t("hsStudySub")}</small></button>`}</div>
+    <div class="sn-grid">${tree}
+      <div class="sn-main"><div class="card sn-bar"><input type="search" id="nq" placeholder="${t("stSearch")}">${where ? `<span class="tagchip on">📁 ${esc(where)}</span>` : ""}${q.day ? `<span class="tagchip on">${dayL(q.day)}</span>` : ""}${where || q.day ? `<a class="small-link" href="#/study">✕ ${t("resDayAll")}</a>` : ""}</div>
+      <div class="sn-list res-scroll">${Object.entries(byDay).map(([d, l]) => `<section class="sn-day"><p class="sub">${dayL(d)}</p>
+        ${l.map((s) => `<article class="card sn-note" data-txt="${esc(((s.notes || "") + " " + (s.folder || "") + " " + (TOPICS[s.topic] ? t("topic_" + s.topic) : "")).toLowerCase())}">
+          <div class="sn-h"><b>${hhmm(s.started_at)}${Number(s.minutes) ? " · " + dur(Number(s.minutes)) : ""}${TOPICS[s.topic] ? ` · ${TOPICS[s.topic].icon} ${t("topic_" + s.topic)}` : ""}</b>
+            <span class="sn-r"><small class="saved" data-ok="${s.id}"></small><select class="sn-f" data-mv="${s.id}" title="${t("fMove")}">${fOpts(s.folder || "")}</select></span></div>
+          <textarea class="sensitive" rows="${Math.min(10, Math.max(2, (s.notes || "").split("\n").length + 1))}" data-note="${s.id}" placeholder="${t("stNotePh")}">${esc(s.notes || "")}</textarea></article>`).join("")}</section>`).join("")
+        || `<div class="card empty-note"><p class="muted">${q.f ? t("fEmpty") : t("stNoNotes")}</p>${q.f && q.f !== "~" ? `<button type="button" class="btn btn-red" data-fnote="${esc(q.f)}">✎ ${t("fNoteHere")}</button>` : ""}</div>`}</div></div></div>
+    <dialog id="nnewd" class="card"><form id="nnewf"><div class="card-head"><h3>✎ ${t("stNewNote")}</h3><button class="x" type="button" data-nx>×</button></div>
+      <div class="goals-grid two"><label>${t("fTitle1")}<select name="folder">${fOpts(q.f && q.f !== "~" ? q.f : "")}</select></label><label>${t("topicL")}<select name="topic">${topicOpts("wizard")}</select></label></div>
+      <textarea name="notes" rows="8" required placeholder="${t("stNotePh")}"></textarea>
+      <div class="btns"><button class="btn btn-red" type="submit">${t("save")}</button></div></form></dialog>
+    <dialog id="fdlg" class="card"><form id="fform"><div class="card-head"><h3>📁 <span id="fdt"></span></h3><button class="x" type="button" data-fx>×</button></div>
+      <input name="name" required maxlength="60" placeholder="${t("fNamePh")}" autocomplete="off">
+      <div class="btns"><button class="btn btn-red" type="submit">${t("save")}</button></div></form></dialog>`;
+  fitToDock(".res-scroll"); fitToDock(".fd-list");
+  $("[data-stgo]")?.addEventListener("click", () => (SES.s ? (location.hash = "#/session") : askDuration("study")));
+  // a note can be started from anywhere in the tree: "✎ Note" at the top (current folder), ✎ on a folder, or the empty folder button
+  const newNote = (folder) => { const f = $("#nnewf"); f.reset(); f.folder.value = folder || ""; $("#nnewd").showModal(); f.notes.focus(); };
+  $$("[data-fnote]").forEach((b) => b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); newNote(b.dataset.fnote); });
+  $("[data-nx]").onclick = () => $("#nnewd").close();
+  $("#nnewf").onsubmit = async (e) => {
+    e.preventDefault(); const f = new FormData(e.target), at = new Date().toISOString();
+    await db.addSession({ kind: "study", started_at: at, ended_at: at, minutes: 0, topic: f.get("topic"), folder: f.get("folder") || null, notes: f.get("notes").trim() });
+    $("#nnewd").close(); route();
+  };
+  $$("[data-note]").forEach((ta) => ta.onchange = async () => {
+    const ok = $(`[data-ok="${ta.dataset.note}"]`); ok.textContent = "…";
+    try { await db.saveSession({ id: ta.dataset.note, notes: ta.value.trim() }); ok.textContent = t("saved"); } catch (err) { ok.textContent = err.message; }
+  });
+  $$("[data-mv]").forEach((sel) => sel.onchange = async () => { await db.saveSession({ id: sel.dataset.mv, folder: sel.value || null }); route(); });
+  // folders: "+ Dossier" at the top, "+" on a folder makes a sub-folder, "×" removes the folder and its sub-folders (their notes go to "No folder")
+  let parent = "";
+  $$("[data-fadd]").forEach((b) => b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); parent = b.dataset.fadd;
+    $("#fdt").textContent = parent ? `${t("fSub")} · ${parent.split("/").join(" › ")}` : t("fNew"); $("#fform").reset(); $("#fdlg").showModal(); });
+  $("[data-fx]").onclick = () => $("#fdlg").close();
+  $("#fform").onsubmit = async (e) => {
+    e.preventDefault(); const name = new FormData(e.target).get("name").replace(/\//g, "-").trim(); if (!name) return;
+    const path = parent ? parent + "/" + name : name;
+    await db.addFolders([path]); $("#fdlg").close(); location.hash = href({ f: path, day: "" });
+  };
+  $$("[data-fdel]").forEach((b) => b.onclick = async (e) => { e.preventDefault(); e.stopPropagation();
+    if (!confirm(t("fDelAsk").replace("{f}", b.dataset.fdel))) return;
+    await db.dropFolder(b.dataset.fdel); location.hash = href({ f: "", day: "" }); route(); });
+  $("#fstarter")?.addEventListener("click", async () => {
+    await db.addFolders(["Preflop", "SRP", "SRP/BTN vs BB", "SRP/BB vs BTN", "SRP/CO vs BB", "SRP/SB vs BB", "3BP", "3BP/BB vs BTN", "3BP/SB vs BTN", "3BP/BTN vs CO", "4BP", "Multiway"]); route(); });
+  $("#nq").oninput = (e) => { const w = e.target.value.trim().toLowerCase();
+    $$(".sn-note").forEach((nt) => nt.hidden = !!w && !nt.dataset.txt.includes(w) && !nt.querySelector("textarea").value.toLowerCase().includes(w));
+    $$(".sn-day").forEach((d) => d.hidden = !d.querySelector(".sn-note:not([hidden])")); };
+}
 async function viewStudy() {
+  if (!SHOW_CARDS) return viewStudyNotes();
   const q = Object.fromEntries(new URLSearchParams(location.hash.split("?")[1] || ""));
   const href = (o) => { const p = new URLSearchParams(Object.entries({ ...q, ...o }).filter(([, v]) => v)); return "#/study" + (p.toString() ? "?" + p : ""); };
   const [sessions, cards, sits] = await Promise.all([db.sessions(ME.id, daysAgo(120)), db.cards(), db.situations().catch(() => [])]);
@@ -1245,6 +1333,8 @@ function replayRow(c, attended) {
 
 /* Same rule as the database (006_team_scope.sql), so Direction in player view sees exactly what a player sees. */
 const myCoaching = (c) => { const l = (c.team_label || "").toLowerCase(); return !has(ME, "player") || isStaff() || l === ME.team_id || (!l && (c.teams || []).includes(ME.team)) || (ME.team === "elite" && ["academy", "challenger"].includes(l)); };
+// Quizzes hidden for now (Alexis 2026-11-03: "uniquement coachings, les quiz on verra plus tard"). Set true to bring them back.
+const SHOW_QUIZ = false;
 async function viewCoaching() {
   const [csAll, att, qz] = await Promise.all([db.coachings(), db.attendance(ME.id), db.quizzes()]);
   const cs = csAll.filter(myCoaching);
@@ -1270,7 +1360,7 @@ async function viewCoaching() {
       </div>
     </div>
     <div class="res-scroll">
-    ${qz.length ? `<details class="card quizbox" open><summary><b>${t("quizzes")}</b> <span class="muted small">${qz.length}</span> <a class="btn btn-sm btn-ghost-red" href="#/review">${t("review")}</a></summary>
+    ${SHOW_QUIZ && qz.length ? `<details class="card quizbox" open><summary><b>${t("quizzes")}</b> <span class="muted small">${qz.length}</span> <a class="btn btn-sm btn-ghost-red" href="#/review">${t("review")}</a></summary>
       <div class="list">${qz.map((x) => `<a class="card row-link" href="#/quiz/${x.id}"><span class="date">${esc(x.module || "")}</span><b>${esc(x.title)}</b>${x.status === "draft" ? `<span class="tag warn">${t("pendingApproval")}</span>` : `<span class="tag ok">${t("live")}</span>`}</a>`).join("")}</div></details>` : ""}
     ${Object.entries(byMonth).map(([m, l]) => `<p class="sub">${fmtMonth(m)}</p><div class="list">${l.map((c) => replayRow(c, att.includes(c.id))).join("")}</div>`).join("") || empty(t("noCoaching"))}</div>`;
   fitToDock(".res-scroll");
@@ -1611,6 +1701,76 @@ async function viewAccount() {
 }
 
 /* ---------- staff: team dashboard ---------- */
+/* ---------- Mentoring (Alexis 2026-11-03): a mentor clicks one of his players, sees his numbers and writes his notes of the monthly review ----------
+   #/mentoring?p=ID&m=YYYY-MM-01   left: my players with a status dot, right: that player's week + review month, his own review, my review notes (autosave). */
+async function viewMentoring() {
+  const q = Object.fromEntries(new URLSearchParams(location.hash.split("?")[1] || ""));
+  if (!(has(ME, "mentor") || isAdmin()) || q.me) return viewMyReviews(q);
+  const href = (o) => "#/mentoring?" + new URLSearchParams(Object.entries({ ...q, ...o }).filter(([, v]) => v));
+  const mine = VISIBLE.filter((p) => p.id !== ME.id && has(p, "player") && p.active !== false && p.mentor_id === ME.id);
+  const players = (mine.length || !isAdmin() ? mine : VISIBLE.filter((p) => p.id !== ME.id && has(p, "player") && p.active !== false && coachesPlayer(p))).sort((a, b) => nm(a).localeCompare(nm(b)));
+  // the monthly review is about the month that just ended until mid-month, then about the current one
+  const months = [0, 1, 2, 3, 4, 5].map((i) => { const d = new Date(); return iso(new Date(Date.UTC(d.getFullYear(), d.getMonth() - i, 1))); });
+  const month = q.m || (new Date().getDate() <= 15 ? prevMonthStart() : monthStart());
+  const all = await db.journalAll(daysAgo(400));
+  const sel = players.find((p) => p.id === q.p) || players[0];
+  const rows = players.map((p) => { const s = stats(all.filter((e) => e.player_id === p.id), p), d = dot(s, p);
+    return `<a class="mt-p ${sel && p.id === sel.id ? "on" : ""}" href="${href({ p: p.id })}"><span class="dot ${d}"></span><span class="mt-n"><b>${nm(p)}</b><small>${esc(teamOf(p).label || "")} · ${fmtNum(s.hands)} / ${fmtNum(s.handsTarget)}</small></span></a>`; }).join("");
+  let detail = `<div class="card mt-empty"><p class="muted">${players.length ? t("mtPick") : t("mtNone")}</p></div>`;
+  if (sel) {
+    const [r, gl] = await Promise.all([db.report(sel.id, month).catch(() => null), db.goals(sel.id).catch(() => [])]);
+    sel._goal = gl.find((g) => g.label === monthStart());
+    const ent = all.filter((e) => e.player_id === sel.id), s = stats(ent, sel), wk = weekStart(), mEnd = iso(new Date(Date.UTC(+month.slice(0, 4), +month.slice(5, 7), 1)));
+    const sum = (l, k) => l.reduce((a, e) => a + Number(e[k] || 0), 0), w = ent.filter((e) => e.day >= wk), m = ent.filter((e) => e.day >= month && e.day < mEnd);
+    const mGoal = gl.find((g) => g.label === month), mT = mGoal?.hands_target || teamOf(sel).month_hands;
+    const tile = (label, val, sub = "") => `<div class="card mt-t"><span>${label}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ""}</div>`;
+    const rep = (k, l) => r?.[k] ? `<div class="mt-r"><span>${l}</span><p class="sensitive">${esc(String(r[k]))}</p></div>` : "";
+    const own = [rep("rating", t("rating")), rep("wins", t("wins")), rep("struggles", t("struggles")), rep("next_focus", t("nextFocus"))].join("");
+    detail = `<div class="mt-d">
+      <div class="mt-head"><h2>${nm(sel)} <small class="muted">${esc(teamOf(sel).label || "")}${sel.stakes ? " · " + esc(sel.stakes) : ""}</small></h2><a class="small-link" href="#/p/${sel.id}/overview">${t("mtOpen")}</a></div>
+      <div class="mt-tiles">${tile("♠ " + t("mtWeekG"), fmtH(sum(w, "play_h")))}${tile("📚 " + t("mtWeekS"), fmtH(sum(w, "study_h")))}
+        ${tile("🃏 " + fmtMonth(month), fmtNum(sum(m, "hands")), `/ ${fmtNum(mT)} · ${fmtH(sum(m, "play_h") + sum(m, "study_h"))}`)}${tile("🔥 " + t("streak"), `${s.streak} ${t("days")}`, s.last ? `${t("lastJournal")} : ${s.last === today() ? t("today") : fmtDay(s.last)}` : t("never"))}</div>
+      <div class="mt-cols">
+        <div class="card mt-own"><div class="card-head"><h3>${t("mtReport")}</h3><select id="mtm">${months.map((x) => `<option value="${x}" ${x === month ? "selected" : ""}>${fmtMonth(x)}</option>`).join("")}</select></div>
+          ${own || `<p class="muted small">${t("mtNoReport")}</p>`}</div>
+        <form class="card mt-notes" id="mtf"><div class="card-head"><h3>✎ ${t("mtNotes")} · ${fmtMonth(month)}</h3><small class="saved" id="mtok"></small></div>
+          <textarea name="mentor_note" class="sensitive" placeholder="${t("mtNotesPh")}">${esc(r?.mentor_note || "")}</textarea></form>
+      </div></div>`;
+  }
+  const meLink = ME.mentor_id ? `<a class="mt-p mt-me" href="#/mentoring?me=1"><span>📒</span><span class="mt-n"><b>${t("mtMine")}</b><small>${t("mtMineSub")}</small></span></a>` : "";
+  $("#main").innerHTML = `<div class="mt-grid"><nav class="card mt-list"><div class="card-head"><h3>🤝 ${t("mtMy")}</h3><small class="muted">${players.length}</small></div>${rows || ""}${meLink}</nav>${detail}</div>`;
+  fitToDock(".mt-grid");
+  $("#mtm")?.addEventListener("change", (e) => (location.hash = href({ m: e.target.value })));
+  const ta = $("#mtf textarea");
+  if (ta) { let tm = null;
+    const save = async () => { $("#mtok").textContent = "…";
+      try { await db.saveReport({ player_id: sel.id, month, mentor_note: ta.value }); $("#mtok").textContent = t("saved"); } catch (err) { $("#mtok").textContent = err.message; } };
+    ta.oninput = () => { clearTimeout(tm); $("#mtok").textContent = ""; tm = setTimeout(save, 900); }; // saves while the mentor types, no button
+    ta.onblur = () => { if (tm) { clearTimeout(tm); tm = null; save(); } };
+  }
+}
+
+/* Player side of Mentoring (Alexis 2026-11-03): every monthly review, the mentor's feedback first, then what the player wrote. */
+async function viewMyReviews(q) {
+  const mentor = person(ME.mentor_id), reps = await db.reports(ME.id).catch(() => []);
+  const months = [...new Set([monthStart(), prevMonthStart(), ...reps.map((r) => r.month)])].sort().reverse();
+  const by = Object.fromEntries(reps.map((r) => [r.month, r]));
+  const month = q.m || months.find((m) => (by[m]?.mentor_note || "").trim()) || prevMonthStart();
+  const r = by[month];
+  const rep = (k, l) => r?.[k] ? `<div class="mt-r"><span>${l}</span><p class="sensitive">${esc(String(r[k]))}</p></div>` : "";
+  const own = [rep("rating", t("rating")), rep("wins", t("wins")), rep("struggles", t("struggles")), rep("next_focus", t("nextFocus"))].join("");
+  const list = months.map((m) => { const fb = (by[m]?.mentor_note || "").trim();
+    return `<a class="mt-p ${m === month ? "on" : ""}" href="#/mentoring?${new URLSearchParams({ ...(q.me ? { me: 1 } : {}), m })}"><span class="dot ${fb ? "green" : "grey"}"></span><span class="mt-n"><b>${fmtMonth(m)}</b><small>${fb ? t("mtHasFb") : t("mtNoFb")}</small></span></a>`; }).join("");
+  $("#main").innerHTML = `<div class="mt-grid"><nav class="card mt-list"><div class="card-head"><h3>📒 ${t("mtMine")}</h3></div>${list}
+      ${q.me ? `<a class="small-link" href="#/mentoring">← ${t("mtMy")}</a>` : ""}</nav>
+    <div class="mt-d mt-d2"><div class="mt-head"><h2>${fmtMonth(month)}</h2>${mentor ? `<span class="muted">${t("mentor")} : <b>${nm(mentor)}</b></span>` : ""}</div>
+      <div class="mt-cols">
+        <div class="card mt-fb"><div class="card-head"><h3>🤝 ${t("mtFb")}</h3></div>${(r?.mentor_note || "").trim() ? `<p class="sensitive">${esc(r.mentor_note)}</p>` : `<p class="muted">${t("mtFbNone")}</p>`}</div>
+        <div class="card mt-own"><div class="card-head"><h3>${t("mtMyReport")}</h3><a class="small-link" href="#/p/${ME.id}/overview">✎ ${t("mtWrite")}</a></div>${own || `<p class="muted small">${t("mtNoMine")}</p>`}</div>
+      </div></div></div>`;
+  fitToDock(".mt-grid");
+}
+
 async function viewTeam() {
   const players = VISIBLE.filter((p) => p.id !== ME.id && has(p, "player") && p.active !== false && coachesPlayer(p));
   const [all, qz, qs] = await Promise.all([db.journalAll(daysAgo(400)), db.quizzes(), db.questions()]);
@@ -1779,6 +1939,7 @@ function shell() {
   // 2026-11-03 (Alexis: "trop complexe, on se recentre"): 3 tabs. Grind = the hours tracker, Study = build your own studies, Coachings = RTS replays.
   // Calendar, Replayer and Feedback sit in the side dock; the HQ map, Resources and saved hands are hidden (code kept, old links still open).
   const links = [["", "home", "#/"]].concat(has(ME, "player") ? [["log", "tabGrind", "#/log"]] : []).concat([["study", "tabStudy", "#/study"], ["coaching", "tabCoach", "#/coaching"]])
+    .concat(has(ME, "mentor") || isAdmin() || ME.mentor_id ? [["mentoring", "tabMentor", "#/mentoring"]] : [])
     .concat(isStaff() ? [["team", "team", "#/team"]] : []).concat(isOps() ? [["dir", isAdmin() ? "direction" : "admin", isAdmin() ? "#/ceo" : "#/admin"]] : []);
   $("#app").innerHTML = `
     <header class="top"><div class="wrap">
@@ -1824,13 +1985,13 @@ async function route() {
   if (a === "res") { location.replace(has(ME, "player") ? "#/log" : "#/coaching"); return; }
   const group = GROUP[a] || a, navKey = a === "p" || ["session", "hero"].includes(a) ? "" : group;
   const sub = subnavHtml(group, a); $("#subnav").innerHTML = sub; $("#subnav").hidden = !sub;
-  document.body.dataset.g = ["study", "coaching", "calendar"].includes(group) ? "res" : group; // Resources pages share one compact, centred look (style.css)
+  document.body.dataset.g = ["study", "coaching", "calendar", "mentoring"].includes(group) ? "res" : group; // Resources pages share one compact, centred look (style.css)
   paintDock();
   $$("[data-nav]").forEach((l) => l.classList.toggle("on", l.dataset.nav === navKey));
   $("#main").innerHTML = `<p class="muted loading">${t("loading")}</p>`;
   const views = { "": viewHome, res: viewRes, journal: viewJournal, p: () => viewPlayer(b, c), coaching: viewCoaching, c: () => viewCoachingOne(b), quiz: () => viewQuiz(b),
     review: viewReview, library: viewLibrary, s: () => viewSituation(b), submit: viewSubmit, calendar: viewCalendar, team: viewTeam, admin: viewAdmin, ceo: viewCeo,
-    session: viewSession, hands: viewHands, log: viewLog, calls: viewCalls, replayer: () => viewReplayer(b), study: viewStudy, recall: viewRecall, account: viewAccount, hero: viewHero, hq: viewHQ, notes: viewNotes, sizing: viewSizing, goals: viewGoals, progress: viewProgress, inbox: viewInbox };
+    session: viewSession, mentoring: viewMentoring, hands: viewHands, log: viewLog, calls: viewCalls, replayer: () => viewReplayer(b), study: viewStudy, recall: viewRecall, account: viewAccount, hero: viewHero, hq: viewHQ, notes: viewNotes, sizing: viewSizing, goals: viewGoals, progress: viewProgress, inbox: viewInbox };
   try { await (views[a] || viewHome)(); }
   catch (err) { $("#main").innerHTML = `<p class="card">${t("error")} : ${esc(err.message)}</p>`; console.error(err); }
   window.scrollTo(0, 0);

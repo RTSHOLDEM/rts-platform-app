@@ -50,6 +50,7 @@ function liveDb() {
     async goals(pid) { return rows(sb.from("goals").select("*").eq("player_id", pid).eq("period", "month").order("label", { ascending: false })); },
     async weekGoals(pid) { return rows(sb.from("goals").select("*").eq("player_id", pid).in("period", ["week", "quarter"]).order("label", { ascending: false })); },
     async saveGoal(g) { return rows(sb.from("goals").upsert({ ...g, updated_at: new Date().toISOString() }, { onConflict: "player_id,period,label" }).select()); },
+    async reports(pid) { return rows(sb.from("monthly_reports").select("*").eq("player_id", pid).order("month", { ascending: false })); },
     async report(pid, month) { return (await rows(sb.from("monthly_reports").select("*").eq("player_id", pid).eq("month", month)))[0] || null; },
     async saveReport(r) { return rows(sb.from("monthly_reports").upsert({ ...r, updated_at: new Date().toISOString() }, { onConflict: "player_id,month" }).select()); },
     async mentorings(pid) { return rows(sb.from("mentorings").select("*").eq("player_id", pid).order("day", { ascending: false })); },
@@ -95,6 +96,12 @@ function liveDb() {
     async saveSession(s) { return (await rows(sb.from("sessions").update(s).eq("id", s.id).select()))[0]; },
     async addSession(s) { const me = await db.me(); return (await rows(sb.from("sessions").insert({ ...s, player_id: me.id }).select()))[0]; }, // done without the timer (Cockpit)
     async dropSession(id) { return rows(sb.from("sessions").delete().eq("id", id)); },
+    // study note folders (021): paths like "SRP/BB vs BTN"
+    async folders() { const me = await db.me(); return (await rows(sb.from("note_folders").select("path").eq("player_id", me.id))).map((f) => f.path).sort(); },
+    async addFolders(paths) { const me = await db.me(); return rows(sb.from("note_folders").upsert(paths.map((path) => ({ player_id: me.id, path })), { onConflict: "player_id,path", ignoreDuplicates: true })); },
+    async dropFolder(path) { const me = await db.me(); const sub = (await db.folders()).filter((p) => p === path || p.startsWith(path + "/"));
+      await rows(sb.from("sessions").update({ folder: null }).eq("player_id", me.id).in("folder", sub));
+      return rows(sb.from("note_folders").delete().eq("player_id", me.id).in("path", sub)); },
     async focus(pid) { return rows(sb.from("focus_items").select("*").eq("player_id", pid).eq("active", true).order("created_at")); },
     async addFocus(pid, text) { const me = await db.me(); return rows(sb.from("focus_items").insert({ player_id: pid, text, added_by: me.id }).select()); },
     async dropFocus(id) { return rows(sb.from("focus_items").update({ active: false }).eq("id", id)); },
@@ -201,6 +208,7 @@ function demoDb() {
     async goals(pid) { return canSee(me(), byId(pid)) ? S.goals.filter((g) => g.player_id === pid && (g.period || "month") === "month").sort((a, b) => (a.label < b.label ? 1 : -1)) : []; },
     async weekGoals(pid) { return canSee(me(), byId(pid)) ? S.goals.filter((g) => g.player_id === pid && ["week", "quarter"].includes(g.period)).sort((a, b) => (a.label < b.label ? 1 : -1)) : []; },
     async saveGoal(g) { const i = S.goals.findIndex((x) => x.player_id === g.player_id && x.label === g.label); i >= 0 ? (S.goals[i] = { ...S.goals[i], ...g }) : S.goals.push(g); save(); return [g]; },
+    async reports(pid) { return canSee(me(), byId(pid)) ? S.reports.filter((r) => r.player_id === pid).sort((a, b) => (a.month < b.month ? 1 : -1)) : []; },
     async report(pid, month) { return canSee(me(), byId(pid)) ? S.reports.find((r) => r.player_id === pid && r.month === month) || null : null; },
     async saveReport(r) { const i = S.reports.findIndex((x) => x.player_id === r.player_id && x.month === r.month); i >= 0 ? (S.reports[i] = { ...S.reports[i], ...r }) : S.reports.push(r); save(); return [r]; },
     async mentorings(pid) { const m = me(), x = byId(pid); return S.mentorings.filter((y) => y.player_id === pid && (canCoach(m, x) || (m.id === pid && y.status === "validated"))); },
@@ -248,6 +256,10 @@ function demoDb() {
     async startSession(kind, planned_min = null, topic = null) { const s = { id: "se" + Date.now(), player_id: meId(), kind, planned_min, topic, started_at: new Date().toISOString(), ended_at: null }; (S.sessions ||= []).push(s); save(); return s; },
     async saveSession(x) { const s = S.sessions.find((y) => y.id === x.id); Object.assign(s, x); save(); return s; },
     async addSession(x) { const s = { id: "se" + Date.now(), player_id: meId(), ...x }; (S.sessions ||= []).push(s); save(); return s; },
+    async folders() { return [...new Set((S.folders ||= []).filter((f) => f.player_id === meId()).map((f) => f.path))].sort(); },
+    async addFolders(paths) { (S.folders ||= []); paths.forEach((path) => S.folders.some((f) => f.player_id === meId() && f.path === path) || S.folders.push({ player_id: meId(), path })); save(); },
+    async dropFolder(path) { const gone = (p) => p === path || (p || "").startsWith(path + "/");
+      S.folders = (S.folders || []).filter((f) => !(f.player_id === meId() && gone(f.path))); (S.sessions || []).forEach((x) => { if (x.player_id === meId() && gone(x.folder)) x.folder = null; }); save(); },
     async dropSession(id) { S.sessions = S.sessions.filter((x) => x.id !== id); (S.hands || []).forEach((h) => { if (h.session_id === id) h.session_id = null; }); save(); },
     async focus(pid) { return canSee(me(), byId(pid)) ? (S.focus ||= []).filter((f) => f.player_id === pid && f.active) : []; },
     async addFocus(pid, text) { (S.focus ||= []).push({ id: "f" + Date.now(), player_id: pid, text, added_by: meId(), active: true }); save(); },
