@@ -50,6 +50,10 @@ function liveDb() {
     async goals(pid) { return rows(sb.from("goals").select("*").eq("player_id", pid).eq("period", "month").order("label", { ascending: false })); },
     async weekGoals(pid) { return rows(sb.from("goals").select("*").eq("player_id", pid).in("period", ["week", "quarter"]).order("label", { ascending: false })); },
     async saveGoal(g) { return rows(sb.from("goals").upsert({ ...g, updated_at: new Date().toISOString() }, { onConflict: "player_id,period,label" }).select()); },
+    // mentoring dashboard (022): one row per piece, player + his mentor + admin only
+    async board(pid) { return rows(sb.from("board_items").select("key,data,updated_at").eq("player_id", pid)); },
+    async saveBoard(pid, key, data) { const me = await db.me(); return rows(sb.from("board_items").upsert({ player_id: pid, key, data, updated_at: new Date().toISOString(), updated_by: me.id }, { onConflict: "player_id,key" })); },
+    async dropBoard(pid, key) { return rows(sb.from("board_items").delete().eq("player_id", pid).eq("key", key)); },
     async reports(pid) { return rows(sb.from("monthly_reports").select("*").eq("player_id", pid).order("month", { ascending: false })); },
     async report(pid, month) { return (await rows(sb.from("monthly_reports").select("*").eq("player_id", pid).eq("month", month)))[0] || null; },
     async saveReport(r) { return rows(sb.from("monthly_reports").upsert({ ...r, updated_at: new Date().toISOString() }, { onConflict: "player_id,month" }).select()); },
@@ -186,6 +190,7 @@ function demoDb() {
   const me = () => S.people.find((p) => p.id === meId());
   const byId = (id) => S.people.find((p) => p.id === id);
   const hid = (x) => !!x?.secret && x.id !== meId() && !(me().team_id === "supreme" || me().roles.includes("admin"));
+  const boardOk = (pid) => { const m = me(), x = byId(pid); return !!x && (m.id === x.id || m.roles.includes("admin") || x.mentor_id === m.id); };
   const canSee = (m, x) => !!x && (m.id === x.id || m.roles.includes("admin") || x.mentor_id === m.id || m.coaches.includes(x.team) || m.manages.includes(x.team));
   const canCoach = (m, x) => canSee(m, x) && (m.id !== x.id || m.roles.includes("admin"));
   const isOps = (m) => m.roles.includes("ops") || m.roles.includes("admin");
@@ -208,6 +213,10 @@ function demoDb() {
     async goals(pid) { return canSee(me(), byId(pid)) ? S.goals.filter((g) => g.player_id === pid && (g.period || "month") === "month").sort((a, b) => (a.label < b.label ? 1 : -1)) : []; },
     async weekGoals(pid) { return canSee(me(), byId(pid)) ? S.goals.filter((g) => g.player_id === pid && ["week", "quarter"].includes(g.period)).sort((a, b) => (a.label < b.label ? 1 : -1)) : []; },
     async saveGoal(g) { const i = S.goals.findIndex((x) => x.player_id === g.player_id && x.label === g.label); i >= 0 ? (S.goals[i] = { ...S.goals[i], ...g }) : S.goals.push(g); save(); return [g]; },
+    async board(pid) { return boardOk(pid) ? (S.board ||= []).filter((x) => x.player_id === pid) : []; },
+    async saveBoard(pid, key, data) { if (!boardOk(pid)) throw new Error("not allowed"); const l = (S.board ||= []), i = l.findIndex((x) => x.player_id === pid && x.key === key), r = { player_id: pid, key, data, updated_at: new Date().toISOString() };
+      i >= 0 ? (l[i] = r) : l.push(r); save(); return [r]; },
+    async dropBoard(pid, key) { if (!boardOk(pid)) return; S.board = (S.board || []).filter((x) => !(x.player_id === pid && x.key === key)); save(); },
     async reports(pid) { return canSee(me(), byId(pid)) ? S.reports.filter((r) => r.player_id === pid).sort((a, b) => (a.month < b.month ? 1 : -1)) : []; },
     async report(pid, month) { return canSee(me(), byId(pid)) ? S.reports.find((r) => r.player_id === pid && r.month === month) || null : null; },
     async saveReport(r) { const i = S.reports.findIndex((x) => x.player_id === r.player_id && x.month === r.month); i >= 0 ? (S.reports[i] = { ...S.reports[i], ...r }) : S.reports.push(r); save(); return [r]; },

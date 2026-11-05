@@ -1715,7 +1715,7 @@ async function viewAccount() {
    #/mentoring?p=ID&m=YYYY-MM-01   left: my players with a status dot, right: that player's week + review month, his own review, my review notes (autosave). */
 async function viewMentoring() {
   const q = Object.fromEntries(new URLSearchParams(location.hash.split("?")[1] || ""));
-  if (!(has(ME, "mentor") || isAdmin()) || q.me) return viewMyReviews(q);
+  if (!(has(ME, "mentor") || isAdmin()) || q.me) return viewMyBoard(q);
   const href = (o) => "#/mentoring?" + new URLSearchParams(Object.entries({ ...q, ...o }).filter(([, v]) => v));
   const mine = VISIBLE.filter((p) => p.id !== ME.id && has(p, "player") && p.active !== false && p.mentor_id === ME.id);
   const players = (mine.length || !isAdmin() ? mine : VISIBLE.filter((p) => p.id !== ME.id && has(p, "player") && p.active !== false && coachesPlayer(p))).sort((a, b) => nm(a).localeCompare(nm(b)));
@@ -1725,60 +1725,72 @@ async function viewMentoring() {
   const all = await db.journalAll(daysAgo(400));
   const sel = players.find((p) => p.id === q.p) || players[0];
   const rows = players.map((p) => { const s = stats(all.filter((e) => e.player_id === p.id), p), d = dot(s, p);
-    return `<a class="mt-p ${sel && p.id === sel.id ? "on" : ""}" href="${href({ p: p.id })}"><span class="dot ${d}"></span><span class="mt-n"><b>${nm(p)}</b><small>${esc(teamOf(p).label || "")} · ${fmtNum(s.hands)} / ${fmtNum(s.handsTarget)}</small></span></a>`; }).join("");
-  let detail = `<div class="card mt-empty"><p class="muted">${players.length ? t("mtPick") : t("mtNone")}</p></div>`;
+    return `<a class="mt-p ${sel && p.id === sel.id ? "on" : ""}" href="${"#/mentoring?" + new URLSearchParams({ p: p.id })}"><span class="dot ${d}"></span><span class="mt-n"><b>${nm(p)}</b><small>${esc(teamOf(p).label || "")} · ${fmtNum(s.hands)} / ${fmtNum(s.handsTarget)}</small></span></a>`; }).join("");
+  let detail = `<div class="card mt-empty"><p class="muted">${players.length ? t("mtPick") : t("mtNone")}</p></div>`, ctx = null;
   if (sel) {
-    const [r, gl] = await Promise.all([db.report(sel.id, month).catch(() => null), db.goals(sel.id).catch(() => [])]);
+    const [r, gl] = await Promise.all([db.report(sel.id, month).catch(() => null), db.goals(sel.id).catch(() => []), boardLoad(sel.id)]);
     sel._goal = gl.find((g) => g.label === monthStart());
-    const ent = all.filter((e) => e.player_id === sel.id), s = stats(ent, sel), wk = weekStart(), mEnd = iso(new Date(Date.UTC(+month.slice(0, 4), +month.slice(5, 7), 1)));
-    const sum = (l, k) => l.reduce((a, e) => a + Number(e[k] || 0), 0), w = ent.filter((e) => e.day >= wk), m = ent.filter((e) => e.day >= month && e.day < mEnd);
-    const mGoal = gl.find((g) => g.label === month), mT = mGoal?.hands_target || teamOf(sel).month_hands;
-    const tile = (label, val, sub = "") => `<div class="card mt-t"><span>${label}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ""}</div>`;
     const rep = (k, l) => r?.[k] ? `<div class="mt-r"><span>${l}</span><p class="sensitive">${esc(String(r[k]))}</p></div>` : "";
     const own = [rep("rating", t("rating")), rep("wins", t("wins")), rep("struggles", t("struggles")), rep("next_focus", t("nextFocus"))].join("");
-    detail = `<div class="mt-d">
-      <div class="mt-head"><h2>${nm(sel)} <small class="muted">${esc(teamOf(sel).label || "")}${sel.stakes ? " · " + esc(sel.stakes) : ""}</small></h2><a class="small-link" href="#/p/${sel.id}/overview">${t("mtOpen")}</a></div>
-      <div class="mt-tiles">${tile("♠ " + t("mtWeekG"), fmtH(sum(w, "play_h")))}${tile("📚 " + t("mtWeekS"), fmtH(sum(w, "study_h")))}
-        ${tile("🃏 " + fmtMonth(month), fmtNum(sum(m, "hands")), `/ ${fmtNum(mT)} · ${fmtH(sum(m, "play_h") + sum(m, "study_h"))}`)}${tile("🔥 " + t("streak"), `${s.streak} ${t("days")}`, s.last ? `${t("lastJournal")} : ${s.last === today() ? t("today") : fmtDay(s.last)}` : t("never"))}</div>
-      <div class="mt-cols">
+    ctx = BOARD.ctx = { q, href, title: t("bdTitle") + " " + nm(sel),
+      reviewSum: `${fmtMonth(month)} · ${(r?.mentor_note || "").trim() ? t("mtHasNote") : t("mtNoNote")}`,
+      reviewsHtml: () => `<div class="mt-cols">
         <div class="card mt-own"><div class="card-head"><h3>${t("mtReport")}</h3><select id="mtm">${months.map((x) => `<option value="${x}" ${x === month ? "selected" : ""}>${fmtMonth(x)}</option>`).join("")}</select></div>
           ${own || `<p class="muted small">${t("mtNoReport")}</p>`}</div>
         <form class="card mt-notes" id="mtf"><div class="card-head"><h3>✎ ${t("mtNotes")} · ${fmtMonth(month)}</h3><small class="saved" id="mtok"></small></div>
-          <textarea name="mentor_note" class="sensitive" placeholder="${t("mtNotesPh")}">${esc(r?.mentor_note || "")}</textarea></form>
-      </div></div>`;
+          <textarea name="mentor_note" class="sensitive" placeholder="${t("mtNotesPh")}">${esc(r?.mentor_note || "")}</textarea></form></div>`,
+      bindReviews: () => {
+        $("#mtm")?.addEventListener("change", (e) => (location.hash = href({ m: e.target.value })));
+        const ta = $("#mtf textarea"); if (!ta) return; let tm = null;
+        const save = async () => { $("#mtok").textContent = "…";
+          try { await db.saveReport({ player_id: sel.id, month, mentor_note: ta.value }); $("#mtok").textContent = t("saved"); } catch (err) { $("#mtok").textContent = err.message; } };
+        ta.oninput = () => { clearTimeout(tm); $("#mtok").textContent = ""; tm = setTimeout(save, 900); }; // saves while the mentor types, no button
+        ta.onblur = () => { if (tm) { clearTimeout(tm); tm = null; save(); } };
+      } };
+    detail = `<div class="mt-d"><div class="mt-head"><h2>${nm(sel)} <small class="muted">${esc(teamOf(sel).label || "")}${sel.stakes ? " · " + esc(sel.stakes) : ""}</small></h2><a class="small-link" href="#/p/${sel.id}/overview">${t("mtOpen")}</a></div>
+      ${mtStats(sel, all, month, gl)}${q.s ? boardSection(ctx) : boardTiles(ctx)}</div>`;
   }
   const meLink = ME.mentor_id ? `<a class="mt-p mt-me" href="#/mentoring?me=1"><span>📒</span><span class="mt-n"><b>${t("mtMine")}</b><small>${t("mtMineSub")}</small></span></a>` : "";
   $("#main").innerHTML = `<div class="mt-grid"><nav class="card mt-list"><div class="card-head"><h3>🤝 ${t("mtMy")}</h3><small class="muted">${players.length}</small></div>${rows || ""}${meLink}</nav>${detail}</div>`;
   fitToDock(".mt-grid");
-  $("#mtm")?.addEventListener("change", (e) => (location.hash = href({ m: e.target.value })));
-  const ta = $("#mtf textarea");
-  if (ta) { let tm = null;
-    const save = async () => { $("#mtok").textContent = "…";
-      try { await db.saveReport({ player_id: sel.id, month, mentor_note: ta.value }); $("#mtok").textContent = t("saved"); } catch (err) { $("#mtok").textContent = err.message; } };
-    ta.oninput = () => { clearTimeout(tm); $("#mtok").textContent = ""; tm = setTimeout(save, 900); }; // saves while the mentor types, no button
-    ta.onblur = () => { if (tm) { clearTimeout(tm); tm = null; save(); } };
-  }
+  if (ctx && q.s) boardBind();
 }
 
-/* Player side of Mentoring (Alexis 2026-11-03): every monthly review, the mentor's feedback first, then what the player wrote. */
-async function viewMyReviews(q) {
-  const mentor = person(ME.mentor_id), reps = await db.reports(ME.id).catch(() => []);
+/* The 4 numbers on top of a dashboard: grind and study this week, the review month's hands, the journal streak. */
+function mtStats(p, all, month, gl) {
+  const ent = all.filter((e) => e.player_id === p.id), s = stats(ent, p), wk = weekStart(), mEnd = iso(new Date(Date.UTC(+month.slice(0, 4), +month.slice(5, 7), 1)));
+  const sum = (l, k) => l.reduce((a, e) => a + Number(e[k] || 0), 0), w = ent.filter((e) => e.day >= wk), m = ent.filter((e) => e.day >= month && e.day < mEnd);
+  const mT = gl.find((g) => g.label === month)?.hands_target || teamOf(p).month_hands;
+  const tile = (label, val, sub = "") => `<div class="card mt-t"><span>${label}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ""}</div>`;
+  return `<div class="mt-tiles">${tile("♠ " + t("mtWeekG"), fmtH(sum(w, "play_h")))}${tile("📚 " + t("mtWeekS"), fmtH(sum(w, "study_h")))}
+    ${tile("🃏 " + fmtMonth(month), fmtNum(sum(m, "hands")), `/ ${fmtNum(mT)} · ${fmtH(sum(m, "play_h") + sum(m, "study_h"))}`)}${tile("🔥 " + t("streak"), `${s.streak} ${t("days")}`, s.last ? `${t("lastJournal")} : ${s.last === today() ? t("today") : fmtDay(s.last)}` : t("never"))}</div>`;
+}
+
+/* Player side (Alexis 2026-11-03, dashboard 2026-11-05): his own coaching dashboard, the same tiles his mentor sees;
+   the Monthly reviews tile shows each month's mentor feedback next to what he wrote. */
+async function viewMyBoard(q) {
+  const href = (o) => "#/mentoring?" + new URLSearchParams(Object.entries({ ...q, ...o }).filter(([, v]) => v));
+  const mentor = person(ME.mentor_id);
+  const [reps, all, gl] = await Promise.all([db.reports(ME.id).catch(() => []), db.journalAll(daysAgo(400)).catch(() => []), db.goals(ME.id).catch(() => []), boardLoad(ME.id)]);
   const months = [...new Set([monthStart(), prevMonthStart(), ...reps.map((r) => r.month)])].sort().reverse();
   const by = Object.fromEntries(reps.map((r) => [r.month, r]));
   const month = q.m || months.find((m) => (by[m]?.mentor_note || "").trim()) || prevMonthStart();
-  const r = by[month];
+  const r = by[month], nFb = reps.filter((x) => (x.mentor_note || "").trim()).length;
   const rep = (k, l) => r?.[k] ? `<div class="mt-r"><span>${l}</span><p class="sensitive">${esc(String(r[k]))}</p></div>` : "";
   const own = [rep("rating", t("rating")), rep("wins", t("wins")), rep("struggles", t("struggles")), rep("next_focus", t("nextFocus"))].join("");
-  const list = months.map((m) => { const fb = (by[m]?.mentor_note || "").trim();
-    return `<a class="mt-p ${m === month ? "on" : ""}" href="#/mentoring?${new URLSearchParams({ ...(q.me ? { me: 1 } : {}), m })}"><span class="dot ${fb ? "green" : "grey"}"></span><span class="mt-n"><b>${fmtMonth(m)}</b><small>${fb ? t("mtHasFb") : t("mtNoFb")}</small></span></a>`; }).join("");
-  $("#main").innerHTML = `<div class="mt-grid"><nav class="card mt-list"><div class="card-head"><h3>📒 ${t("mtMine")}</h3></div>${list}
-      ${q.me ? `<a class="small-link" href="#/mentoring">← ${t("mtMy")}</a>` : ""}</nav>
-    <div class="mt-d mt-d2"><div class="mt-head"><h2>${fmtMonth(month)}</h2>${mentor ? `<span class="muted">${t("mentor")} : <b>${nm(mentor)}</b></span>` : ""}</div>
-      <div class="mt-cols">
-        <div class="card mt-fb"><div class="card-head"><h3>🤝 ${t("mtFb")}</h3></div>${(r?.mentor_note || "").trim() ? `<p class="sensitive">${esc(r.mentor_note)}</p>` : `<p class="muted">${t("mtFbNone")}</p>`}</div>
-        <div class="card mt-own"><div class="card-head"><h3>${t("mtMyReport")}</h3><a class="small-link" href="#/p/${ME.id}/overview">✎ ${t("mtWrite")}</a></div>${own || `<p class="muted small">${t("mtNoMine")}</p>`}</div>
-      </div></div></div>`;
-  fitToDock(".mt-grid");
+  const ctx = BOARD.ctx = { q, href, title: t("bdTitle") + " " + nm(ME),
+    reviewSum: nFb ? `${nFb} ${t("mtHasFb").toLowerCase()}` : t("mtFbNone"),
+    reviewsHtml: () => `<div class="mt-cols">
+      <div class="card mt-fb"><div class="card-head"><h3>🤝 ${t("mtFb")}</h3><select id="mtm">${months.map((x) => `<option value="${x}" ${x === month ? "selected" : ""}>${fmtMonth(x)}${(by[x]?.mentor_note || "").trim() ? " ✓" : ""}</option>`).join("")}</select></div>
+        ${(r?.mentor_note || "").trim() ? `<p class="sensitive">${esc(r.mentor_note)}</p>` : `<p class="muted">${t("mtFbNone")}</p>`}</div>
+      <div class="card mt-own"><div class="card-head"><h3>${t("mtMyReport")}</h3><a class="small-link" href="#/p/${ME.id}/overview">✎ ${t("mtWrite")}</a></div>${own || `<p class="muted small">${t("mtNoMine")}</p>`}</div></div>`,
+    bindReviews: () => $("#mtm")?.addEventListener("change", (e) => (location.hash = href({ m: e.target.value }))) };
+  const hv = BOARD.items.header?.v || {}, tf = bTpl("header").fields, title = (hv[tf[0]?.id] || "").trim() || ctx.title;
+  $("#main").innerHTML = `<div class="mt-d mt-solo"><div class="mt-head"><h2>${esc(title)}</h2>
+      <span class="muted">${q.me ? `<a class="small-link" href="#/mentoring">← ${t("mtMy")}</a> · ` : ""}${mentor ? `${t("mentor")} : <b>${nm(mentor)}</b>` : ""}</span></div>
+    ${mtStats(ME, all, monthStart(), gl)}${q.s ? boardSection(ctx) : boardTiles(ctx)}</div>`;
+  fitToDock(".mt-solo");
+  if (q.s) boardBind();
 }
 
 async function viewTeam() {

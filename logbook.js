@@ -3,8 +3,9 @@
    one bubble per day), right: ONE goal card, the one of the period you look at
    #/calls   my calls with mentor and coaches (Resources > Mine)      #/hands   saved hands by title (Resources > Mine) */
 Object.assign(STRINGS.en, {
+  bdTitle: "Coaching dashboard", mtHasNote: "notes written ✓", mtNoNote: "no notes yet",
   clkT: "Session clock", clk_chrono: "Stopwatch", clk_chronoS: "One click starts it. You stop it when you are done.", clk_timer: "Timer", clk_timerS: "You say how long. It stops by itself at zero.",
-  mtMine: "My monthly reviews", mtMineSub: "My mentor's feedback", mtHasFb: "Mentor feedback ✓", mtNoFb: "No feedback yet", mtFb: "My mentor's feedback", mtFbNone: "Your mentor has not written his feedback for this month yet.",
+  mtMine: "My dashboard", mtMineSub: "Reviews, journal, goals, habits", mtHasFb: "Mentor feedback ✓", mtNoFb: "No feedback yet", mtFb: "My mentor's feedback", mtFbNone: "Your mentor has not written his feedback for this month yet.",
   mtMyReport: "What I wrote", mtNoMine: "You have not written your review for this month.", mtWrite: "Write",
   tabMentor: "Mentoring", mtMy: "My players", mtNone: "No player to mentor yet.", mtPick: "Pick a player", mtOpen: "Player page →", mtWeekG: "Grind this week", mtWeekS: "Study this week",
   mtReport: "His monthly review", mtNoReport: "The player has not written his review for this month yet.", mtNotes: "My review notes", mtNotesPh: "What we said, his strengths, what he works on this month…",
@@ -41,8 +42,9 @@ Object.assign(STRINGS.en, {
   hcUseTracked: "Use the tracked {t}", hcKeep: "Keep {w}",
 });
 Object.assign(STRINGS.fr, {
+  bdTitle: "Tableau de bord coaching", mtHasNote: "notes écrites ✓", mtNoNote: "pas encore de notes",
   clkT: "Chrono des sessions", clk_chrono: "Chronomètre", clk_chronoS: "Un clic et ça part. Tu l'arrêtes quand tu as fini.", clk_timer: "Minuteur", clk_timerS: "Tu dis combien de temps. Il s'arrête tout seul à zéro.",
-  mtMine: "Mes bilans mensuels", mtMineSub: "Les retours de mon mentor", mtHasFb: "Retour du mentor ✓", mtNoFb: "Pas encore de retour", mtFb: "Le retour de mon mentor", mtFbNone: "Ton mentor n'a pas encore écrit son retour pour ce mois.",
+  mtMine: "Mon tableau de bord", mtMineSub: "Bilans, journal, objectifs, habitudes", mtHasFb: "Retour du mentor ✓", mtNoFb: "Pas encore de retour", mtFb: "Le retour de mon mentor", mtFbNone: "Ton mentor n'a pas encore écrit son retour pour ce mois.",
   mtMyReport: "Ce que j'ai écrit", mtNoMine: "Tu n'as pas encore écrit ton bilan pour ce mois.", mtWrite: "Écrire",
   tabMentor: "Mentoring", mtMy: "Mes joueurs", mtNone: "Aucun joueur à mentorer pour l'instant.", mtPick: "Choisis un joueur", mtOpen: "Fiche joueur →", mtWeekG: "Grind cette semaine", mtWeekS: "Études cette semaine",
   mtReport: "Son bilan du mois", mtNoReport: "Le joueur n'a pas encore écrit son bilan pour ce mois.", mtNotes: "Mes notes de bilan", mtNotesPh: "Ce qu'on s'est dit, ses points forts, ce qu'il travaille ce mois-ci…",
