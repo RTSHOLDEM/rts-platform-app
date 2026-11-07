@@ -36,7 +36,7 @@
 .rp-tools { margin-left: auto; display: flex; gap: 8px; }
 .rp-tools .chip { text-decoration: none; }
 .rp-q { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--red); border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; font-size: 14px; }
-.rp-frame { display: block; width: 100%; height: max(620px, calc(100vh - 200px)); border: 1px solid var(--line-2); border-radius: var(--radius); background: #000; }
+.rp-frame { display: block; width: 100%; box-sizing: border-box; height: max(620px, calc(100vh - 200px)); border: 1px solid var(--line-2); border-radius: var(--radius); background: #000; }
 
 .rp-new .rp-h { font: 400 32px/1.1 var(--serif); margin: 0 0 16px; }
 .rp-new textarea, .rp-new input { display: block; width: 100%; margin-top: 10px; background: var(--surface-2); color: var(--text); border: 1px solid var(--line-2);
@@ -56,3 +56,5 @@
 /* Hand tags (6max / HU, who, spot) in the list and on the open hand */
 .rp-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
 .rp-bar .rp-tags { margin-top: 0; }
+.rp-live { position: fixed; z-index: 10; box-sizing: border-box; border: 1px solid var(--line-2); border-radius: var(--radius); background: #000; visibility: hidden; }
+@media (min-width: 1101px) { #app:has(.rp) #main { padding-bottom: 0; } .rp { margin-bottom: 0; } } /* one screen: the frame already ends above the dock */
