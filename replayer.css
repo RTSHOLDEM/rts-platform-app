@@ -52,3 +52,7 @@
   .rp-frame { height: 72vh; min-height: 600px; }
   .rp-bar { flex-wrap: wrap; }
 }
+
+/* Hand tags (6max / HU, who, spot) in the list and on the open hand */
+.rp-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.rp-bar .rp-tags { margin-top: 0; }

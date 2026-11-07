@@ -302,7 +302,7 @@ async function viewSession() {
       <div class="ct-side"><span class="eyebrow">${KIND_ICON[s.kind]} ${t(grind ? "grindCockpit" : "studyCockpit")}</span><small class="muted">${s.paused_at ? "⏸ " + t("paused") : t("startedAt") + " " + hhmm(s.started_at)}</small></div>
       <div class="ct-mid"><div class="midclock" id="sclock" data-left>${sesClock(s)}</div>${s.planned_min ? `<small class="muted">${t("left")} · ${fmtMin(s.planned_min)}</small>` : ""}
         <div class="ct-week"><div class="xpbar big"><i id="wbar"></i></div><small class="muted" id="wtxt"></small></div></div>
-      <div class="ct-side right">${grind ? `<div class="rng" title="Antho lance le rando · RNG 1-100, new roll every 5 s"><video id="rngv" class="rng-antho" src="img/antho-rng.mp4" poster="img/antho-rng.jpg" muted playsinline preload="auto"></video><small>Le RNG<br>d'Antho</small><b id="rngn">--</b><span class="rng-bar"><i id="rngbar"></i></span></div>` : ""}${grind && "documentPictureInPicture" in window ? `<button class="btn btn-sm" id="popb" title="${t("popOutTip")}">⧉ ${t("popOut")}</button>` : ""}<button class="btn btn-sm" id="pause">${s.paused_at ? "▶ " + t("resume") : "⏸ " + t("pause")}</button><button class="btn btn-sm btn-red" id="endb">■ ${t("end")}</button></div>
+      <div class="ct-side right">${grind ? `<div class="rng" title="Antho lance le rando · RNG 1-100, new roll every 5 s"><video id="rngv" class="rng-antho" src="img/antho-rng.mp4" poster="img/antho-rng.jpg" muted playsinline preload="auto"></video><small>Le RNG<br>d'Antho</small><b id="rngn">--</b><span class="rng-bar"><i id="rngbar"></i></span></div>` : ""}${grind ? `<button class="btn btn-sm" id="popb" title="${t("popOutTip")}">⧉ ${t("popOut")}</button>` : ""}<button class="btn btn-sm" id="pause">${s.paused_at ? "▶ " + t("resume") : "⏸ " + t("pause")}</button><button class="btn btn-sm btn-red" id="endb">■ ${t("end")}</button></div>
     </section>
     <div class="cock-grid">
       <div class="stack">${focus}
@@ -311,7 +311,7 @@ async function viewSession() {
       </div>
       <div class="stack">
         ${grind ? `<form class="card" id="hform"><div class="card-head"><h3>${t("addHand")}</h3><span class="tag">${mineHere.length}</span></div>
-            <div class="drop" id="drop">${t("dropHere")}<input type="file" id="hfile" accept="image/*" multiple hidden></div>
+            <div class="drop" id="drop" tabindex="0">${t("dropHere")}</div>
             <div class="shots" id="shots" hidden></div>
             <textarea name="hh" rows="3" class="sensitive mono" placeholder="${t("pasteHH")}"></textarea>
             <textarea name="note" rows="2" class="sensitive" placeholder="${t("handNotePh")}"></textarea>
@@ -356,7 +356,7 @@ async function viewSession() {
   $("[name=notes]").oninput = () => popNotes(notesNow()); // same notes in the pop out cockpit
   $("#pause").onclick = sesPause;
   if (timeUp(s)) askRelaunch();
-  $("#popb") && ($("#popb").onclick = openPop);
+  $("#popb") && ($("#popb").onclick = () => openPop());
   if (grind) {
     const save = async (h, file) => { $("#hsaved").textContent = "…"; try { await db.saveSession({ id: s.id, notes: notesNow() }); await db.addHand({ session_id: s.id, ...h }, file); route(); } catch (err) { $("#hsaved").textContent = t("error") + " : " + err.message; } };
     // Screenshots wait here (thumbnails) so the player writes questions + notes first, then clicks Save hand.
@@ -365,11 +365,12 @@ async function viewSession() {
       $$("[data-rm]", el).forEach((b) => b.onclick = () => { URL.revokeObjectURL(shots[b.dataset.rm].url); shots.splice(b.dataset.rm, 1); showShots(); }); };
     const files = (list) => { [...list].filter((f) => f.type.startsWith("image/")).forEach((f) => shots.push({ f, url: URL.createObjectURL(f) })); showShots(); $("#hform").note.focus(); };
     const drop = $("#drop");
-    drop.onclick = () => $("#hfile").click();
-    $("#hfile").onchange = (e) => files(e.target.files);
+    // Never a file picker (Alexis): a click only reminds how to add a hand.
+    drop.onclick = () => { drop.focus(); drop.classList.add("over"); setTimeout(() => drop.classList.remove("over"), 600); };
     drop.ondragover = (e) => { e.preventDefault(); drop.classList.add("over"); };
     drop.ondragleave = () => drop.classList.remove("over");
-    drop.ondrop = (e) => { e.preventDefault(); files(e.dataTransfer.files); };
+    drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("over"); if (e.dataTransfer.files.length) return files(e.dataTransfer.files);
+      const txt = (e.dataTransfer.getData("text") || "").trim(); if (txt) { $("#hform").hh.value = txt; $("#hform").note.focus(); } };
     // Cmd+V a screenshot anywhere in the cockpit saves it too.
     document.onpaste = (e) => { if (location.hash !== "#/session") return; const im = [...(e.clipboardData?.files || [])]; if (im.length) { e.preventDefault(); files(im); } };
     $("#hform").onsubmit = async (ev) => {
@@ -846,8 +847,8 @@ function paintRng(numEl, barEl) {
    history, Ctrl+V works), the session focus, the session notes (same notes as the cockpit page). Shrink it to a strip and only
    the bar stays. It runs on its own window's timers, which keep ticking while the platform tab is hidden. */
 const POP = { win: null, w: 640, h: 470 };
-/* Hand tags: who (pick one) then the spot (pick one). Both optional. */
-const HAND_TAGS = { who: ["reg", "fish", "mw"], spot: ["bluff", "catch", "value", "pre"] };
+/* Hand tags: the table (6max or HU), who, then the spot. One per row, all optional. */
+const HAND_TAGS = { table: ["6max", "hu"], who: ["reg", "fish", "mw"], spot: ["bluff", "catch", "value", "pre"] };
 const POP_CSS = `
 *{box-sizing:border-box;margin:0}
 html,body{height:100%;background:#0b0b0d;color:#f4f4f2;font:500 13px Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
@@ -888,15 +889,16 @@ body{display:grid;grid-template-rows:auto 1fr}
 .bar{border-bottom:1px solid #1f1f23}
 .body{display:grid;grid-template-columns:1.15fr 1fr;gap:10px;padding:10px;min-height:0}
 .col{display:grid;gap:10px;min-height:0}
-.hand{grid-template-rows:1fr auto auto auto auto;gap:7px}
+.hand{grid-template-rows:1fr auto auto auto auto auto;gap:7px}
 .tags{display:flex;flex-wrap:wrap;gap:5px}
 .tags button{padding:4px 9px;font-size:11px;font-weight:600;color:#b5b5bb}
 .tags button.on{background:#fd0606;border-color:#fd0606;color:#fff}
 .tags.spot button.on{background:#f4f4f2;border-color:#f4f4f2;color:#0b0b0d}
+.tags.fmt button.on{background:#2c2c31;border-color:#8b8b92;color:#fff}
 .side{grid-template-rows:auto 1fr}
 h4{font-size:10px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#8b8b92;margin-bottom:6px;display:flex;justify-content:space-between}
 h4 span{letter-spacing:0;text-transform:none;font-weight:500}
-.drop{position:relative;border:1.5px dashed #2c2c31;border-radius:12px;background:#111114;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:10px;cursor:pointer;min-height:0;overflow:auto;text-align:center;color:#8b8b92;font-size:12px;line-height:1.4}
+.drop{position:relative;border:1.5px dashed #2c2c31;border-radius:12px;background:#111114;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:10px;cursor:default;min-height:0;overflow:auto;text-align:center;color:#8b8b92;font-size:12px;line-height:1.4}
 .drop:hover,.drop.over{border-color:#fd0606;color:#f4f4f2;background:#160d0e}
 .drop .ic{font-size:26px;line-height:1;color:#fd0606}
 .drop.full .ic,.drop.full .dt{display:none}
@@ -922,9 +924,13 @@ textarea{resize:none;height:100%;min-height:0;line-height:1.45}
 @media (max-width:579px){.body{grid-template-columns:1fr}.side{display:none}}
 @media (max-width:439px),(max-height:259px){body{grid-template-rows:1fr}.body{display:none}.bar{border-bottom:0}}`;
 /* Ask for the window right away (inside the click), fill it later. */
+/* A normal window, not Picture-in-Picture: clicking a poker table brings the table in front of it (Alexis, 2026-11-07).
+   PiP stays on top of everything by browser design. */
 function popRequest() {
-  if (!("documentPictureInPicture" in window) || (POP.win && !POP.win.closed)) return null;
-  return documentPictureInPicture.requestWindow({ width: POP.w, height: POP.h }).catch((err) => { console.warn("Pop out:", err); return null; });
+  if (POP.win && !POP.win.closed) return null;
+  const x = Math.max(0, (screen.availWidth || 1280) - POP.w - 40), y = 60;
+  const w = window.open("", "rtsgrind", `popup,width=${POP.w},height=${POP.h},left=${x},top=${y}`);
+  return Promise.resolve(w || null);
 }
 async function openPop(pending) {
   if (POP.win && !POP.win.closed) { POP.win.focus(); return; }
@@ -933,8 +939,11 @@ async function openPop(pending) {
   if (!SES.s) { w.close(); return; }
   POP.win = w;
   const d = w.document, s0 = SES.s, url = (f) => new URL(f, location.href).href;
-  d.title = "RTS · Grind";
-  d.head.innerHTML = `<meta charset="utf-8"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"><style>${POP_CSS}</style>`;
+  // A normal window counts the title bar in its height: grow it so the page itself is table size.
+  // Sizes settle a moment after the window opens, so measure then.
+  const fit = () => { try { if (w.innerHeight < POP.h - 4) w.resizeTo(POP.w + w.outerWidth - w.innerWidth, POP.h + w.outerHeight - w.innerHeight); } catch {} };
+  w.setTimeout(fit, 250); w.setTimeout(fit, 900);
+  d.head.innerHTML = `<meta charset="utf-8"><title>RTS · Grind</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"><style>${POP_CSS}</style>`;
   d.body.innerHTML = `<div class="bar"><div class="clock" id="c">0:00:00</div>
     <div class="wk"><div class="wkbar"><i id="w"></i></div><small id="wt"></small></div>
     <div class="rng ant" title="Antho lance le rando · RNG 1-100"><video id="av" src="${url("img/antho-rng.mp4")}" poster="${url("img/antho-rng.jpg")}" muted playsinline preload="auto"></video><small>Le RNG<br>d'Antho</small><b id="n">--</b><span class="rb"><i id="nb"></i></span></div>
@@ -943,7 +952,8 @@ async function openPop(pending) {
     <div class="brk" id="brk" hidden><video src="${url("img/alexis-break.mp4")}" muted autoplay loop playsinline></video><b>${t("brkTitle")}</b></div></div>
     <div class="body">
       <div class="col hand">
-        <div class="drop" id="drop"><span class="ic">＋</span><span class="dt">${t("popDrop")}</span><div class="th" id="th"></div><input type="file" id="hf" accept="image/*" multiple hidden></div>
+        <div class="drop" id="drop"><span class="ic">＋</span><span class="dt">${t("popDrop")}</span><div class="th" id="th"></div></div>
+        <div class="tags fmt" data-row="table">${HAND_TAGS.table.map((k) => `<button data-tag="${k}">${t("tag_" + k)}</button>`).join("")}</div>
         <div class="tags" data-row="who">${HAND_TAGS.who.map((k) => `<button data-tag="${k}">${t("tag_" + k)}</button>`).join("")}</div>
         <div class="tags spot" data-row="spot">${HAND_TAGS.spot.map((k) => `<button data-tag="${k}">${t("tag_" + k)}</button>`).join("")}</div>
         <div class="hrow"><input id="hq" class="sensitive" placeholder="${t("popQ")}" autocomplete="off"><button id="hs" class="red">${t("popSave")}</button></div>
@@ -995,9 +1005,8 @@ async function openPop(pending) {
     if (rm === "hh") { hh = null; paint(); return; }
     if (rm === "link") { link = null; paint(); return; }
     if (rm != null) { URL.revokeObjectURL(shots[rm].url); shots.splice(rm, 1); paint(); return; }
-    q("hf").click();
+    drop.classList.add("over"); w.setTimeout(() => drop.classList.remove("over"), 600); // never a file picker: drop or Ctrl+V only
   };
-  q("hf").onchange = (e) => { addFiles(e.target.files); e.target.value = ""; };
   // A drop anywhere in the window counts (a missed drop must never open the image instead of the cockpit).
   d.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
   d.addEventListener("dragleave", (e) => { if (!e.relatedTarget) drop.classList.remove("over"); });

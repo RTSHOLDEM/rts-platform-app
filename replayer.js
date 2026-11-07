@@ -27,6 +27,7 @@ function handInfo(hh) {
 
 const LAST = 10; // the list shows the 10 latest hands, "See all" opens the rest
 const SUIT = { s: "♠", h: "♥", d: "♦", c: "♣" };
+const rpTags = (h) => (h.tags || []).length ? `<span class="rp-tags">${h.tags.map((k) => `<span class="tag">${t("tag_" + k)}</span>`).join("")}</span>` : "";
 const cardsHtml = (cards) => cards.map((c) => `<span class="rpc ${c.s}">${esc(c.r)}<i>${SUIT[c.s] || ""}</i></span>`).join("");
 
 async function viewReplayer(id) {
@@ -38,7 +39,7 @@ async function viewReplayer(id) {
       <span class="rp-cards">${cardsHtml(i.cards) || `<span class="rpc">?</span>`}</span>
       <span class="rp-meta"><b>${esc([i.stakes, i.site].filter(Boolean).join(" · ") || t("hand"))}</b>
         <small>${fmtDay(h.created_at.slice(0, 10))} · ${hhmm(h.created_at)}</small>
-        ${h.note ? `<small class="rp-note">${esc(h.note)}</small>` : ""}</span></a>`;
+        ${h.note ? `<small class="rp-note">${esc(h.note)}</small>` : ""}${rpTags(h)}</span></a>`;
   };
   const form = `<form class="rp-new card" id="rpform">
       <p class="eyebrow">${t("newHand")}</p><h2 class="rp-h">${t("pasteHand")}</h2>
@@ -54,7 +55,7 @@ async function viewReplayer(id) {
       </aside>
       <div class="rp-stage">${cur ? `
         <div class="rp-bar"><span class="rp-cards">${cardsHtml(handInfo(cur.hh).cards)}</span>
-          <b>${esc([handInfo(cur.hh).stakes, handInfo(cur.hh).site].filter(Boolean).join(" · "))}</b>
+          <b>${esc([handInfo(cur.hh).stakes, handInfo(cur.hh).site].filter(Boolean).join(" · "))}</b>${rpTags(cur)}
           <span class="rp-tools"><button class="chip btn-gto" id="rpgto" title="${t("gtoTip")}">GTO Wizard ↗</button><button class="chip" id="rpcopy">${t("copyHH")}</button><a class="chip" id="rpfull" target="_blank" rel="noopener">${t("fullScreen")} ↗</a></span></div>
         ${cur.note ? `<p class="rp-q">${esc(cur.note)}</p>` : ""}
         <iframe class="rp-frame" id="rpframe" title="RTS Replayer" allow="clipboard-write; fullscreen"></iframe>` : form}</div>
