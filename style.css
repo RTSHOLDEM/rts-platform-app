@@ -1715,3 +1715,19 @@ dialog.cal-link { width: min(620px, 96vw); }
 .hf-row { display: inline-flex; flex-wrap: wrap; gap: 4px; }
 .hd-filter .chip small { opacity: .6; margin-left: 2px; }
 .hd-filter .chip { text-decoration: none; }
+
+/* Note safety: history + trash (Alexis 2026-11-18) */
+dialog.nb-safe { width: min(820px, 96vw); }
+.nb-hs { display: grid; grid-template-columns: 230px 1fr; gap: 14px; height: min(460px, 60vh); }
+.nb-hl { overflow: auto; display: flex; flex-direction: column; gap: 4px; }
+.nb-hv { text-align: left; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+.nb-hv b { font: 600 13px var(--body); } .nb-hv small { color: var(--muted); font-size: 11px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.nb-hv.on { border-color: var(--red); background: rgba(253, 6, 6, .08); }
+.nb-hp { overflow: auto; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; background: var(--surface-2); }
+.nb-hp h4 { margin: 0 0 8px; font: 700 16px var(--head); }
+.nb-hb { font-size: 14px; line-height: 1.5; }
+.nb-tl { display: flex; flex-direction: column; gap: 6px; max-height: 60vh; overflow: auto; }
+.nb-tr { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
+.nb-tr span { display: flex; flex-direction: column; gap: 2px; min-width: 0; } .nb-tr small { color: var(--muted); font-size: 11px; }
+.nb-trashb { margin-top: 6px; width: 100%; border: 0; background: none; color: var(--muted); cursor: pointer; font: inherit; text-align: left; }
+@media (max-width: 760px) { .nb-hs { grid-template-columns: 1fr; height: auto; } .nb-hl { max-height: 160px; } }

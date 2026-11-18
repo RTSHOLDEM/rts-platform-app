@@ -10,7 +10,7 @@ Object.assign(STRINGS.en, {
   nbAll: "All notes", nbNone: "No folder", nbRts: "RTS tree", nbMine: "My folders", nbUntitled: "Untitled", nbTitlePh: "Title",
   nbBodyPh: "Write here. Bold, underline, colours, cards: the bar above. Saved as you type.", nbSaving: "Saving…", nbSaved: "Saved ✓", nbOffline: "Kept in this browser, will save",
   nbPick: "Pick a note on the left or create one.", nbEmptyF: "No note in this folder yet.", nbSearch: "Search my notes…",
-  nbDelFolder: "Delete the folder “{f}” and its sub-folders? Its notes go to “No folder”.", nbDelNote: "Delete the note “{f}”? This can't be undone.",
+  nbDelFolder: "Delete the folder “{f}” and its sub-folders? Its notes go to “No folder”.", nbDelNote: "Delete the note “{f}”? It stays 30 days in the Trash.",
   nbSure: "Are you sure?", nbCancel: "Cancel", nbFolderName: "Folder name", nbCreate: "Create", nbSpot: "Situation", nbSpotSet: "Pick the situation",
   nbFormat: "Format", nbPot: "Pot", nbHero: "Me", nbVillain: "Against", nbBoard: "Board", nbClear: "Clear", nbApply: "Apply", nbCards: "Cards", nbInsert: "Insert",
   nbStartStudy: "Start a study session", nbLive: "Study session live", nbEnd: "End", nbHere: "New note here", nbFiled: "Filed in", nbSeedRts: "Add the RTS tree",
@@ -21,7 +21,7 @@ Object.assign(STRINGS.fr, {
   nbAll: "Toutes les notes", nbNone: "Sans dossier", nbRts: "Arborescence RTS", nbMine: "Mes dossiers", nbUntitled: "Sans titre", nbTitlePh: "Titre",
   nbBodyPh: "Écris ici. Gras, souligné, couleurs, cartes : la barre au-dessus. Enregistré pendant que tu tapes.", nbSaving: "Enregistrement…", nbSaved: "Enregistré ✓", nbOffline: "Gardé dans ce navigateur, sera enregistré",
   nbPick: "Choisis une note à gauche ou crées-en une.", nbEmptyF: "Pas encore de note dans ce dossier.", nbSearch: "Chercher dans mes notes…",
-  nbDelFolder: "Supprimer le dossier « {f} » et ses sous-dossiers ? Ses notes vont dans « Sans dossier ».", nbDelNote: "Supprimer la note « {f} » ? C'est définitif.",
+  nbDelFolder: "Supprimer le dossier « {f} » et ses sous-dossiers ? Ses notes vont dans « Sans dossier ».", nbDelNote: "Supprimer la note « {f} » ? Elle reste 30 jours dans la corbeille.",
   nbSure: "Tu es sûr ?", nbCancel: "Annuler", nbFolderName: "Nom du dossier", nbCreate: "Créer", nbSpot: "Situation", nbSpotSet: "Choisir la situation",
   nbFormat: "Format", nbPot: "Pot", nbHero: "Moi", nbVillain: "Contre", nbBoard: "Board", nbClear: "Effacer", nbApply: "Valider", nbCards: "Cartes", nbInsert: "Insérer",
   nbStartStudy: "Lancer une session d'étude", nbLive: "Session d'étude en cours", nbEnd: "Terminer", nbHere: "Nouvelle note ici", nbFiled: "Rangée dans", nbSeedRts: "Ajouter l'arborescence RTS",
@@ -150,7 +150,8 @@ async function viewStudyNotes() {
       <div class="nb-meta"><span class="muted">${longDay(cur.started_at.slice(0, 10))} · ${hhmm(cur.started_at)}</span>
         <label class="nb-mv" title="${t("nbMove")}">📁 <select id="nbmv">${fOpts(cur.folder || "")}</select></label>
         <span class="nb-spot" id="nbspotv">${spotChips(cur.spot)}</span>
-        <button type="button" class="btn btn-sm nb-spotb" id="nbspotb">🂠 ${cur.spot ? t("nbSpot") : t("nbSpotSet")}</button></div>
+        <button type="button" class="btn btn-sm nb-spotb" id="nbspotb">🂠 ${cur.spot ? t("nbSpot") : t("nbSpotSet")}</button>
+        <button type="button" class="btn btn-sm nb-histb" id="nbhist" title="${t("nbHistTip")}">🕘 ${t("nbHist")}</button></div>
       <div class="nb-tb" id="nbtb">
         ${tb("bold", "<b>B</b>", t("nbBold"))}${tb("italic", "<i>I</i>", t("nbItalic"))}${tb("underline", "<u>U</u>", t("nbUnder"))}${tb("strikeThrough", "<s>S</s>", t("nbStrike"))}<i class="nb-sep"></i>
         <span class="nb-sw" title="${t("nbColor")}">A${NB_COLORS.map(([c, l]) => `<button type="button" class="nb-col" data-color="${c}" style="--c:${c || "var(--text)"}" title="${l}" tabindex="-1"></button>`).join("")}</span><i class="nb-sep"></i>
@@ -171,6 +172,7 @@ async function viewStudyNotes() {
         <p class="nb-grp">${t("nbRts")}<button type="button" class="nb-icb sm" data-nbnewf="" data-grp="rts" title="${t("nbNewFolder")}">${ICO.newf}</button></p>${rts.map(node).join("") || `<button type="button" class="small-link" id="nbseed">+ ${t("nbSeedRts")}</button>`}
         <p class="nb-grp">${t("nbMine")}<button type="button" class="nb-icb sm" data-nbnewf="" title="${t("nbNewFolder")}">${ICO.newf}</button></p>${mine.map(node).join("")}
       </div>
+      <button type="button" class="nb-f top nb-trashb" id="nbtrash">🗑 <span class="nb-fn">${t("nbTrash")}</span><small id="nbtrashn"></small></button>
     </aside>
     <section class="card nb-pages">
       <div class="nb-pgh"><b title="${esc(where)}">${esc(where)}</b><button type="button" class="nb-icb red" data-nbnew title="${t("nbNewNote")}">${ICO.pen}</button></div>
@@ -181,8 +183,11 @@ async function viewStudyNotes() {
   </div>
   <div class="nb-menu" id="nbmenu" hidden></div>
   <dialog id="nbask" class="card nb-ask"></dialog>
-  <dialog id="nbspot" class="card nb-spotd"></dialog>`;
+  <dialog id="nbspot" class="card nb-spotd"></dialog>
+  <dialog id="nbsafe" class="card nb-safe"></dialog>`;
   fitToDock("#nb");
+  db.noteTrash().then((l) => { const el = $("#nbtrashn"); if (el) el.textContent = l.length || ""; }).catch(() => {});
+  $("#nbtrash").onclick = async () => { await nbFlush(); nbTrashDlg((id) => { NB.cur = null; NB.dirty = false; go({ f: "", n: id }); route(); }); };
 
   // ---------- folders ----------
   const go = (o) => { location.hash = href(o); };
@@ -339,6 +344,7 @@ async function viewStudyNotes() {
     if (folder) folder.split("/").forEach((_, i, a) => open.add(a.slice(0, i + 1).join("/"))); nbOpen.set(open);
     go({ f: folder || q.f, n: cur.id });
   });
+  $("#nbhist").onclick = async () => { await nbFlush(); nbHistory(cur, (id) => { NB.cur = null; NB.dirty = false; nbLS.drop(id); go({ n: id }); route(); }); };
   $("#nbpause")?.addEventListener("click", async () => { await nbFlush(); await sesPause(); route(); });
   $("#nbend")?.addEventListener("click", async () => { await nbFlush(); await sesEnd(null); });
   if (!body.textContent.trim() && !title.value.trim()) title.focus();
@@ -388,3 +394,39 @@ Object.assign(STRINGS.en, { scPaused: "Paused", scEnd: "End", scCockpit: "Cockpi
 Object.assign(STRINGS.fr, { scPaused: "En pause", scEnd: "Terminer", scCockpit: "Cockpit", scOpenNote: "Ouvrir la note de la session" });
 Object.assign(STRINGS.en, { nbToMine: "Move to My folders", nbToRts: "Move to the RTS tree" });
 Object.assign(STRINGS.fr, { nbToMine: "Déplacer dans Mes dossiers", nbToRts: "Déplacer dans l'arborescence RTS" });
+
+/* Note safety (Alexis 2026-11-18): every note has its history (one click puts an older version back, and that can be undone too)
+   and deleted notes wait 30 days in the Trash. The database keeps these copies itself (029), whatever the app does. */
+const nbWhen = (iso) => `${fmtDay(iso.slice(0, 10))} · ${hhmm(iso)}`;
+async function nbHistory(cur, done) {
+  const d = $("#nbsafe"), vs = await db.noteVersions(cur.id).catch(() => []);
+  let sel = vs[0];
+  const draw = () => {
+    d.innerHTML = `<div class="card-head"><h3>🕘 ${t("nbHist")} · ${esc(nbTitleOf(cur))}</h3><button class="x" type="button" data-x>×</button></div>
+      ${vs.length ? `<div class="nb-hs"><div class="nb-hl">${vs.map((v) => `<button type="button" class="nb-hv ${v === sel ? "on" : ""}" data-v="${v.id}"><b>${nbWhen(v.saved_at)}</b><small>${esc(((v.notes || "").replace(/\s+/g, " ").slice(0, 60)) || "—")}</small></button>`).join("")}</div>
+        <div class="nb-hp"><h4>${esc(sel.title || "")}</h4><div class="nb-hb">${nbClean(sel.notes_html ?? esc(sel.notes || ""))}</div></div></div>
+        <p class="row-btns"><button type="button" class="btn btn-red" data-ok>↺ ${t("nbRestoreV")}</button><span class="muted small">${t("nbRestoreTip")}</span></p>`
+        : `<p class="muted">${t("nbHistNone")}</p>`}`;
+    $("[data-x]", d).onclick = () => d.close();
+    $$("[data-v]", d).forEach((b) => b.onclick = () => { sel = vs.find((v) => String(v.id) === b.dataset.v); draw(); });
+    const ok = $("[data-ok]", d); if (ok) ok.onclick = async () => { ok.disabled = true; const id = await db.restoreVersion(sel.id); d.close(); hqToast(`✓ ${t("nbRestored")}`, 4000); done(id); };
+  };
+  draw(); d.showModal();
+}
+async function nbTrashDlg(done) {
+  const d = $("#nbsafe"), ls = await db.noteTrash().catch(() => []);
+  d.innerHTML = `<div class="card-head"><h3>🗑 ${t("nbTrash")}</h3><button class="x" type="button" data-x>×</button></div>
+    <p class="muted small">${t("nbTrashSub")}</p>
+    ${ls.length ? `<div class="nb-tl">${ls.map((x) => `<div class="nb-tr"><span><b>${esc((x.title || "").trim() || (x.notes || "").trim().split("\n")[0].slice(0, 60) || t("nbUntitled"))}</b>
+      <small>${t("nbDeletedOn")} ${nbWhen(x.deleted_at)}${x.folder ? " · " + esc(x.folder.split("/").join(" › ")) : ""}</small></span>
+      <button type="button" class="btn btn-sm btn-red" data-r="${x.id}">↺ ${t("nbRestore")}</button></div>`).join("")}</div>` : `<p class="muted">${t("nbTrashEmpty")}</p>`}`;
+  $("[data-x]", d).onclick = () => d.close();
+  $$("[data-r]", d).forEach((b) => b.onclick = async () => { b.disabled = true; const x = ls.find((y) => String(y.id) === b.dataset.r); const id = await db.restoreTrash(x.id); d.close(); hqToast(`✓ ${t("nbRestored")}`, 4000); done(id); });
+  d.showModal();
+}
+Object.assign(STRINGS.en, { nbHist: "History", nbHistTip: "Every version of this note, restorable", nbHistNone: "No older version yet. One is kept every 10 minutes while you write.",
+  nbRestoreV: "Restore this version", nbRestoreTip: "The note as it is now is kept in the history too.", nbRestored: "Note restored", nbRestore: "Restore",
+  nbTrash: "Trash", nbTrashSub: "Deleted notes stay here 30 days.", nbTrashEmpty: "The trash is empty.", nbDeletedOn: "Deleted" });
+Object.assign(STRINGS.fr, { nbHist: "Historique", nbHistTip: "Toutes les versions de cette note, restaurables", nbHistNone: "Pas encore d'ancienne version. Une est gardée toutes les 10 minutes pendant que tu écris.",
+  nbRestoreV: "Restaurer cette version", nbRestoreTip: "La note telle qu'elle est maintenant reste aussi dans l'historique.", nbRestored: "Note restaurée", nbRestore: "Restaurer",
+  nbTrash: "Corbeille", nbTrashSub: "Les notes supprimées restent ici 30 jours.", nbTrashEmpty: "La corbeille est vide.", nbDeletedOn: "Supprimée le" });

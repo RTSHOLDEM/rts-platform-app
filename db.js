@@ -100,6 +100,11 @@ function liveDb() {
     async saveSession(s) { return (await rows(sb.from("sessions").update(s).eq("id", s.id).select()))[0]; },
     async addSession(s) { const me = await db.me(); return (await rows(sb.from("sessions").insert({ ...s, player_id: me.id }).select()))[0]; }, // done without the timer (Cockpit)
     async dropSession(id) { return rows(sb.from("sessions").delete().eq("id", id)); },
+    // note safety (029): the database keeps versions and a 30-day trash by itself
+    async noteVersions(sid) { return rows(sb.from("note_versions").select("id,saved_at,title,notes,notes_html").eq("session_id", sid).order("saved_at", { ascending: false }).limit(60)); },
+    async noteTrash() { return rows(sb.from("note_trash").select("id,session_id,deleted_at,title,notes,folder").gte("deleted_at", new Date(Date.now() - 30 * 864e5).toISOString()).order("deleted_at", { ascending: false })); },
+    async restoreVersion(id) { const { data, error } = await sb.rpc("restore_note_version", { v: id }); if (error) throw error; return data; },
+    async restoreTrash(id) { const { data, error } = await sb.rpc("restore_note_trash", { tid: id }); if (error) throw error; return data; },
     // study note folders (021): paths like "SRP/BB vs BTN"
     async folders() { const me = await db.me(); return (await rows(sb.from("note_folders").select("path").eq("player_id", me.id))).map((f) => f.path).sort(); },
     async rtsRoots() { const me = await db.me(); return (await rows(sb.from("note_folders").select("path").eq("player_id", me.id).eq("grp", "rts"))).map((f) => f.path); },
@@ -273,7 +278,7 @@ function demoDb() {
     async sessions(pid, from) { return canSee(me(), byId(pid)) ? (S.sessions ||= []).filter((s) => s.player_id === pid && s.started_at >= from).sort((a, b) => (a.started_at < b.started_at ? 1 : -1)) : []; },
     async openSession(pid) { return (S.sessions ||= []).find((s) => s.player_id === pid && !s.ended_at) || null; },
     async startSession(kind, planned_min = null, topic = null) { const s = { id: "se" + Date.now(), player_id: meId(), kind, planned_min, topic, started_at: new Date().toISOString(), ended_at: null }; (S.sessions ||= []).push(s); save(); return s; },
-    async saveSession(x) { const s = S.sessions.find((y) => y.id === x.id); Object.assign(s, x); save(); return s; },
+    async saveSession(x) { const s = S.sessions.find((y) => y.id === x.id); demoGuard(S, s, { ...s, ...x }); Object.assign(s, x); save(); return s; },
     async addSession(x) { const s = { id: "se" + Date.now(), player_id: meId(), ...x }; (S.sessions ||= []).push(s); save(); return s; },
     async folders() { return [...new Set((S.folders ||= []).filter((f) => f.player_id === meId()).map((f) => f.path))].sort(); },
     async rtsRoots() { return (S.folders || []).filter((f) => f.player_id === meId() && f.grp === "rts").map((f) => f.path); },
@@ -285,7 +290,20 @@ function demoDb() {
       (S.sessions || []).forEach((x) => { if (x.player_id === meId() && x.folder && under(x.folder)) x.folder = map(x.folder); }); save(); },
     async dropFolder(path) { const gone = (p) => p === path || (p || "").startsWith(path + "/");
       S.folders = (S.folders || []).filter((f) => !(f.player_id === meId() && gone(f.path))); (S.sessions || []).forEach((x) => { if (x.player_id === meId() && gone(x.folder)) x.folder = null; }); save(); },
-    async dropSession(id) { S.sessions = S.sessions.filter((x) => x.id !== id); (S.hands || []).forEach((h) => { if (h.session_id === id) h.session_id = null; }); save(); },
+    async noteVersions(sid) { return (S.nver || []).filter((v) => v.session_id === sid).sort((a, b) => (a.saved_at < b.saved_at ? 1 : -1)); },
+    async noteTrash() { return (S.ntrash || []).filter((v) => v.player_id === meId()).sort((a, b) => (a.deleted_at < b.deleted_at ? 1 : -1)); },
+    async restoreVersion(id) { const v = S.nver.find((x) => x.id === id), s = S.sessions.find((y) => y.id === v.session_id);
+      if (s) { (S.nver ||= []).push({ ...demoSnap(s), id: "v" + Date.now() }); Object.assign(s, { title: v.title, notes: v.notes, notes_html: v.notes_html }); }
+      else S.sessions.push({ id: v.session_id, player_id: v.player_id, kind: "study", started_at: v.saved_at, minutes: 0, title: v.title, notes: v.notes, notes_html: v.notes_html });
+      save(); return v.session_id; },
+    async restoreTrash(id) { const r = S.ntrash.find((x) => x.id === id), s = S.sessions.find((y) => y.id === r.session_id);
+      const back = { title: r.title, notes: r.notes, notes_html: r.notes_html, spot: r.spot, folder: r.folder };
+      let sid = r.session_id;
+      if (!s) S.sessions.push({ id: sid, player_id: r.player_id, kind: "study", started_at: r.started_at, minutes: r.minutes || 0, ...back });
+      else if (!demoHas(s)) Object.assign(s, back);
+      else { sid = "s" + Date.now(); S.sessions.push({ id: sid, player_id: r.player_id, kind: "study", started_at: r.started_at, minutes: 0, ...back }); }
+      S.ntrash = S.ntrash.filter((x) => x.id !== id); save(); return sid; },
+    async dropSession(id) { const old = S.sessions.find((x) => x.id === id); if (old) demoGuard(S, old, null); S.sessions = S.sessions.filter((x) => x.id !== id); (S.hands || []).forEach((h) => { if (h.session_id === id) h.session_id = null; }); save(); },
     async focus(pid) { return canSee(me(), byId(pid)) ? (S.focus ||= []).filter((f) => f.player_id === pid && f.active) : []; },
     async addFocus(pid, text) { (S.focus ||= []).push({ id: "f" + Date.now(), player_id: pid, text, added_by: meId(), active: true }); save(); },
     async dropFocus(id) { S.focus.find((f) => f.id === id).active = false; save(); },
@@ -350,3 +368,15 @@ function demoDb() {
 }
 
 window.db = LIVE ? liveDb() : demoDb();
+
+/* Demo copy of the database note guard (029): versions at most every 10 min or before a big erase, trash on delete or wipe. */
+const demoHas = (s) => !!((s.title || "").trim() || (s.notes || "").trim() || (s.notes_html || "").replace(/<[^>]*>/g, "").trim());
+const demoSnap = (s) => ({ session_id: s.id, player_id: s.player_id, title: s.title, notes: s.notes, notes_html: s.notes_html, spot: s.spot, folder: s.folder, saved_at: new Date().toISOString() });
+function demoGuard(S, old, nu) {
+  if (!old || old.kind !== "study" || !demoHas(old)) return;
+  if (!nu || !demoHas(nu)) { (S.ntrash ||= []).push({ ...demoSnap(old), id: "t" + Date.now(), started_at: old.started_at, minutes: old.minutes, deleted_at: new Date().toISOString() }); return; }
+  if (nu.notes_html === old.notes_html && nu.title === old.title) return;
+  const last = (S.nver ||= []).filter((v) => v.session_id === old.id).map((v) => v.saved_at).sort().pop();
+  const big = (old.notes || "").length > 150 && (nu.notes || "").length < (old.notes || "").length * 0.7;
+  if (!last || Date.now() - new Date(last) > 6e5 || big) S.nver.push({ ...demoSnap(old), id: "v" + Date.now() });
+}
