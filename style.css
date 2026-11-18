@@ -1746,3 +1746,40 @@ dialog.nb-safe { width: min(820px, 96vw); }
 .hd-imp { width: min(640px, 94vw); }
 .hd-imp textarea { width: 100%; }
 .hd-now { display: flex !important; flex-direction: row; align-items: center; gap: 8px; color: var(--text) !important; }
+
+/* session hands: one thin row per hand, cards big (2026-11-18) */
+.hstrips{display:grid;gap:4px;max-height:150px;overflow:auto;align-content:start}
+.hstrip{display:flex;align-items:center;gap:10px;height:46px;flex:none;padding:0 10px;border-radius:9px;background:rgba(127,127,127,.10);cursor:pointer;white-space:nowrap;overflow:hidden}
+.hstrip:hover{background:rgba(127,127,127,.2)}
+.hstrip .sm,.hstrip .st{display:inline-flex;gap:2px}
+.hstrip .sb{display:inline-flex;gap:7px;padding-left:10px;border-left:1px solid rgba(127,127,127,.3)}
+.sc{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:24px;height:33px;border-radius:5px;color:#fff;font:700 16px/1 Inter,system-ui,sans-serif}
+.sc i{font-style:normal;font-size:10px;line-height:1;margin-top:1px}
+.sc.h{background:#d3202f}.sc.d{background:#2456c8}.sc.c{background:#1d8a3a}.sc.s{background:#3b3b42}
+.hstrip .sm .sc{width:29px;height:39px;font-size:19px}
+.hstrip .sm.none{font-size:20px}
+.hstrip .sn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;color:#8b8b92;font-size:12px}
+.hstrip .stg{font-size:10px;padding:2px 7px;border-radius:99px;background:rgba(127,127,127,.18);color:#c9c9cf}
+.hlist .hstrips{padding:6px;max-height:200px}
+.hlist[open]:has(.hstrips){max-height:none;overflow:visible}
+/* One-screen Grind page: the hand form keeps its size, the session hands take the space left and scroll inside (2026-11-18). */
+@media (min-width: 901px) and (min-height: 640px) {
+  #hform textarea { flex: none; }
+  #hform .hl-box { flex: 1; min-height: 96px; display: flex; flex-direction: column; overflow: hidden; }
+  #hform .hlist .hstrips { flex: 1; min-height: 0; max-height: none; overflow: auto; }
+}
+@media (min-width: 901px) and (min-height: 640px) {
+  #hform .drop { padding: 10px 12px; font-size: 13px; }
+  #hform textarea { height: 44px; min-height: 44px; }
+  #hform .hlist { margin-top: 6px; }
+  #hform .hl-title { padding: 6px 12px; }
+}
+@media (min-width: 901px) and (min-height: 640px) {
+  #hform .drop { margin-bottom: 8px; }
+  #hform .shots[hidden], #hform #hsaved:empty { display: none; }
+  #hform textarea { margin-top: 0; margin-bottom: 6px; }
+  #hform #hsaved { margin-top: 6px; }
+  #hform .hl-box { min-height: 60px; }
+}
+
+.hl-box .hl-title { margin: 0; padding: 9px 12px; font-size: 13px; color: var(--muted); }

@@ -322,8 +322,8 @@ async function viewSession() {
             <textarea name="hh" rows="3" class="sensitive mono" placeholder="${t("pasteHH")}"></textarea>
             <textarea name="note" rows="2" class="sensitive" placeholder="${t("handNotePh")}"></textarea>
             <button class="btn btn-sm btn-red">${t("saveHand")}</button><p class="saved" id="hsaved"></p>
-            <details class="hlist"><summary>${t("handsSession")} · ${mineHere.length}</summary>
-              ${mineHere.map((h) => `<p class="hrow">${h.image_path || h.image_data ? "🖼" : h.link ? "🔗" : "📋"} <span class="sensitive">${esc((h.note || h.link || h.hh || t("screenshot")).slice(0, 60))}</span> ${(h.tags || []).map((k) => `<small class="tag">${esc(tagLabel(k))}</small>`).join(" ")}</p>`).join("") || `<p class="muted small">${t("noHandsYet")}</p>`}</details></form>`
+            <div class="hlist hl-box"><p class="hl-title">${t("handsSession")} · ${mineHere.length}</p>
+              <div class="hstrips sensitive" id="hstrips">${mineHere.map(handStrip).join("") || `<p class="muted small">${t("noHandsYet")}</p>`}</div></div></form>`
         : `<form class="card" id="cform"><div class="card-head"><h3>${t("addConclusion")}</h3><span class="tag">${cardsHere.length}</span></div>
             <p class="muted small">${t("conclusionAsk")}</p>
             <input name="situation" required placeholder="${t("situation")} · SB vs BTN, 3BP, K72r">
@@ -369,7 +369,12 @@ async function viewSession() {
     const shots = [];
     const showShots = () => { const el = $("#shots"); el.hidden = !shots.length; el.innerHTML = shots.map((x, i) => `<span class="shot"><img src="${x.url}" alt=""><button type="button" data-rm="${i}" title="${t("removeShot")}">×</button></span>`).join("");
       $$("[data-rm]", el).forEach((b) => b.onclick = () => { URL.revokeObjectURL(shots[b.dataset.rm].url); shots.splice(b.dataset.rm, 1); showShots(); }); };
-    const files = (list) => { [...list].filter((f) => f.type.startsWith("image/")).forEach((f) => shots.push({ f, url: URL.createObjectURL(f) })); showShots(); $("#hform").note.focus(); };
+    // A dropped screenshot is also read into a hand history (replayer.js hhFromImage, Alexis 2026-11-18), kept with the picture.
+    let reading = null;
+    const readShot = (f) => { const form = $("#hform"); if (!f || form.hh.value.trim()) return; const st = $("#hsaved"); st.textContent = t("ocrReading");
+      reading = hhFromImage(f).then((hh) => { if (!form.hh.value.trim()) form.hh.value = hh; st.textContent = t("ocrDone"); }).catch((e) => { st.textContent = e.message; }).finally(() => { reading = null; }); };
+    const files = (list) => { const im = [...list].filter((f) => f.type.startsWith("image/")); im.forEach((f) => shots.push({ f, url: URL.createObjectURL(f) })); showShots(); $("#hform").note.focus(); readShot(im[0]); };
+    $("#hstrips").onclick = (e) => { const id = e.target.closest("[data-strip]")?.dataset.strip, h = mineHere.find((x) => String(x.id) === id); if (h) openStrip(h); };
     const drop = $("#drop");
     // Never a file picker (Alexis): a click only reminds how to add a hand.
     drop.onclick = () => { drop.focus(); drop.classList.add("over"); setTimeout(() => drop.classList.remove("over"), 600); };
@@ -380,7 +385,8 @@ async function viewSession() {
     // Cmd+V a screenshot anywhere in the cockpit saves it too.
     document.onpaste = (e) => { if (location.hash !== "#/session") return; const im = [...(e.clipboardData?.files || [])]; if (im.length) { e.preventDefault(); files(im); } };
     $("#hform").onsubmit = async (ev) => {
-      ev.preventDefault(); const f = new FormData(ev.target), hh = f.get("hh").trim() || null, note = f.get("note").trim() || null;
+      ev.preventDefault(); if (reading) { $("#hsaved").textContent = t("ocrReading"); await reading; }
+      const f = new FormData(ev.target), hh = f.get("hh").trim() || null, note = f.get("note").trim() || null;
       if (!hh && !shots.length) return;
       if (!shots.length) return save({ hh, note });
       $("#hsaved").textContent = "…";
@@ -834,7 +840,19 @@ body{display:grid;grid-template-rows:auto 1fr}
 .bar{border-bottom:1px solid #1f1f23}
 .body{display:grid;grid-template-columns:1.15fr 1fr;gap:10px;padding:10px;min-height:0}
 .col{display:grid;gap:10px;min-height:0}
-.hand{grid-template-rows:1fr auto auto auto auto auto;gap:7px}
+.hand{grid-template-rows:1fr auto auto auto auto auto auto;gap:7px}
+.hstrips{display:grid;gap:4px;max-height:150px;overflow:auto;align-content:start}
+.hstrip{display:flex;align-items:center;gap:10px;height:46px;flex:none;padding:0 10px;border-radius:9px;background:rgba(127,127,127,.10);cursor:pointer;white-space:nowrap;overflow:hidden}
+.hstrip:hover{background:rgba(127,127,127,.2)}
+.hstrip .sm,.hstrip .st{display:inline-flex;gap:2px}
+.hstrip .sb{display:inline-flex;gap:7px;padding-left:10px;border-left:1px solid rgba(127,127,127,.3)}
+.sc{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:24px;height:33px;border-radius:5px;color:#fff;font:700 16px/1 Inter,system-ui,sans-serif}
+.sc i{font-style:normal;font-size:10px;line-height:1;margin-top:1px}
+.sc.h{background:#d3202f}.sc.d{background:#2456c8}.sc.c{background:#1d8a3a}.sc.s{background:#3b3b42}
+.hstrip .sm .sc{width:29px;height:39px;font-size:19px}
+.hstrip .sm.none{font-size:20px}
+.hstrip .sn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;color:#8b8b92;font-size:12px}
+.hstrip .stg{font-size:10px;padding:2px 7px;border-radius:99px;background:rgba(127,127,127,.18);color:#c9c9cf}
 .tags{display:flex;flex-wrap:wrap;gap:5px}
 .tags button{padding:4px 9px;font-size:11px;font-weight:600;color:#b5b5bb}
 .tags button.on{background:#fd0606;border-color:#fd0606;color:#fff}
@@ -903,6 +921,7 @@ async function openPop(pending) {
         <div class="tags spot" data-row="spot">${HAND_TAGS.spot.map((k) => `<button data-tag="${k}">${t("tag_" + k)}</button>`).join("")}</div>
         <div class="hrow"><input id="hq" class="sensitive" placeholder="${t("popQ")}" autocomplete="off"><button id="hs" class="red">${t("popSave")}</button></div>
         <p class="msg" id="hm"></p>
+        <div class="hstrips" id="hl"></div>
       </div>
       <div class="col side">
         <div class="focus"><h4>${t("focus")}</h4><div id="fl"></div></div>
@@ -917,7 +936,10 @@ async function openPop(pending) {
   db.focus(ME.id).then((l) => { q("fl").innerHTML = l.map((f) => `<p>${esc(f.text)}</p>`).join("") || `<p class="none">${t("popNoFocus")}</p>`; }).catch(() => {});
   let count = 0;
   const showCount = (extra = "") => { q("hm").innerHTML = `${extra}${extra ? " · " : ""}${t("popHands")} : <b>${count}</b>`; };
-  db.hands().then((l) => { count = l.filter((h) => h.session_id === s0.id).length; showCount(); }).catch(() => showCount());
+  let mineP = [];
+  const loadStrips = (extra = "") => db.hands().then((l) => { mineP = l.filter((h) => h.session_id === s0.id); count = mineP.length; showCount(extra); q("hl").innerHTML = mineP.map(handStrip).join(""); }).catch(() => showCount(extra));
+  loadStrips();
+  q("hl").onclick = (e) => { const id = e.target.closest("[data-strip]")?.dataset.strip, h = mineP.find((x) => String(x.id) === id); if (h) openStrip(h, w); };
 
   // Notes: same text as the cockpit page, saved 1 s after the last key.
   const nt = q("nt");
@@ -937,7 +959,10 @@ async function openPop(pending) {
       + (link ? `<span><b class="hh">🔗 ${esc(link.replace(/^https?:\/\/(www\.)?/, ""))}</b><button data-rm="link" title="${t("removeShot")}">×</button></span>` : "");
     drop.classList.toggle("full", !!(shots.length || hh || link));
   };
-  const addFiles = (list) => { [...list].filter((f) => f.type.startsWith("image/")).forEach((f) => shots.push({ f, url: URL.createObjectURL(f) })); paint(); q("hq").focus(); };
+  let reading = null; // a screenshot is read into a hand history too, so the hand opens in the replayer
+  const addFiles = (list) => { const im = [...list].filter((f) => f.type.startsWith("image/")); im.forEach((f) => shots.push({ f, url: URL.createObjectURL(f) })); paint(); q("hq").focus();
+    if (im[0] && !hh) { q("hm").textContent = t("ocrReading");
+      reading = hhFromImage(im[0]).then((x) => { if (!hh) { hh = x; paint(); } q("hm").textContent = t("ocrDone"); }).catch((e) => { q("hm").textContent = e.message; }).finally(() => { reading = null; }); } };
   const isLink = (txt) => /^https?:\/\/\S+$/.test(txt.trim());
   const takeText = (txt) => { if (isHH(txt)) hh = txt.trim(); else if (isLink(txt)) link = txt.trim(); else return false; paint(); q("hq").focus(); return true; };
   const tags = {};
@@ -968,6 +993,7 @@ async function openPop(pending) {
   });
   const saveHand = async () => {
     if (!SES.s) return;
+    if (reading) { q("hm").textContent = t("ocrReading"); await reading; }
     if (!shots.length && !hh && !link) { drop.classList.add("over"); w.setTimeout(() => drop.classList.remove("over"), 600); return; }
     const note = q("hq").value.trim() || null, sid = SES.s.id, tg = Object.values(tags).filter(Boolean), base = { session_id: sid, note, tags: tg, link };
     q("hs").disabled = true; q("hm").textContent = "…";
@@ -978,7 +1004,7 @@ async function openPop(pending) {
       count += Math.max(1, shots.length);
       shots.forEach((x) => URL.revokeObjectURL(x.url)); shots.length = 0; hh = null; link = null; q("hq").value = ""; paint();
       Object.keys(tags).forEach((k) => (tags[k] = null)); $$("[data-tag]", d).forEach((x) => x.classList.remove("on"));
-      showCount(`✓ ${t("popSaved")}`);
+      loadStrips(`✓ ${t("popSaved")}`);
       if (location.hash === "#/session") route(); // the cockpit page lists the new hand too
     } catch (err) { q("hm").textContent = t("error") + " : " + err.message; }
     q("hs").disabled = false;

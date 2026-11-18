@@ -666,6 +666,18 @@ Object.assign(STRINGS.fr, { tabHands: "Mains", handsPool: "Mes mains", handsPool
 /* Read a pasted hand (Winamax, Betclic/Unibet, iPoker, PokerStars-like) into a situation for the notes:
    format, pot (SRP / 3BP / 4BP / Limp / Multiway), my position, the opponent's, the board, my cards (Alexis 2026-11-18).
    Anything it can't read stays empty: the player picks it in the situation box. */
+/* One thin row per hand: my 2 cards big, then the board by street (Alexis 2026-11-18: see the session's hands at a glance,
+   in the Grind page and the pop-up). Styles: .hstrip in style.css and POP_CSS. A click opens the hand in the replayer. */
+const STRIP_SUIT = { s: "♠", h: "♥", d: "♦", c: "♣" };
+const stripCard = (c) => `<span class="sc ${c[1]}">${c[0]}<i>${STRIP_SUIT[c[1]]}</i></span>`;
+function handStrip(h) {
+  const r = isHH(h.hh) ? hhSpot(h.hh) : { spot: {}, cards: [] }, b = r.spot.board || [];
+  const board = b.length ? `<span class="sb">${[b.slice(0, 3), b.slice(3, 4), b.slice(4, 5)].filter((x) => x.length).map((x) => `<span class="st">${x.map(stripCard).join("")}</span>`).join("")}</span>` : "";
+  const mine = r.cards.length ? `<span class="sm">${r.cards.map(stripCard).join("")}</span>` : `<span class="sm none">${h.image_path || h.image_data ? "🖼" : h.link ? "🔗" : "📋"}</span>`;
+  return `<div class="hstrip" data-strip="${esc(String(h.id))}" title="${esc(h.note || "")}">${mine}${board}<span class="sn">${esc((h.note || "").slice(0, 90))}</span>${(h.tags || []).map((k) => `<small class="stg">${esc(tagLabel(k))}</small>`).join("")}</div>`;
+}
+async function openStrip(h, win = window) { if (isHH(h.hh)) win.open(await replayUrl(h.hh), "_blank"); else if (h.link) win.open(h.link, "_blank"); else location.hash = "#/hands"; }
+
 function hhSpot(hh) {
   const s = String(hh || "").replace(/\r/g, "");
   const card = (tok) => {
