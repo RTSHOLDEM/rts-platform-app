@@ -733,13 +733,25 @@ function importHandDlg() {
   if (!d) { d = document.createElement("dialog"); d.id = "hdimpd"; d.className = "card hd-imp"; document.body.appendChild(d); }
   d.innerHTML = `<form method="dialog" class="wg"><div class="card-head"><h3>⬇ ${t("hnImport")}</h3><button class="x" value="cancel" formnovalidate>×</button></div>
     <p class="muted small">${t("hnImpSub")}</p>
-    <label>1. ${t("hnHandL")}<textarea name="hh" rows="6" class="mono sensitive" placeholder="Winamax Poker - CashGame - HandId: #…"></textarea></label>
+    <label>1. ${t("hnHandL")} <span class="muted">${t("ocrOr")}</span><textarea name="hh" rows="6" class="mono sensitive" placeholder="Winamax Poker - CashGame - HandId: #…"></textarea></label>
+    <label class="rp-drop"><input type="file" accept="image/*" name="img" hidden>📷 ${t("ocrDrop")}</label>
     <label>2. ${t("hnDiscL")}<textarea name="disc" rows="7" class="sensitive" placeholder="${t("hnDiscPh")}"></textarea></label>
     <label>${t("hnTitleL")}<input name="note" placeholder="${t("hnTitlePh")}"></label>
     <label class="hd-now"><input type="checkbox" name="now" checked> <span>${t("hnNoteNow")}</span></label>
     <p class="saved" id="hdimperr"></p>
     <p class="row-btns"><button class="btn btn-red" value="save">${t("save")}</button><button class="btn" value="cancel" formnovalidate>${t("cancel")}</button></p></form>`;
   const f = d.querySelector("form");
+  let shot = null; // the screenshot the hand was read from, saved with it
+  const fromImage = async (file) => {
+    if (!file) return;
+    $("#hdimperr").textContent = t("ocrReading");
+    try { f.hh.value = await hhFromImage(file); shot = file; $("#hdimperr").textContent = t("ocrDone"); }
+    catch (e) { $("#hdimperr").textContent = e.message; }
+  };
+  f.img.onchange = () => fromImage(f.img.files[0]);
+  f.onpaste = (e) => { const img = imgOf(e.clipboardData); if (img) { e.preventDefault(); fromImage(img); } };
+  d.ondragover = (e) => e.preventDefault();
+  d.ondrop = (e) => { const img = imgOf(e.dataTransfer); if (img) { e.preventDefault(); fromImage(img); } };
   f.onsubmit = async (ev) => {
     if (ev.submitter?.value !== "save") return;
     ev.preventDefault();
@@ -749,7 +761,7 @@ function importHandDlg() {
     const disc = f.disc.value.trim() || null;
     $("#hdimperr").textContent = "…";
     try {
-      const res = await db.addHand({ hh: isHH(hh) ? hh : null, link: url, note: f.note.value.trim() || null, discussion: disc, reviewed: !!disc });
+      const res = await db.addHand({ hh: isHH(hh) ? hh : null, link: url, note: f.note.value.trim() || null, discussion: disc, reviewed: !!disc }, shot);
       const h = Array.isArray(res) ? res[0] : res;
       d.close();
       if (f.now.checked && h?.id) handNote(h); else route();

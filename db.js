@@ -125,6 +125,12 @@ function liveDb() {
     async focus(pid) { return rows(sb.from("focus_items").select("*").eq("player_id", pid).eq("active", true).order("created_at")); },
     async addFocus(pid, text) { const me = await db.me(); return rows(sb.from("focus_items").insert({ player_id: pid, text, added_by: me.id }).select()); },
     async dropFocus(id) { return rows(sb.from("focus_items").update({ active: false }).eq("id", id)); },
+    // Screenshot of a hand -> hand history, read on the server by Claude Haiku 5.5 (function hh-from-image, 2026-11-18)
+    async hhFromImage(image, media_type) {
+      const { data, error } = await sb.functions.invoke("hh-from-image", { body: { image, media_type } });
+      if (error) { let code = ""; try { code = (await error.context.json()).error; } catch {} throw new Error(code || error.message); }
+      return data;
+    },
     async hands() { const me = await db.me(); return rows(sb.from("hands").select("*").eq("player_id", me.id).order("created_at", { ascending: false })); },
     async addHand(h, file) {
       const me = await db.me();
@@ -309,6 +315,7 @@ function demoDb() {
     async focus(pid) { return canSee(me(), byId(pid)) ? (S.focus ||= []).filter((f) => f.player_id === pid && f.active) : []; },
     async addFocus(pid, text) { (S.focus ||= []).push({ id: "f" + Date.now(), player_id: pid, text, added_by: meId(), active: true }); save(); },
     async dropFocus(id) { S.focus.find((f) => f.id === id).active = false; save(); },
+    async hhFromImage() { await new Promise((r) => setTimeout(r, 1200)); return { hh: RP_DEMO_HH, left: 29 }; },
     async hands() { return (S.hands ||= []).filter((h) => h.player_id === meId()).sort((a, b) => (a.created_at < b.created_at ? 1 : -1)); },
     async addHand(h, file) {
       if (file) h.image_data = await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(file); });

@@ -73,3 +73,8 @@ body:has(.rp) #main { width: calc(100% - 32px); max-width: none; }
 .rp-sub { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
 .rp-sub .rp-q { margin: 0; flex: 1 1 260px; }
 .rp-sub .te { flex: 0 1 auto; }
+
+/* screenshot -> hand (2026-11-18) */
+.rp-drop { display: block; margin: 8px 0; padding: 14px; border: 1.5px dashed var(--line); border-radius: 12px; text-align: center; font-size: 13px; color: var(--muted, inherit); cursor: pointer; }
+.rp-drop:hover, .rp-dragging .rp-drop { border-color: var(--red); color: var(--text); }
+.rp-dragging { outline: 2px dashed var(--red); outline-offset: -6px; border-radius: 16px; }
