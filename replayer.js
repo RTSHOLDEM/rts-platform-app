@@ -56,13 +56,14 @@ function handInfo(hh) {
 /* Each hand's replayer stays alive, hidden, while you use other pages or hands, so it reopens where you left it,
    e.g. on the turn, instead of back at the start (Alexis 2026-11-07). The frames live in <body> (an iframe reloads
    when it moves in the page) and lie over the replayer page's frame spot. The 6 latest hands are kept. */
-const RP_KEEP = 6, RP_FRAMES = new Map();
+const RP_KEEP = 6, RP_FRAMES = new Map(), RP_MIN_H = 600;
 function rpPlace() {
   const spot = document.getElementById("rpframe"), cur = spot && RP_FRAMES.get(spot.dataset.url);
   RP_FRAMES.forEach((f) => { if (f !== cur) { f.style.visibility = "hidden"; f.style.pointerEvents = "none"; } });
   if (!cur) return;
   const r = spot.getBoundingClientRect();
-  Object.assign(cur.style, { top: r.top + "px", left: r.left + "px", width: r.width + "px", height: r.height + "px", visibility: "visible", pointerEvents: "" });
+  const s = Math.min(1, r.height / RP_MIN_H); // controls under the table, always (Alexis 2026-11-18)
+  Object.assign(cur.style, { top: r.top + "px", left: r.left + "px", width: r.width / s + "px", height: r.height / s + "px", transform: s < 1 ? `scale(${s})` : "", transformOrigin: "0 0", visibility: "visible", pointerEvents: "" });
 }
 function rpShow(url, spot) {
   spot.dataset.url = url;
@@ -78,7 +79,7 @@ addEventListener("hashchange", () => setTimeout(rpPlace)); // after route() has 
 
 const LAST = 10; // the list shows the 10 latest hands, "See all" opens the rest
 const SUIT = { s: "♠", h: "♥", d: "♦", c: "♣" };
-const rpTags = (h) => (h.tags || []).length ? `<span class="rp-tags">${h.tags.map((k) => `<span class="tag">${t("tag_" + k)}</span>`).join("")}</span>` : "";
+const rpTags = (h) => (h.tags || []).length ? `<span class="rp-tags">${h.tags.map((k) => `<span class="tag">${esc(tagLabel(k))}</span>`).join("")}</span>` : "";
 const cardsHtml = (cards) => cards.map((c) => `<span class="rpc ${c.s}">${esc(c.r)}<i>${SUIT[c.s] || ""}</i></span>`).join("");
 
 async function viewReplayer(id) {
@@ -107,9 +108,9 @@ async function viewReplayer(id) {
       </aside>
       <div class="rp-stage">${cur ? `
         <div class="rp-bar"><span class="rp-cards">${cardsHtml(handInfo(cur.hh).cards)}</span>
-          <b>${esc([handInfo(cur.hh).stakes, handInfo(cur.hh).site].filter(Boolean).join(" · "))}</b>${rpTags(cur)}
+          <b>${esc([handInfo(cur.hh).stakes, handInfo(cur.hh).site].filter(Boolean).join(" · "))}</b>
           <span class="rp-tools"><button class="chip btn-gto" id="rpgto" title="${t("gtoTip")}">GTO Wizard ↗</button><button class="chip" id="rpcopy">📋 ${t("rpCopyHH")}</button><button class="chip" id="rplink">🔗 ${t("rpCopyLink")}</button><a class="chip" id="rpfull" target="_blank" rel="noopener">${t("fullScreen")} ↗</a></span></div>
-        ${cur.note ? `<p class="rp-q">${esc(cur.note)}</p>` : ""}
+        <div class="rp-sub">${cur.note ? `<p class="rp-q">${esc(cur.note)}</p>` : ""}${tagEditHtml(cur, hands)}</div>
         <div class="rp-frame" id="rpframe"></div>` : form}</div>
     </section>`;
 
@@ -132,6 +133,7 @@ async function viewReplayer(id) {
     // Two clear buttons: the hand history text, or the shared replay link (Alexis 2026-11-18)
     const done = (b, label) => { b.textContent = "✓ " + t("rpCopied"); setTimeout(() => (b.textContent = label), 2000); };
     $("#rpcopy").onclick = async (e) => { const b = e.currentTarget; try { await navigator.clipboard.writeText(cur.hh); done(b, "📋 " + t("rpCopyHH")); } catch {} };
+    bindTagEdit(hands, () => route()); // tags change after saving (Alexis 2026-11-18); the replayer frame stays alive
     $("#rplink").onclick = async (e) => { const b = e.currentTarget; try { await navigator.clipboard.writeText(url); done(b, "🔗 " + t("rpCopyLink")); } catch {} };
   } else {
     $("#rpform").onsubmit = (e) => { e.preventDefault(); const fd = new FormData(e.target); save(fd.get("hh"), fd.get("note")); };

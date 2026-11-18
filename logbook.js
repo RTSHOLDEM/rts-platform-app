@@ -84,7 +84,7 @@ Object.assign(STRINGS.fr, {
 });
 
 /* ---------- sub navigation: Resources (mine | RTS) and Direction ---------- */
-const GROUP = { res: "res", log: "log", calls: "res", hands: "res", notes: "res", study: "study", recall: "study", coaching: "coaching", c: "coaching", quiz: "coaching", review: "coaching",
+const GROUP = { res: "res", log: "log", calls: "res", hands: "hands", notes: "res", study: "study", recall: "study", coaching: "coaching", c: "coaching", quiz: "coaching", review: "coaching",
   library: "study", s: "study", submit: "study", ceo: "dir", admin: "dir", inbox: "dir" };
 function subnavHtml(group, a) {
   const l = (k, label) => `<a href="#/${k}" class="${a === k || (k === "coaching" && ["c", "quiz", "review"].includes(a)) || (k === "study" && ["recall", "s", "submit"].includes(a)) ? "on" : ""}">${label}</a>`;
@@ -114,14 +114,14 @@ const MOODS = ["😫", "😕", "😐", "🙂", "🔥"];
 
 /* ---------- saved hands: one line per hand, titled by its note (or its time), small picture on demand ---------- */
 const handTitle = (h) => (h.note || "").split("\n")[0].trim().slice(0, 80) || `${fmtDay(h.created_at.slice(0, 10))} · ${hhmm(h.created_at)}`;
-function handRow(h) {
+function handRow(h, hands = []) {
   const pic = h.image_path || h.image_data;
   return `<details class="hd ${h.reviewed ? "done" : ""}" data-hd="${h.id}"><summary>
       <span class="hd-ic">${pic ? "🖼" : h.link ? "🔗" : "📋"}</span><b class="hd-t">${esc(handTitle(h))}</b>
-      ${(h.tags || []).map((k) => `<span class="tag">${t("tag_" + k)}</span>`).join("")}<small class="muted">${h.note ? hhmm(h.created_at) : ""}</small>${h.reviewed ? `<span class="tag ok">✓</span>` : `<span class="tag red">${t("toReviewT")}</span>`}</summary>
+      ${(h.tags || []).map((k) => `<span class="tag">${esc(tagLabel(k))}</span>`).join("")}<small class="muted">${h.note ? hhmm(h.created_at) : ""}</small>${h.reviewed ? `<span class="tag ok">✓</span>` : `<span class="tag red">${t("toReviewT")}</span>`}</summary>
     <div class="hd-body">
       ${pic ? `<img class="hd-thumb" data-img="${esc(h.image_path || "")}" ${h.image_data ? `src="${h.image_data}"` : ""} alt="" title="${t("openFull")}">` : ""}
-      <div class="hd-side">${(h.note || "").includes("\n") ? `<p class="small">${esc(h.note)}</p>` : ""}
+      <div class="hd-side">${tagEditHtml(h, hands)}${(h.note || "").includes("\n") ? `<p class="small">${esc(h.note)}</p>` : ""}
         ${h.hh ? `<details class="hd-hh"><summary class="small-link">${t("hhText")}</summary><pre class="hh">${esc(h.hh)}</pre></details>` : ""}
         <p class="row-btns">${isHH(h.hh) ? `<a class="btn btn-sm btn-red" href="#/replayer/${h.id}">▶ ${t("popReplay")}</a>` : ""}${h.link ? `<a class="btn btn-sm" href="${esc(h.link)}" target="_blank" rel="noopener">🔗 ${t("popLink")}</a>` : ""}${isHH(h.hh) ? `<button class="btn btn-sm btn-gto" data-gto="${h.id}" title="${t("gtoTip")}">GTO Wizard</button>` : ""}${h.hh ? `<button class="btn btn-sm" data-copy="${h.id}">${t("copyHH")}</button>` : ""}
           <button class="btn btn-sm ${h.reviewed ? "" : "btn-red"}" data-rev="${h.id}" data-v="${h.reviewed ? "" : "1"}">${h.reviewed ? t("undo") : "✓ " + t("reviewed")}</button></p></div>
@@ -149,21 +149,32 @@ async function viewHands() {
   const my = RENDER;
   const [hands, sessions] = await Promise.all([db.hands(), db.sessions(ME.id, daysAgo(400)).catch(() => [])]);
   if (my !== RENDER) return;
-  const f = new URLSearchParams(location.hash.split("?")[1] || "").get("f") || "todo";
-  const shown = hands.filter((h) => (f === "todo" ? !h.reviewed : f === "done" ? h.reviewed : true));
-  const n = (k) => hands.filter((h) => (k === "todo" ? !h.reviewed : k === "done" ? h.reviewed : true)).length;
+  // The pool of saved hands (Alexis 2026-11-18): filter by review state AND by tags (e.g. HU + vs Reg + Fold / Catch).
+  const qs = new URLSearchParams(location.hash.split("?")[1] || ""), f = qs.get("f") || "all", sel = (qs.get("t") || "").split(",").filter(Boolean);
+  const byRev = (h, k) => (k === "todo" ? !h.reviewed : k === "done" ? h.reviewed : true), byTags = (h) => sel.every((k) => (h.tags || []).includes(k));
+  const shown = hands.filter((h) => byRev(h, f) && byTags(h));
+  const url = (ff, tt) => `#/hands?f=${ff}${tt.length ? "&t=" + tt.map(encodeURIComponent).join(",") : ""}`;
+  const count = (k) => hands.filter((h) => byRev(h, f) && byTags(h) && (h.tags || []).includes(k)).length;
+  const chip = (k) => { const on = sel.includes(k), n = on ? shown.length : count(k);
+    return `<a class="chip ${on ? "on" : ""}" href="${url(f, on ? sel.filter((x) => x !== k) : [...sel, k])}">${esc(tagLabel(k))} <small>${n}</small></a>`; };
   const days = [...new Set(shown.map((h) => h.created_at.slice(0, 10)))].sort().reverse();
   const sess = (id) => sessions.find((x) => x.id === id);
-  $("#main").innerHTML = `${head(t("resMine"), t("savedHands"), t("handsPrivate"))}
-    <div class="nb-bar">${[["todo", "toReviewT"], ["done", "reviewedT"], ["all", "allT"]].map(([k, l]) => `<a class="chip ${f === k ? "on" : ""}" href="#/hands?f=${k}">${t(l)} · ${n(k)}</a>`).join("")}
+  $("#main").innerHTML = `${head(t("tabHands"), t("handsPool"), t("handsPoolSub"))}
+    <div class="nb-bar">${[["todo", "toReviewT"], ["done", "reviewedT"], ["all", "allT"]].map(([k, lb]) => `<a class="chip ${f === k ? "on" : ""}" href="${url(k, sel)}">${t(lb)} · ${hands.filter((h) => byRev(h, k) && byTags(h)).length}</a>`).join("")}
       <span class="grow"></span><a class="btn btn-sm btn-ghost-red" href="#/replayer">▶ RTS Replayer</a></div>
+    <div class="hd-filter">${Object.values(HAND_TAGS).map((row) => `<span class="hf-row">${row.map(chip).join("")}</span>`).join("")}
+      ${myCustomTags(hands).length ? `<span class="hf-row">${myCustomTags(hands).map(chip).join("")}</span>` : ""}
+      ${sel.length ? `<a class="small-link" href="${url(f, [])}">✕ ${t("hfClear")}</a>` : ""}</div>
     <div class="stack hd-days res-scroll">${days.map((d, i) => {
       const hs = shown.filter((h) => h.created_at.slice(0, 10) === d), ids = [...new Set(hs.map((h) => h.session_id || ""))];
-      return `<details class="card hd-day" ${i < 3 ? "open" : ""}><summary><b>${longDay(d)}</b><span class="tag">${hs.length}</span><a class="small-link" href="#/log?d=${d}">${t("logbook")} →</a></summary>
-        ${ids.map((id) => { const x = sess(id), l = hs.filter((h) => (h.session_id || "") === id);
-          return `${x ? `<p class="hd-sess">${KIND_ICON[x.kind] || "♠"} ${hhmm(x.started_at)}${x.ended_at ? " → " + hhmm(x.ended_at) : ""}${x.minutes ? " · " + dur(x.minutes) : ""}</p>` : ""}${l.map(handRow).join("")}`; }).join("")}</details>`;
-    }).join("") || empty(t("noHandsT"))}</div>`;
+      return `<details class="card hd-day" ${i < 3 || sel.length ? "open" : ""}><summary><b>${longDay(d)}</b><span class="tag">${hs.length}</span></summary>
+        ${ids.map((id) => { const x = sess(id), ls = hs.filter((h) => (h.session_id || "") === id);
+          return `${x ? `<p class="hd-sess">${KIND_ICON[x.kind] || "♠"} ${hhmm(x.started_at)}${x.ended_at ? " → " + hhmm(x.ended_at) : ""}${x.minutes ? " · " + dur(x.minutes) : ""}</p>` : ""}${ls.map((h) => handRow(h, hands)).join("")}`; }).join("")}</details>`;
+    }).join("") || empty(sel.length ? t("hfNone") : t("noHandsT"))}</div>`;
   fitToDock(".res-scroll"); bindHands(hands);
+  bindTagEdit(hands, (h) => { // keep the hand open after a tag click
+    const open = $$("[data-hd]").filter((d) => d.open).map((d) => d.dataset.hd); route();
+    setTimeout(() => open.forEach((id) => { const d = document.querySelector(`[data-hd="${id}"]`); if (d) d.open = true; }), 400); });
 }
 
 /* Resources > Mine > My calls: every 1-on-1 call, its conclusions and next steps to tick. */
@@ -637,3 +648,5 @@ function bindSessions(sessions) {
     const was = Number(x.minutes || 0); await db.dropSession(x.id); await sesJournalShift(x, -was); route();
   });
 }
+Object.assign(STRINGS.en, { tabHands: "Hands", handsPool: "My hands", handsPoolSub: "Every hand you saved. Pick tags to find a spot. Only you see them.", hfClear: "Clear tags", hfNone: "No hand with these tags.", teAdd: "your tag, Enter" });
+Object.assign(STRINGS.fr, { tabHands: "Mains", handsPool: "Mes mains", handsPoolSub: "Toutes les mains que tu as gardées. Choisis des tags pour retrouver un spot. Toi seul les vois.", hfClear: "Enlever les tags", hfNone: "Aucune main avec ces tags.", teAdd: "ton tag, Entrée" });

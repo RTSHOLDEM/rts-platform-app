@@ -318,7 +318,7 @@ async function viewSession() {
             <textarea name="note" rows="2" class="sensitive" placeholder="${t("handNotePh")}"></textarea>
             <button class="btn btn-sm btn-red">${t("saveHand")}</button><p class="saved" id="hsaved"></p>
             <details class="hlist"><summary>${t("handsSession")} · ${mineHere.length}</summary>
-              ${mineHere.map((h) => `<p class="hrow">${h.image_path || h.image_data ? "🖼" : h.link ? "🔗" : "📋"} <span class="sensitive">${esc((h.note || h.link || h.hh || t("screenshot")).slice(0, 60))}</span> ${(h.tags || []).map((k) => `<small class="tag">${t("tag_" + k)}</small>`).join(" ")}</p>`).join("") || `<p class="muted small">${t("noHandsYet")}</p>`}</details></form>`
+              ${mineHere.map((h) => `<p class="hrow">${h.image_path || h.image_data ? "🖼" : h.link ? "🔗" : "📋"} <span class="sensitive">${esc((h.note || h.link || h.hh || t("screenshot")).slice(0, 60))}</span> ${(h.tags || []).map((k) => `<small class="tag">${esc(tagLabel(k))}</small>`).join(" ")}</p>`).join("") || `<p class="muted small">${t("noHandsYet")}</p>`}</details></form>`
         : `<form class="card" id="cform"><div class="card-head"><h3>${t("addConclusion")}</h3><span class="tag">${cardsHere.length}</span></div>
             <p class="muted small">${t("conclusionAsk")}</p>
             <input name="situation" required placeholder="${t("situation")} · SB vs BTN, 3BP, K72r">
@@ -766,6 +766,29 @@ function paintRng(numEl, barEl) {
 const POP = { win: null, w: 640, h: 470 };
 /* Hand tags: the table (6max or HU), who, then the spot. One per row, all optional. */
 const HAND_TAGS = { table: ["6max", "hu"], who: ["reg", "fish", "mw"], spot: ["bluff", "catch", "value", "pre"] };
+const HAND_TAG_KEYS = Object.values(HAND_TAGS).flat();
+/* A tag is a built-in key (translated) or the player's own words (Alexis 2026-11-18: "add more tags if he wants"). */
+const tagLabel = (k) => (HAND_TAG_KEYS.includes(k) ? t("tag_" + k) : k);
+const myCustomTags = (hands) => [...new Set(hands.flatMap((h) => h.tags || []).filter((k) => !HAND_TAG_KEYS.includes(k)))].sort((x, y) => x.localeCompare(y));
+/* Tag editor for a saved hand (replayer + Hands tab): click a tag to put it on or off, "+" adds your own. Saves at once. */
+function tagEditHtml(h, hands) {
+  const on = new Set(h.tags || []), b = (k) => `<button type="button" class="te-t ${on.has(k) ? "on" : ""}" data-te="${esc(k)}">${esc(tagLabel(k))}</button>`;
+  return `<div class="te" data-teh="${h.id}">${Object.values(HAND_TAGS).map((row) => `<span class="te-row">${row.map(b).join("")}</span>`).join("")}
+    ${myCustomTags(hands).length ? `<span class="te-row mine">${myCustomTags(hands).map(b).join("")}</span>` : ""}
+    <span class="te-row"><input class="te-in" maxlength="24" placeholder="+ ${t("teAdd")}"></span></div>`;
+}
+function bindTagEdit(hands, after) {
+  $$("[data-teh]").forEach((box) => {
+    const h = hands.find((x) => x.id === box.dataset.teh); if (!h) return;
+    const save = async (tags) => { h.tags = tags; await db.setHand(h.id, { tags }); after ? after(h) : route(); };
+    box.querySelectorAll("[data-te]").forEach((btn) => btn.onclick = () => { const k = btn.dataset.te, cur = h.tags || [];
+      save(cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k]); });
+    const inp = box.querySelector(".te-in");
+    inp.onkeydown = (e) => { if (e.key !== "Enter") return; e.preventDefault(); const v = inp.value.trim().replace(/\s+/g, " ");
+      if (!v) return; const k = HAND_TAG_KEYS.find((x) => t("tag_" + x).toLowerCase() === v.toLowerCase()) || v;
+      if (!(h.tags || []).includes(k)) save([...(h.tags || []), k]); else inp.value = ""; };
+  });
+}
 const POP_CSS = `
 *{box-sizing:border-box;margin:0}
 html,body{height:100%;background:#0b0b0d;color:#f4f4f2;font:500 13px Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
@@ -1910,7 +1933,7 @@ function shell() {
   // 2026-11-03: few tabs, no repeats. Home = HQ; Logbook = grind + study + journal + goals; Resources = mine + RTS (sub nav); tools in the bottom dock.
   // 2026-11-03 (Alexis: "trop complexe, on se recentre"): 3 tabs. Grind = the hours tracker, Study = build your own studies, Coachings = RTS replays.
   // Calendar, Replayer and Feedback sit in the side dock; the HQ map, Resources and saved hands are hidden (code kept, old links still open).
-  const links = [["", "home", "#/"]].concat(has(ME, "player") ? [["log", "tabGrind", "#/log"]] : []).concat([["study", "tabStudy", "#/study"], ["coaching", "tabCoach", "#/coaching"]])
+  const links = [["", "home", "#/"]].concat(has(ME, "player") ? [["log", "tabGrind", "#/log"]] : []).concat([["study", "tabStudy", "#/study"]]).concat(has(ME, "player") ? [["hands", "tabHands", "#/hands"]] : []).concat([["coaching", "tabCoach", "#/coaching"]])
     .concat(has(ME, "mentor") || isAdmin() || ME.mentor_id ? [["mentoring", "tabMentor", "#/mentoring"]] : [])
     .concat(isStaff() ? [["team", "team", "#/team"]] : []).concat(isOps() ? [["dir", isAdmin() ? "direction" : "admin", isAdmin() ? "#/ceo" : "#/admin"]] : []);
   $("#app").innerHTML = `
@@ -1958,7 +1981,7 @@ async function route() {
   if (a === "res") { location.replace(has(ME, "player") ? "#/log" : "#/coaching"); return; }
   const group = GROUP[a] || a, navKey = a === "p" || ["session", "hero"].includes(a) ? "" : group;
   const sub = subnavHtml(group, a); $("#subnav").innerHTML = sub; $("#subnav").hidden = !sub;
-  document.body.dataset.g = a === "study" ? "notes" : ["study", "coaching", "calendar", "mentoring"].includes(group) ? "res" : group; // Resources pages share one compact, centred look (style.css)
+  document.body.dataset.g = a === "study" ? "notes" : ["study", "coaching", "calendar", "mentoring", "hands"].includes(group) ? "res" : group; // Resources pages share one compact, centred look (style.css)
   paintDock();
   $$("[data-nav]").forEach((l) => l.classList.toggle("on", l.dataset.nav === navKey));
   $("#main").innerHTML = `<p class="muted loading">${t("loading")}</p>`;

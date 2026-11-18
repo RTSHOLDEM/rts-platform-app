@@ -68,3 +68,8 @@
 body:has(.rp) #main { width: calc(100% - 32px); max-width: none; }
 @media (min-width: 1101px) { body:has(.rp) #main { width: auto; margin-left: 16px; margin-right: 104px; } }
 .hello:has(+ .rp) { margin-bottom: 10px; }
+
+/* Tags under the hand bar, editable (Alexis 2026-11-18) */
+.rp-sub { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.rp-sub .rp-q { margin: 0; flex: 1 1 260px; }
+.rp-sub .te { flex: 0 1 auto; }
