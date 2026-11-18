@@ -50,7 +50,7 @@ const CLOCK = {
   set(v) { try { localStorage.setItem("rts-clock", v ? "timer" : "chrono"); } catch {} },
 };
 function sesGo(kind, topic = null) {
-  if (SES.s) { location.hash = "#/session"; return; }
+  if (SES.s) { location.hash = SES.s.kind === "study" ? "#/study?n=" + SES.s.id : "#/session"; return; }
   if (CLOCK.timer) return askDuration(kind, "", topic);
   sesStart(kind, null, topic);
 }
@@ -63,7 +63,7 @@ async function sesStart(kind, minutes, topic = null) {
   hqMove(sesRoom(kind, topic));
   if (!SES.beat) SES.beat = setInterval(sesBeat, 1000);
   paintDock();
-  location.hash = "#/session"; route();
+  location.hash = kind === "study" ? "#/study?n=" + SES.s.id : "#/session"; route();
   if (pop) openPop(pop);
 }
 
@@ -98,7 +98,8 @@ async function sesEnd(notes, auto = false) {
   const k = s.kind === "grind" ? "play_h" : "study_h";
   await db.saveJournal({ ...e, [k]: Math.round((Number(e[k] || 0) + minutes / 60) * 100) / 100 });
   hqMove("lobby"); $("#timeup")?.close(); closePop(); paintDock();
-  if (!auto || location.hash.startsWith("#/session")) { location.hash = `#/log?d=${day}`; }
+  if (s.kind === "study") { if (location.hash.startsWith("#/study") || location.hash.startsWith("#/session")) route(); else if (!auto) location.hash = "#/study?n=" + s.id; }
+  else if (!auto || location.hash.startsWith("#/session")) { location.hash = `#/log?d=${day}`; }
 }
 
 /* ---------- dialogs: pick a duration, time is up, take a break ---------- */
@@ -180,7 +181,7 @@ function paintDock() {
   const s = SES.s;
   if (!has(ME, "player")) { box.innerHTML = ""; box.nextElementSibling?.setAttribute("hidden", ""); return; }
   box.innerHTML = s
-    ? `<a class="dk-live ${s.kind} ${s.paused_at ? "paused" : ""}" href="#/session" data-tip="${t("backCockpit")}">${s.kind === "grind" ? ICONS.grind : ICONS.study}<b data-left>${sesClock(s)}</b>${s.planned_min ? `<small>${t("left")}</small>` : ""}</a>
+    ? `<a class="dk-live ${s.kind} ${s.paused_at ? "paused" : ""}" href="${s.kind === "study" ? "#/study?n=" + s.id : "#/session"}" data-tip="${t("backCockpit")}">${s.kind === "grind" ? ICONS.grind : ICONS.study}<b data-left>${sesClock(s)}</b>${s.planned_min ? `<small>${t("left")}</small>` : ""}</a>
        <button class="dk dk-mini" data-dkpause data-tip="${s.paused_at ? t("resume") : t("pause")}">${s.paused_at ? "▶" : "⏸"}</button>`
     : `<button class="dk dk-go grind" data-dkgo="grind" data-tip="${t("startPoker")}">${ICONS.grind}</button><button class="dk dk-go study" data-dkgo="study" data-tip="${t("startStudyS")}">${ICONS.study}</button>`;
   $$("[data-dkgo]", box).forEach((b) => b.onclick = () => sesGo(b.dataset.dkgo));

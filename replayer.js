@@ -2,6 +2,8 @@
    Hands live in the 'hands' table (only the player sees his own). The replayer gets each hand packed in its link,
    so nothing is stored on Paul's server. Loaded before app.js; uses its helpers ($, t, db, esc, head...) at call time. */
 const REPLAYER = "https://rts.pokereplayer.com";
+Object.assign(STRINGS.en, { rpCopyHH: "Copy hand history", rpCopyLink: "Copy link", rpCopied: "Copied" });
+Object.assign(STRINGS.fr, { rpCopyHH: "Copier l'historique", rpCopyLink: "Copier le lien", rpCopied: "Copié" });
 const isHH = (s) => /\*\*\*|Dealt to|HandId|GAME #/i.test(s || "");
 
 /* Who "me" is in a hand. After a showdown some sites (Unibet) list every player's "Dealt to" line, me last, and the
@@ -106,7 +108,7 @@ async function viewReplayer(id) {
       <div class="rp-stage">${cur ? `
         <div class="rp-bar"><span class="rp-cards">${cardsHtml(handInfo(cur.hh).cards)}</span>
           <b>${esc([handInfo(cur.hh).stakes, handInfo(cur.hh).site].filter(Boolean).join(" · "))}</b>${rpTags(cur)}
-          <span class="rp-tools"><button class="chip btn-gto" id="rpgto" title="${t("gtoTip")}">GTO Wizard ↗</button><button class="chip" id="rpcopy">${t("copyHH")}</button><a class="chip" id="rpfull" target="_blank" rel="noopener">${t("fullScreen")} ↗</a></span></div>
+          <span class="rp-tools"><button class="chip btn-gto" id="rpgto" title="${t("gtoTip")}">GTO Wizard ↗</button><button class="chip" id="rpcopy">📋 ${t("rpCopyHH")}</button><button class="chip" id="rplink">🔗 ${t("rpCopyLink")}</button><a class="chip" id="rpfull" target="_blank" rel="noopener">${t("fullScreen")} ↗</a></span></div>
         ${cur.note ? `<p class="rp-q">${esc(cur.note)}</p>` : ""}
         <div class="rp-frame" id="rpframe"></div>` : form}</div>
     </section>`;
@@ -127,7 +129,10 @@ async function viewReplayer(id) {
     const url = await replayUrl(cur.hh);
     fitToDock("#rpframe"); rpShow(url, $("#rpframe")); $("#rpfull").href = url;
     $("#rpgto").onclick = () => { navigator.clipboard.writeText(cur.hh).catch(() => {}); window.open("https://app.gtowizard.com/", "_blank", "noopener"); hqToast(`✓ ${t("gtoCopied")}`, 9000); };
-    $("#rpcopy").onclick = async () => { try { await navigator.clipboard.writeText(cur.hh); $("#rpcopy").textContent = "✓"; } catch {} };
+    // Two clear buttons: the hand history text, or the shared replay link (Alexis 2026-11-18)
+    const done = (b, label) => { b.textContent = "✓ " + t("rpCopied"); setTimeout(() => (b.textContent = label), 2000); };
+    $("#rpcopy").onclick = async (e) => { const b = e.currentTarget; try { await navigator.clipboard.writeText(cur.hh); done(b, "📋 " + t("rpCopyHH")); } catch {} };
+    $("#rplink").onclick = async (e) => { const b = e.currentTarget; try { await navigator.clipboard.writeText(url); done(b, "🔗 " + t("rpCopyLink")); } catch {} };
   } else {
     $("#rpform").onsubmit = (e) => { e.preventDefault(); const fd = new FormData(e.target); save(fd.get("hh"), fd.get("note")); };
   }

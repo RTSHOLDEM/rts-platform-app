@@ -291,6 +291,7 @@ async function viewSession() {
   const s = await db.openSession(ME.id);
   if (my !== RENDER) return;
   if (!s) { location.hash = "#/"; return; }
+  if (s.kind === "study") { location.replace("#/study?n=" + s.id); return; } // study lives on its notes page (Alexis 2026-11-18)
   const grind = s.kind === "grind";
   const [focus, hands, cards, notes, mine, goals] = await Promise.all([focusList(ME.id, true), db.hands(), db.cards(), db.notes().catch(() => []), db.journal(ME.id, weekStart()), db.goals(ME.id).catch(() => [])]);
   if (my !== RENDER) return;
@@ -557,90 +558,6 @@ function parseStudy(raw, name = "") {
 // Every note is a study session's notes; a note written outside a session is a 0 min study entry, so hours never change.
 // Set SHOW_CARDS true to bring back the strategy map and the cards.
 const SHOW_CARDS = false;
-async function viewStudyNotes() {
-  const q = Object.fromEntries(new URLSearchParams(location.hash.split("?")[1] || ""));
-  const href = (o) => { const p = new URLSearchParams(Object.entries({ ...q, ...o }).filter(([, v]) => v)); return "#/study" + (p.toString() ? "?" + p : ""); };
-  const wkL = mondayOf(today());
-  const [sess, saved, jr, wq] = await Promise.all([db.sessions(ME.id, daysAgo(365)), db.folders().catch(() => []), db.journal(ME.id, wkL).catch(() => []), db.weekGoals(ME.id).catch(() => [])]);
-  const all = sess.filter((s) => s.kind === "study" && s.ended_at).sort((a, b) => (a.started_at < b.started_at ? 1 : -1));
-  // Folders (Alexis 2026-11-03): the player's own tree, any depth ("SRP/BB vs BTN"). A folder used by a note shows even if it was never saved.
-  const paths = [...new Set([...saved, ...all.map((s) => s.folder).filter(Boolean)].flatMap((p) => p.split("/").map((_, i, a) => a.slice(0, i + 1).join("/"))))].sort((a, b) => a.localeCompare(b, "fr"));
-  const inF = (s, f) => f === "~" ? !s.folder : !f || s.folder === f || (s.folder || "").startsWith(f + "/");
-  const list = all.filter((s) => inF(s, q.f) && (!q.day || s.started_at.slice(0, 10) === q.day));
-  const hours = all.filter((s) => s.started_at >= monthStart()).reduce((a, s) => a + Number(s.minutes || 0), 0) / 60;
-  const written = all.filter((s) => (s.notes || "").trim()).length;
-  const byDay = {}; list.forEach((s) => (byDay[s.started_at.slice(0, 10)] ||= []).push(s));
-  const dayL = (d) => { const s = d === today() ? t("today") : longDay(d); return s[0].toUpperCase() + s.slice(1); };
-  const topicOpts = (cur) => Object.keys(TOPICS).map((k) => `<option value="${k}" ${k === cur ? "selected" : ""}>${TOPICS[k].icon} ${t("topic_" + k)}</option>`).join("");
-  const leaf = (p) => p.split("/").pop(), depth = (p) => p.split("/").length - 1;
-  const fOpts = (cur) => `<option value="">📥 ${t("fNone")}</option>` + paths.map((p) => `<option value="${esc(p)}" ${p === cur ? "selected" : ""}>${"  ".repeat(depth(p))}📁 ${esc(leaf(p))}</option>`).join("");
-  const n = (f) => all.filter((s) => inF(s, f)).length;
-  const node = (p) => { const kids = paths.filter((x) => x.startsWith(p + "/") && depth(x) === depth(p) + 1);
-    const row = `<span class="fd-row ${q.f === p ? "on" : ""}"><a href="${href({ f: p, day: "" })}">📁 ${esc(leaf(p))} <small>${n(p)}</small></a>
-      <button type="button" class="fd-b" data-fnote="${esc(p)}" title="${t("fNoteHere")}">✎</button><button type="button" class="fd-b" data-fadd="${esc(p)}" title="${t("fSub")}">+</button><button type="button" class="fd-b" data-fdel="${esc(p)}" title="${t("del")}">×</button></span>`;
-    return kids.length ? `<details open><summary>${row}</summary><div class="fd-kids">${kids.map(node).join("")}</div></details>` : `<div class="fd-leaf">${row}</div>`; };
-  const tree = `<nav class="card fd-tree"><div class="card-head"><h3>${t("fTitle")}</h3><small class="muted">${fmtH(hours)} · ${written} ${t("stNotesN")}</small></div>
-      <div class="fd-acts"><button type="button" class="btn btn-sm btn-ghost-red" data-fadd="">+ ${t("fNew")}</button><button type="button" class="btn btn-sm btn-red" data-fnote="${q.f && q.f !== "~" ? esc(q.f) : ""}">✎ ${t("fNote")}</button></div>
-      <span class="fd-row ${!q.f ? "on" : ""}"><a href="${href({ f: "", day: "" })}">📒 ${t("fAll")} <small>${all.length}</small></a></span>
-      <span class="fd-row ${q.f === "~" ? "on" : ""}"><a href="${href({ f: "~", day: "" })}">📥 ${t("fNone")} <small>${n("~")}</small></a></span>
-      <div class="fd-list">${paths.filter((p) => !p.includes("/")).map(node).join("")}
-        ${paths.length ? "" : `<button type="button" class="fd-starter" id="fstarter">✨ ${t("fStarter")}<small>SRP › BB vs BTN, 3BP, 4BP, Preflop…</small></button>`}</div></nav>`;
-  const where = q.f === "~" ? t("fNone") : q.f ? q.f.split("/").join(" › ") : "";
-  // the study start button sits where the poker button sits on Grind: centred on top, same size (Alexis 2026-11-03)
-  const wkStudy = jr.filter((e) => e.day >= wkL).reduce((a, e) => a + Number(e.study_h || 0), 0);
-  const stPanel = weekPanelHtml({ label: wkL, play: 0, study: wkStudy, hands: 0, target: 0, wG: wq.find((x) => x.period === "week" && x.label === wkL), mode: "study", nav: null,
-    extra: `${t("ckStMonth")} <b>${fmtH(hours)}</b> · ${written} ${t("stNotesN")}` });
-  $("#main").innerHTML = `${stPanel}<div class="ck-start st-start">${SES.s ? `<a class="hs-live" href="#/session">${KIND_ICON[SES.s.kind]} ${t("hsLive")} · <b>${t("backCockpit")} →</b></a>` : `<button type="button" class="hs-btn study" data-stgo><span>📚</span><b>${t("hsStudy")}</b><small>${t("hsStudySub")}</small></button>`}</div>
-    <div class="sn-grid">${tree}
-      <div class="sn-main"><div class="card sn-bar"><input type="search" id="nq" placeholder="${t("stSearch")}">${where ? `<span class="tagchip on">📁 ${esc(where)}</span>` : ""}${q.day ? `<span class="tagchip on">${dayL(q.day)}</span>` : ""}${where || q.day ? `<a class="small-link" href="#/study">✕ ${t("resDayAll")}</a>` : ""}</div>
-      <div class="sn-list res-scroll">${Object.entries(byDay).map(([d, l]) => `<section class="sn-day"><p class="sub">${dayL(d)}</p>
-        ${l.map((s) => `<article class="card sn-note" data-txt="${esc(((s.notes || "") + " " + (s.folder || "") + " " + (TOPICS[s.topic] ? t("topic_" + s.topic) : "")).toLowerCase())}">
-          <div class="sn-h"><b>${hhmm(s.started_at)}${Number(s.minutes) ? " · " + dur(Number(s.minutes)) : ""}${TOPICS[s.topic] ? ` · ${TOPICS[s.topic].icon} ${t("topic_" + s.topic)}` : ""}</b>
-            <span class="sn-r"><small class="saved" data-ok="${s.id}"></small><select class="sn-f" data-mv="${s.id}" title="${t("fMove")}">${fOpts(s.folder || "")}</select></span></div>
-          <textarea class="sensitive" rows="${Math.min(10, Math.max(2, (s.notes || "").split("\n").length + 1))}" data-note="${s.id}" placeholder="${t("stNotePh")}">${esc(s.notes || "")}</textarea></article>`).join("")}</section>`).join("")
-        || `<div class="card empty-note"><p class="muted">${q.f ? t("fEmpty") : t("stNoNotes")}</p>${q.f && q.f !== "~" ? `<button type="button" class="btn btn-red" data-fnote="${esc(q.f)}">✎ ${t("fNoteHere")}</button>` : ""}</div>`}</div></div></div>
-    <dialog id="nnewd" class="card"><form id="nnewf"><div class="card-head"><h3>✎ ${t("stNewNote")}</h3><button class="x" type="button" data-nx>×</button></div>
-      <div class="goals-grid two"><label>${t("fTitle1")}<select name="folder">${fOpts(q.f && q.f !== "~" ? q.f : "")}</select></label><label>${t("topicL")}<select name="topic">${topicOpts("wizard")}</select></label></div>
-      <textarea name="notes" rows="8" required placeholder="${t("stNotePh")}"></textarea>
-      <div class="btns"><button class="btn btn-red" type="submit">${t("save")}</button></div></form></dialog>
-    <dialog id="fdlg" class="card"><form id="fform"><div class="card-head"><h3>📁 <span id="fdt"></span></h3><button class="x" type="button" data-fx>×</button></div>
-      <input name="name" required maxlength="60" placeholder="${t("fNamePh")}" autocomplete="off">
-      <div class="btns"><button class="btn btn-red" type="submit">${t("save")}</button></div></form></dialog>`;
-  fitToDock(".res-scroll"); fitToDock(".fd-list");
-  $("[data-stgo]")?.addEventListener("click", () => sesGo("study"));
-  // a note can be started from anywhere in the tree: "✎ Note" at the top (current folder), ✎ on a folder, or the empty folder button
-  const newNote = (folder) => { const f = $("#nnewf"); f.reset(); f.folder.value = folder || ""; $("#nnewd").showModal(); f.notes.focus(); };
-  $$("[data-fnote]").forEach((b) => b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); newNote(b.dataset.fnote); });
-  $("[data-nx]").onclick = () => $("#nnewd").close();
-  $("#nnewf").onsubmit = async (e) => {
-    e.preventDefault(); const f = new FormData(e.target), at = new Date().toISOString();
-    await db.addSession({ kind: "study", started_at: at, ended_at: at, minutes: 0, topic: f.get("topic"), folder: f.get("folder") || null, notes: f.get("notes").trim() });
-    $("#nnewd").close(); route();
-  };
-  $$("[data-note]").forEach((ta) => ta.onchange = async () => {
-    const ok = $(`[data-ok="${ta.dataset.note}"]`); ok.textContent = "…";
-    try { await db.saveSession({ id: ta.dataset.note, notes: ta.value.trim() }); ok.textContent = t("saved"); } catch (err) { ok.textContent = err.message; }
-  });
-  $$("[data-mv]").forEach((sel) => sel.onchange = async () => { await db.saveSession({ id: sel.dataset.mv, folder: sel.value || null }); route(); });
-  // folders: "+ Dossier" at the top, "+" on a folder makes a sub-folder, "×" removes the folder and its sub-folders (their notes go to "No folder")
-  let parent = "";
-  $$("[data-fadd]").forEach((b) => b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); parent = b.dataset.fadd;
-    $("#fdt").textContent = parent ? `${t("fSub")} · ${parent.split("/").join(" › ")}` : t("fNew"); $("#fform").reset(); $("#fdlg").showModal(); });
-  $("[data-fx]").onclick = () => $("#fdlg").close();
-  $("#fform").onsubmit = async (e) => {
-    e.preventDefault(); const name = new FormData(e.target).get("name").replace(/\//g, "-").trim(); if (!name) return;
-    const path = parent ? parent + "/" + name : name;
-    await db.addFolders([path]); $("#fdlg").close(); location.hash = href({ f: path, day: "" });
-  };
-  $$("[data-fdel]").forEach((b) => b.onclick = async (e) => { e.preventDefault(); e.stopPropagation();
-    if (!confirm(t("fDelAsk").replace("{f}", b.dataset.fdel))) return;
-    await db.dropFolder(b.dataset.fdel); location.hash = href({ f: "", day: "" }); route(); });
-  $("#fstarter")?.addEventListener("click", async () => {
-    await db.addFolders(["Preflop", "SRP", "SRP/BTN vs BB", "SRP/BB vs BTN", "SRP/CO vs BB", "SRP/SB vs BB", "3BP", "3BP/BB vs BTN", "3BP/SB vs BTN", "3BP/BTN vs CO", "4BP", "Multiway"]); route(); });
-  $("#nq").oninput = (e) => { const w = e.target.value.trim().toLowerCase();
-    $$(".sn-note").forEach((nt) => nt.hidden = !!w && !nt.dataset.txt.includes(w) && !nt.querySelector("textarea").value.toLowerCase().includes(w));
-    $$(".sn-day").forEach((d) => d.hidden = !d.querySelector(".sn-note:not([hidden])")); };
-}
 async function viewStudy() {
   if (!SHOW_CARDS) return viewStudyNotes();
   const q = Object.fromEntries(new URLSearchParams(location.hash.split("?")[1] || ""));
@@ -1611,6 +1528,29 @@ async function viewSubmit() {
 /* In-app events first (coaching, mentor call, study session, peer review). Peer review: private (tagged players) or open to chosen teams. */
 /* Personal week calendar: only what concerns me (my team's coachings, my invites, open slots for my teams).
    Coachings are entered by admin; a coach edits his own. */
+/* "Link my calendar" (Alexis 2026-11-18): a private calendar link (ICS) with everything this person sees in the app calendar.
+   Google, Apple and Notion Calendar subscribe to it and refresh it on their own. The token is in the link: "New link" kills the old one. */
+async function calLinkDialog(reset = false) {
+  const d = $("#cald");
+  let tok;
+  try { tok = await db.calToken(reset); } catch { d.innerHTML = `<p>${t("calLinkErr")}</p>`; d.showModal(); return; }
+  const c = window.RTS_CONFIG || {};
+  const https = `${c.supabaseUrl}/rest/v1/rpc/cal_feed?t=${tok}&apikey=${c.supabaseAnonKey}`, webcal = https.replace(/^https:/, "webcal:");
+  d.innerHTML = `<div class="card-head"><h3>🔗 ${t("calLink")}</h3><button class="x" type="button" data-close>×</button></div>
+    <p class="muted">${t("calLinkSub")}</p>
+    <div class="cl-url"><input readonly value="${esc(https)}" class="mono sensitive"><button class="btn btn-sm btn-red" id="clcopy">${t("rpCopyLink")}</button></div>
+    <div class="cl-apps">
+      <div><b>Google Calendar</b><a class="btn btn-sm" target="_blank" rel="noopener" href="https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcal)}">${t("calOpenG")} ↗</a><small>${t("calStepG")}</small></div>
+      <div><b>Apple Calendar</b><a class="btn btn-sm" href="${esc(webcal)}">${t("calOpenA")} ↗</a><small>${t("calStepA")}</small></div>
+      <div><b>Notion Calendar</b><small>${t("calStepN")}</small></div>
+    </div>
+    <p class="small muted cl-foot">🔒 ${t("calPrivate")} <button class="linkish" id="clreset">${t("calNew")}</button></p>`;
+  if (!d.open) d.showModal();
+  $("[data-close]", d).onclick = () => d.close();
+  $("#clcopy").onclick = async (e) => { const b = e.currentTarget; try { await navigator.clipboard.writeText(https); b.textContent = "✓ " + t("rpCopied"); } catch { $("input", d).select(); } };
+  $("#clreset").onclick = () => { if (confirm(t("calNewQ"))) calLinkDialog(true); };
+}
+
 async function viewCalendar() {
   const w = +(new URLSearchParams(location.hash.split("?")[1] || "").get("w") || 0);
   const mon = new Date(weekStart() + "T00:00:00"); mon.setDate(mon.getDate() + 7 * w);
@@ -1630,7 +1570,7 @@ async function viewCalendar() {
   const label = `${fmtDay(days[0])} → ${fmtDay(days[6])}`;
   $("#main").innerHTML = `${head(t("calendar"), t("calendar"), t("calSub3"))}
     <div class="wk-bar"><a class="btn btn-sm" href="#/calendar?w=${w - 1}">←</a><a class="btn btn-sm${w ? "" : " on"}" href="#/calendar">${t("thisWeek")}</a><a class="btn btn-sm" href="#/calendar?w=${w + 1}">→</a>
-      <b class="wk-label">${label}</b><button class="btn btn-red btn-sm" id="addev">+ ${t("planSomething")}</button></div>
+      <b class="wk-label">${label}</b><button class="btn btn-sm" id="calink">🔗 ${t("calLink")}</button><button class="btn btn-red btn-sm" id="addev">+ ${t("planSomething")}</button></div>
     <div class="card wk"><div class="wk-hours">${[...Array(H1 - H0)].map((_, i) => `<span style="top:${i * PX}px">${String(H0 + i).padStart(2, "0")}:00</span>`).join("")}</div>
       ${days.map((d) => `<div class="wk-day${d === today() ? " today" : ""}"><p class="wk-dh">${new Date(d + "T12:00").toLocaleDateString(LANG === "fr" ? "fr-FR" : "en-GB", { weekday: "short", day: "numeric" })}</p>
         <div class="wk-col" style="height:${(H1 - H0) * PX}px">${d === today() && nowTop > 0 ? `<i class="wk-now" style="top:${nowTop}px"></i>` : ""}
@@ -1640,8 +1580,8 @@ async function viewCalendar() {
             <b>${KIND_ICON[e.kind]} ${esc(evTitle(e))}</b><small>${hhmm(e.starts_at)}</small></button>`; }).join("")}</div></div>`).join("")}
     </div>
     ${events.length ? "" : `<p class="muted small">${t("noEvents")}</p>`}
-    ${cals.length ? `<p class="small">${cals.map((c) => `<a class="small-link" target="_blank" rel="noopener" href="https://calendar.google.com/calendar/r?cid=${encodeURIComponent(c.calendar_id)}">${t("subscribe")} · ${esc(c.label)} ↗</a>`).join(" · ")}</p>` : ""}
     <dialog id="evd" class="card"></dialog>
+    <dialog id="cald" class="card cal-link"></dialog>
     <dialog id="evformd" class="card"><form id="evform"><div class="card-head"><h3 id="evft">${t("planSomething")}</h3><button class="x" type="button" data-close>×</button></div>
         <label>${t("type")}<select name="kind">${kinds.map((k) => `<option value="${k}">${KIND_ICON[k]} ${t("kind_" + k)}</option>`).join("")}</select></label>
         <label>${t("titleL")}<input name="title" required placeholder="${t("titlePh")}"></label>
@@ -1675,6 +1615,7 @@ async function viewCalendar() {
     vis(); tick(); fd.showModal();
   };
   $("#addev").onclick = () => openForm();
+  $("#calink").onclick = () => calLinkDialog();
   f.onsubmit = async (ev) => {
     ev.preventDefault(); const d = new FormData(f);
     const open = d.get("vis") === "open";
@@ -2005,6 +1946,7 @@ function shell() {
 
 async function route() {
   if (!ME) return;
+  if (typeof nbFlush === "function") nbFlush(); // a study note being written saves before any other page draws
   clearInterval(timerTick); clearInterval(rngTick);
   TICKS.splice(0).forEach(clearInterval); RENDER++;
   document.onpaste = null;
@@ -2016,7 +1958,7 @@ async function route() {
   if (a === "res") { location.replace(has(ME, "player") ? "#/log" : "#/coaching"); return; }
   const group = GROUP[a] || a, navKey = a === "p" || ["session", "hero"].includes(a) ? "" : group;
   const sub = subnavHtml(group, a); $("#subnav").innerHTML = sub; $("#subnav").hidden = !sub;
-  document.body.dataset.g = ["study", "coaching", "calendar", "mentoring"].includes(group) ? "res" : group; // Resources pages share one compact, centred look (style.css)
+  document.body.dataset.g = a === "study" ? "notes" : ["study", "coaching", "calendar", "mentoring"].includes(group) ? "res" : group; // Resources pages share one compact, centred look (style.css)
   paintDock();
   $$("[data-nav]").forEach((l) => l.classList.toggle("on", l.dataset.nav === navKey));
   $("#main").innerHTML = `<p class="muted loading">${t("loading")}</p>`;

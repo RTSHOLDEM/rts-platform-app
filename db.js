@@ -103,6 +103,13 @@ function liveDb() {
     // study note folders (021): paths like "SRP/BB vs BTN"
     async folders() { const me = await db.me(); return (await rows(sb.from("note_folders").select("path").eq("player_id", me.id))).map((f) => f.path).sort(); },
     async addFolders(paths) { const me = await db.me(); return rows(sb.from("note_folders").upsert(paths.map((path) => ({ player_id: me.id, path })), { onConflict: "player_id,path", ignoreDuplicates: true })); },
+    // rename a folder and its sub-folders; the notes inside follow (2026-11-18)
+    async calToken(reset = false) { const { data, error } = await sb.rpc("my_cal_token", { reset }); if (error) throw error; return data; },
+    async renameFolder(from, to) { const me = await db.me(); const under = (p) => p === from || (p || "").startsWith(from + "/"), map = (p) => to + p.slice(from.length);
+      const sub = (await db.folders()).filter(under); if (sub.length) await db.addFolders(sub.map(map));
+      const ses = (await rows(sb.from("sessions").select("id,folder").eq("player_id", me.id).not("folder", "is", null))).filter((x) => under(x.folder));
+      for (const x of ses) await rows(sb.from("sessions").update({ folder: map(x.folder) }).eq("id", x.id));
+      if (sub.length) await rows(sb.from("note_folders").delete().eq("player_id", me.id).in("path", sub)); },
     async dropFolder(path) { const me = await db.me(); const sub = (await db.folders()).filter((p) => p === path || p.startsWith(path + "/"));
       await rows(sb.from("sessions").update({ folder: null }).eq("player_id", me.id).in("folder", sub));
       return rows(sb.from("note_folders").delete().eq("player_id", me.id).in("path", sub)); },
@@ -267,6 +274,10 @@ function demoDb() {
     async addSession(x) { const s = { id: "se" + Date.now(), player_id: meId(), ...x }; (S.sessions ||= []).push(s); save(); return s; },
     async folders() { return [...new Set((S.folders ||= []).filter((f) => f.player_id === meId()).map((f) => f.path))].sort(); },
     async addFolders(paths) { (S.folders ||= []); paths.forEach((path) => S.folders.some((f) => f.player_id === meId() && f.path === path) || S.folders.push({ player_id: meId(), path })); save(); },
+    async calToken(reset = false) { return "demo" + (reset ? Date.now() : "0").toString().padEnd(32, "0"); },
+    async renameFolder(from, to) { const under = (p) => p === from || (p || "").startsWith(from + "/"), map = (p) => to + p.slice(from.length);
+      (S.folders || []).forEach((f) => { if (f.player_id === meId() && under(f.path)) f.path = map(f.path); });
+      (S.sessions || []).forEach((x) => { if (x.player_id === meId() && x.folder && under(x.folder)) x.folder = map(x.folder); }); save(); },
     async dropFolder(path) { const gone = (p) => p === path || (p || "").startsWith(path + "/");
       S.folders = (S.folders || []).filter((f) => !(f.player_id === meId() && gone(f.path))); (S.sessions || []).forEach((x) => { if (x.player_id === meId() && gone(x.folder)) x.folder = null; }); save(); },
     async dropSession(id) { S.sessions = S.sessions.filter((x) => x.id !== id); (S.hands || []).forEach((h) => { if (h.session_id === id) h.session_id = null; }); save(); },

@@ -3,6 +3,7 @@
    one bubble per day), right: ONE goal card, the one of the period you look at
    #/calls   my calls with mentor and coaches (Resources > Mine)      #/hands   saved hands by title (Resources > Mine) */
 Object.assign(STRINGS.en, {
+  sfDurMode: "Just the length", sfTimeMode: "Start and end", sfLen: "Length", sfFrom: "Start", sfTo: "End",
   bdTitle: "Coaching dashboard", mtHasNote: "notes written ✓", mtNoNote: "no notes yet",
   clkT: "Session clock", clk_chrono: "Stopwatch", clk_chronoS: "One click starts it. You stop it when you are done.", clk_timer: "Timer", clk_timerS: "You say how long. It stops by itself at zero.",
   mtMine: "My dashboard", mtMineSub: "Reviews, journal, goals, habits", mtHasFb: "Mentor feedback ✓", mtNoFb: "No feedback yet", mtFb: "My mentor's feedback", mtFbNone: "Your mentor has not written his feedback for this month yet.",
@@ -42,6 +43,7 @@ Object.assign(STRINGS.en, {
   hcUseTracked: "Use the tracked {t}", hcKeep: "Keep {w}",
 });
 Object.assign(STRINGS.fr, {
+  sfDurMode: "Juste la durée", sfTimeMode: "Début et fin", sfLen: "Durée", sfFrom: "Début", sfTo: "Fin",
   bdTitle: "Tableau de bord coaching", mtHasNote: "notes écrites ✓", mtNoNote: "pas encore de notes",
   clkT: "Chrono des sessions", clk_chrono: "Chronomètre", clk_chronoS: "Un clic et ça part. Tu l'arrêtes quand tu as fini.", clk_timer: "Minuteur", clk_timerS: "Tu dis combien de temps. Il s'arrête tout seul à zéro.",
   mtMine: "Mon tableau de bord", mtMineSub: "Bilans, journal, objectifs, habitudes", mtHasFb: "Retour du mentor ✓", mtNoFb: "Pas encore de retour", mtFb: "Le retour de mon mentor", mtFbNone: "Ton mentor n'a pas encore écrit son retour pour ce mois.",
@@ -335,11 +337,9 @@ async function viewLog() {
     const manCoach = ss.filter((x) => x.kind === "coaching"), coachAll = coachMin + manCoach.reduce((a, x) => a + Number(x.minutes || 0), 0);
     const tile = (k, icon, label, val, sub = "", go = "") => `<button type="button" class="ck-t ${pane === k ? "on" : ""}" data-pane="${k}" ${go ? `data-go="${go}"` : ""}><span class="ck-tl">${icon} ${label}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ""}<span class="ck-act">+ ${t("ckAdd")}</span></button>`;
     const addOn = CK_ADD.get();
-    const addForm = (kind) => `<form class="ck-addf" data-sesadd="${kind}"><h4>+ ${t("ckAddT")} · ${{ grind: "♠ " + t("grindW"), study: "📚 " + t("studyW"), coaching: "🎓 " + t("ckCoaching") }[kind]}</h4>
-        <div class="ck-row">${stepper("min", 60, 15, 15, 900)}<label>${t("sesStart")} <input type="time" name="at" value="${d === T ? hhmm(new Date(Date.now() - 36e5).toISOString()) : "14:00"}" required></label>
-        ${kind === "study" ? topicSel("wizard") : ""}<button class="btn btn-red">+ ${t("ckAddGo")}</button></div></form>`;
+    const addForm = (kind) => sesBox({ kind, day: d });
     const sesList = (kind) => {
-      const l = ss.filter((x) => x.kind === kind);
+      const l = ss.filter((x) => (kind === "grind" ? ["grind", "study"].includes(x.kind) : x.kind === kind));
       return `${addOn ? addForm(kind) : ""}<h4 class="ck-sub">${t("ckDone")}${addOn ? "" : ` <button type="button" class="ck-act ck-more" data-pane="${kind}">+ ${t("ckAdd")}</button>`}</h4>${l.map((x) => { const hs = hands.filter((h) => h.session_id === x.id), cs = cards.filter((c) => c.session_id === x.id), min = x.ended_at ? Number(x.minutes || 0) : Math.round(elapsed(x) / 6e4);
           const todo = hs.filter((h) => !h.reviewed).length;
           return `<details class="lg-sess" data-ses="${x.id}" ${q.s === x.id ? "open" : ""}><summary><span class="lg-st"><b>${hhmm(x.started_at)}${x.ended_at ? " → " + hhmm(x.ended_at) : ""}</b>
@@ -348,8 +348,7 @@ async function viewLog() {
               ${hs.length ? `<span class="tag">${hs.length} ${t("hands").toLowerCase()}</span>` : ""}${todo ? `<span class="tag red">${todo} ${t("toReviewT").toLowerCase()}</span>` : ""}</span>
               ${x.ended_at ? `<span class="btn btn-sm ck-edit">✎ ${t("ckEdit")}</span><button class="x" data-sesdel="${x.id}" title="${t("sesDel")}">×</button>` : ""}</summary>
             <div class="lg-sbody">
-            ${x.ended_at ? `<form class="ck-row ses-edit" data-sesedit="${x.id}">${stepper("min", min, 15, 1, 900)}<label>${t("sesStart")} <input type="time" name="at" value="${hhmm(x.started_at)}" required></label>
-              ${kind === "study" ? topicSel(x.topic) : ""}<button class="btn btn-sm btn-red">${t("sesSave")}</button></form>` : ""}
+            ${x.ended_at ? sesBox({ x, kind, day: d }) : ""}
             ${(x.notes || "").trim() ? `<p class="nb-notes sensitive">${esc(x.notes)}</p>` : ""}
             ${hs.map(handRow).join("")}
             ${cs.map((c) => `<p class="hrow"><b>${esc(c.situation)}</b><br><span class="muted sensitive">${esc(c.conclusion)}</span></p>`).join("")}</div></details>`; }).join("") || `<p class="muted small">${t("noSessionDay")}</p>`}
@@ -370,7 +369,7 @@ async function viewLog() {
     const written = (e.played || "").trim();
     const jTile = `<button type="button" class="ck-t ck-jt ${pane === "journal" ? "on" : ""}" data-pane="journal" title="${t("journalW")} · ${t("ckJournalSub")}" aria-label="${t("journalW")}">
         <span class="ck-nb"><i>${e.mood ? MOODS[e.mood - 1] : written ? "✓" : "✎"}</i>${written ? `<small>✓ ${t("ckWritten")}</small>` : ""}</span></button>`;
-    return `<div class="ck-strip w2">${tile("grind", "♠", t("grindW"), fmtH(Number(e.play_h || 0)))}
+    return `<div class="ck-strip w2">${tile("grind", "♠", t("grindW"), fmtH(Number(e.play_h || 0)), Number(e.study_h || 0) ? "📚 " + fmtH(Number(e.study_h)) + " " + t("studyW").toLowerCase() : "")}
         ${jTile}</div>
       ${panes[pane] ? `<div class="card ck-pane ${pane === "journal" ? "ck-jpane" : ""}">${panes[pane]()}</div>` : ""}`;
   }
@@ -415,13 +414,7 @@ async function viewLog() {
     const same = CK_PANE.get() === k && CK_ADD.get() === add && !b.classList.contains("ck-more");
     CK_PANE.set(same ? "" : k); CK_ADD.set(!same && add); route();
   });
-  $$("[data-sesadd]").forEach((f) => f.onsubmit = async (ev) => {
-    ev.preventDefault(); const kind = f.dataset.sesadd, [h, m] = f.at.value.split(":").map(Number), min = Math.max(1, Math.min(900, Math.round(+f.min.value || 0)));
-    const st = new Date(sel.v + "T12:00:00"); st.setHours(h, m, 0, 0);
-    f.querySelector("button").disabled = true;
-    const x = await db.addSession({ kind, topic: kind === "study" ? f.topic?.value || null : null, started_at: st.toISOString(), ended_at: new Date(st.getTime() + min * 6e4).toISOString(), minutes: min, planned_min: null });
-    await sesJournalShift(x, min); route();
-  });
+  bindSesBoxes(sessions, sel.v);
   $$("[data-hands]").forEach((f) => f.onsubmit = async (ev) => {
     ev.preventDefault(); const days = f.dataset.hands.split(","), total = Math.max(0, Math.round(+f.n.value || 0));
     const last = days[days.length - 1], others = days.slice(0, -1).reduce((a, d) => a + Number(J[d]?.hands || 0), 0);
@@ -538,6 +531,70 @@ async function weekGoalsPrompt() {
   openWeekGoals(label, g, true);
 }
 
+/* Grind / study box (Alexis 2026-11-18): one box to add or fix a session. Grind or study is a switch in the box,
+   so a session typed as grind can become study. Either just the length (no start time) or a start and an end,
+   all in dropdowns (15 min steps). The journal hours of that day follow. */
+const SB_TIMES = Array.from({ length: 96 }, (_, i) => `${String(Math.floor(i / 4)).padStart(2, "0")}:${String((i % 4) * 15).padStart(2, "0")}`);
+const SB_LENS = [...Array.from({ length: 16 }, (_, i) => (i + 1) * 15), ...Array.from({ length: 16 }, (_, i) => 270 + (i + 1) * 30)];
+const q15 = (hm) => { const [h, m] = hm.split(":").map(Number); return `${String(h).padStart(2, "0")}:${String(Math.floor(m / 15) * 15).padStart(2, "0")}`; };
+function sesBox({ x = null, kind = "grind", day }) {
+  const k = x ? x.kind : kind;
+  const min = x ? Number(x.minutes || 60) : 60;
+  const start = x ? hhmm(x.started_at) : day === today() ? q15(hhmm(new Date(Date.now() - 36e5).toISOString())) : "14:00";
+  const end = x ? hhmm(x.ended_at || new Date(new Date(x.started_at).getTime() + min * 6e4).toISOString()) : SB_TIMES[(SB_TIMES.indexOf(start) + 4) % 96];
+  const timed = !!x; // a new entry starts on "just the length"; an existing one shows its hours
+  const opts = (list, cur, fmt = (v) => v) => (list.includes(cur) ? list : [...list, cur].sort((a, b) => (a < b ? -1 : 1))).map((v) => `<option value="${v}" ${v === cur ? "selected" : ""}>${fmt(v)}</option>`).join("");
+  const seg = (name, items, on) => `<div class="sb-seg">${items.map(([v, l]) => `<label class="${v === on ? "on" : ""}"><input type="radio" name="${name}" value="${v}" ${v === on ? "checked" : ""} hidden>${l}</label>`).join("")}</div>`;
+  const kinds = k === "coaching" ? [["coaching", "🎓 " + t("ckCoaching")]] : [["grind", "♠ " + t("grindW")], ["study", "📚 " + t("studyW")]];
+  return `<form class="ck-addf sb-box" data-sb="${x ? x.id : ""}" data-day="${day}">
+    ${x ? "" : `<h4>+ ${t("ckAddT")}</h4>`}
+    <div class="ck-row">${seg("kind", kinds, k)}${seg("tmode", [["dur", t("sfDurMode")], ["time", t("sfTimeMode")]], timed ? "time" : "dur")}</div>
+    <div class="ck-row">
+      <label class="sb-dur" ${timed ? "hidden" : ""}>${t("sfLen")} <select name="min">${opts(SB_LENS, min, (v) => dur(v))}</select></label>
+      <label class="sb-time" ${timed ? "" : "hidden"}>${t("sfFrom")} <select name="at">${opts(SB_TIMES, start)}</select></label>
+      <label class="sb-time" ${timed ? "" : "hidden"}>${t("sfTo")} <select name="end">${opts(SB_TIMES, end)}</select></label>
+      <b class="sb-len" ${timed ? "" : "hidden"}></b>
+      <span class="sb-topic" ${k === "study" ? "" : "hidden"}>${topicSelect(x?.topic || "wizard")}</span>
+      <button class="btn btn-red">${x ? t("sesSave") : "+ " + t("ckAddGo")}</button></div></form>`;
+}
+function topicSelect(cur) { return `<label>${t("topicL")} <select name="topic">${Object.keys(TOPICS).map((k) => `<option value="${k}" ${k === cur ? "selected" : ""}>${TOPICS[k].icon} ${t("topic_" + k)}</option>`).join("")}</select></label>`; }
+function bindSesBoxes(sessions, selDay) {
+  $$("[data-sb]").forEach((f) => {
+    const val = (n) => f.querySelector(`input[name=${n}]:checked`)?.value;
+    const toM = (v) => { const [h, m] = v.split(":").map(Number); return h * 60 + m; };
+    const mins = () => { const a = toM(f.at.value), b = toM(f.end.value); return b > a ? b - a : b + 1440 - a; };
+    const paint = () => {
+      $$(".sb-seg label", f).forEach((l) => l.classList.toggle("on", l.querySelector("input").checked));
+      const timed = val("tmode") === "time";
+      $$(".sb-time, .sb-len", f).forEach((el) => (el.hidden = !timed)); f.querySelector(".sb-dur").hidden = timed;
+      f.querySelector(".sb-topic").hidden = val("kind") !== "study";
+      f.querySelector(".sb-len").textContent = "= " + dur(mins());
+    };
+    f.onchange = paint; paint();
+    f.onclick = (e) => { if (!e.target.closest("button")) e.stopPropagation(); }; // inside a session row: clicks never fold it
+    f.onsubmit = async (ev) => {
+      ev.preventDefault(); ev.stopPropagation();
+      const x = sessions.find((s) => s.id === f.dataset.sb), day = f.dataset.day || selDay, kind = val("kind") || "grind", timed = val("tmode") === "time";
+      const min = timed ? mins() : Math.max(1, Math.min(900, +f.min.value || 60));
+      let st;
+      if (timed) { const [h, m] = f.at.value.split(":").map(Number); st = new Date(day + "T12:00:00"); st.setHours(h, m, 0, 0); }
+      else if (x) st = new Date(x.started_at);
+      else st = day === today() && Date.now() - min * 6e4 > new Date(day + "T00:00:00").getTime() ? new Date(Date.now() - min * 6e4) : new Date(day + "T12:00:00");
+      f.querySelector("button.btn-red").disabled = true;
+      const row = { kind, topic: kind === "study" ? f.topic?.value || null : null, started_at: st.toISOString(), ended_at: new Date(st.getTime() + min * 6e4).toISOString(), minutes: min };
+      if (x) {
+        const was = { ...x }; // copy first: the save may update x itself
+        await db.saveSession({ id: x.id, ...row, paused_ms: 0 });
+        if (was.kind === kind) await sesJournalShift(was, min - Number(was.minutes || 0));
+        else { await sesJournalShift(was, -Number(was.minutes || 0)); await sesJournalShift({ ...was, kind }, min); }
+      } else {
+        const y = await db.addSession({ ...row, planned_min: null }); await sesJournalShift(y, min);
+      }
+      route();
+    };
+  });
+}
+
 /* Stepper (Alexis 2026-11-03: "une petite molette"): − and + buttons, the mouse wheel turns it too.
    Minutes show as "1 h 30"; a count (hands) stays typeable. */
 function stepper(name, val, step, min, max, kind = "min") {
@@ -579,13 +636,5 @@ function bindSessions(sessions) {
     ev.preventDefault(); ev.stopPropagation();
     const x = byId(b.dataset.sesdel); if (!x || !confirm(t("sesDelAsk"))) return;
     const was = Number(x.minutes || 0); await db.dropSession(x.id); await sesJournalShift(x, -was); route();
-  });
-  $$("[data-sesedit]").forEach((f) => f.onsubmit = async (ev) => {
-    ev.preventDefault();
-    const x = byId(f.dataset.sesedit); if (!x) return;
-    const [h, m] = f.at.value.split(":").map(Number), min = Math.max(1, Math.min(900, Math.round(+f.min.value || 0)));
-    const start = new Date(x.started_at), was = Number(x.minutes || 0); start.setHours(h, m, 0, 0);
-    await db.saveSession({ id: x.id, started_at: start.toISOString(), ended_at: new Date(start.getTime() + min * 6e4).toISOString(), minutes: min, paused_ms: 0, ...(f.topic ? { topic: f.topic.value } : {}) });
-    await sesJournalShift(x, min - was); route();
   });
 }
