@@ -116,6 +116,7 @@ const MOODS = ["😫", "😕", "😐", "🙂", "🔥"];
 let HAND_NOTES = new Map(); // hand id -> its note (study page), filled by the Hands page
 const handTitle = (h) => (h.note || "").split("\n")[0].trim().slice(0, 80) || `${fmtDay(h.created_at.slice(0, 10))} · ${hhmm(h.created_at)}`;
 function handRow(h, hands = []) {
+  if (!Array.isArray(hands)) hands = []; // .map(handRow) passes the index here: crashed the Grind log 2026-11-18
   const pic = h.image_path || h.image_data;
   return `<details class="hd ${h.reviewed ? "done" : ""}" data-hd="${h.id}"><summary>
       <span class="hd-ic">${pic ? "🖼" : h.link ? "🔗" : "📋"}</span><b class="hd-t">${esc(handTitle(h))}</b>
@@ -370,9 +371,9 @@ async function viewLog() {
             <div class="lg-sbody">
             ${x.ended_at ? sesBox({ x, kind, day: d }) : ""}
             ${(x.notes || "").trim() ? `<p class="nb-notes sensitive">${esc(x.notes)}</p>` : ""}
-            ${hs.map(handRow).join("")}
+            ${hs.map((h) => handRow(h, hands)).join("")}
             ${cs.map((c) => `<p class="hrow"><b>${esc(c.situation)}</b><br><span class="muted sensitive">${esc(c.conclusion)}</span></p>`).join("")}</div></details>`; }).join("") || `<p class="muted small">${t("noSessionDay")}</p>`}
-        ${kind === "grind" && loose.length ? loose.map(handRow).join("") : ""}`;
+        ${kind === "grind" && loose.length ? loose.map((h) => handRow(h, hands)).join("") : ""}`;
     };
     const panes = {
       grind: () => sesList("grind"), study: () => sesList("study"),

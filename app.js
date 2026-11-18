@@ -780,7 +780,7 @@ const HAND_TAGS = { table: ["6max", "hu"], who: ["reg", "fish", "mw"], spot: ["b
 const HAND_TAG_KEYS = Object.values(HAND_TAGS).flat();
 /* A tag is a built-in key (translated) or the player's own words (Alexis 2026-11-18: "add more tags if he wants"). */
 const tagLabel = (k) => (HAND_TAG_KEYS.includes(k) ? t("tag_" + k) : k);
-const myCustomTags = (hands) => [...new Set(hands.flatMap((h) => h.tags || []).filter((k) => !HAND_TAG_KEYS.includes(k)))].sort((x, y) => x.localeCompare(y));
+const myCustomTags = (hands) => [...new Set((Array.isArray(hands) ? hands : []).flatMap((h) => h.tags || []).filter((k) => !HAND_TAG_KEYS.includes(k)))].sort((x, y) => x.localeCompare(y));
 /* Tag editor for a saved hand (replayer + Hands tab): click a tag to put it on or off, "+" adds your own. Saves at once. */
 function tagEditHtml(h, hands) {
   const on = new Set(h.tags || []), b = (k) => `<button type="button" class="te-t ${on.has(k) ? "on" : ""}" data-te="${esc(k)}">${esc(tagLabel(k))}</button>`;
