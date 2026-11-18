@@ -100,7 +100,11 @@ async function viewStudyNotes() {
   const running = SES.s || openS, liveId = running && running.kind === "study" ? running.id : null;
   // the RTS tree, once per player (never back after he deletes it: a mark in this browser, and any 6-max/Heads-up folder means it was given)
   let seeded = false; try { seeded = localStorage.getItem("rts-nb-seed-" + ME.id) === "1"; } catch {}
-  if (!seeded && !saved.some((p) => NB_ROOTS.includes(p.split("/")[0]))) { await db.addFolders(NB_SEED).catch(() => {}); saved = await db.folders().catch(() => saved); }
+  let rtsR = await db.rtsRoots().catch(() => []);
+  if (!seeded && !rtsR.length && !saved.some((p) => NB_ROOTS.includes(p.split("/")[0]))) { await db.addFolders(NB_SEED).catch(() => {}); await db.setGroup(NB_ROOTS, "rts").catch(() => {}); saved = await db.folders().catch(() => saved); rtsR = [...NB_ROOTS]; }
+  // the RTS group = top folders marked 'rts' (editable: rename, add, delete); old folders get their mark here once
+  if (!rtsR.length) { const r = saved.filter((p) => NB_ROOTS.includes(p)); if (r.length) { await db.setGroup(r, "rts").catch(() => {}); rtsR = r; } }
+  const rtsSet = new Set(rtsR);
   try { localStorage.setItem("rts-nb-seed-" + ME.id, "1"); } catch {}
   const all = sess.filter((s) => s.kind === "study" && (s.ended_at || s.id === liveId) && !s._gone).sort((a, b) => (a.started_at < b.started_at ? 1 : -1));
   const notes = all.filter((s) => (s.notes || "").trim() || (s.title || "").trim() || s.notes_html || s.spot || s.id === liveId || q.n === s.id);
@@ -129,7 +133,7 @@ async function viewStudyNotes() {
         <button type="button" class="nb-tw ${kids.length ? "" : "nokid"} ${isOpen ? "open" : ""}" data-tw="${esc(p)}" tabindex="-1">▸</button>${ICO.folder}<span class="nb-fn">${esc(leaf(p))}</span><small>${n(p) || ""}</small></div>
       ${kids.length && isOpen ? `<div class="nb-kids">${kids.map(node).join("")}</div>` : ""}</div>`;
   };
-  const roots = paths.filter((p) => !p.includes("/")), rts = roots.filter((p) => NB_ROOTS.includes(p)), mine = roots.filter((p) => !NB_ROOTS.includes(p));
+  const roots = paths.filter((p) => !p.includes("/")), rts = roots.filter((p) => rtsSet.has(p)), mine = roots.filter((p) => !rtsSet.has(p));
   const list = notes.filter((s) => inF(s, q.f));
   const pageRow = (s) => `<a class="nb-pg ${q.n === s.id ? "on" : ""} ${live && live.id === s.id ? "live" : ""}" href="${href({ n: s.id })}" data-pg="${s.id}" data-txt="${esc((nbTitleOf(s) + " " + (s.notes || "") + " " + (s.folder || "")).toLowerCase())}">
       <b>${live && live.id === s.id ? `<i class="nb-dot"></i>` : ""}${esc(nbTitleOf(s))}</b>
@@ -159,12 +163,12 @@ async function viewStudyNotes() {
   $("#main").innerHTML = `<div class="nb" id="nb">
     <aside class="card nb-tree">
       <div class="nb-th"><b>${t("nbNotes")}</b><span class="nb-ic"><button type="button" class="nb-icb" data-nbnewf="" title="${t("nbNewFolder")}">${ICO.newf}</button><button type="button" class="nb-icb red" data-nbnew title="${t("nbNewNote")}">${ICO.pen}</button></span></div>
-      ${live ? `<a class="nb-livego" href="${href({ n: live.id })}"><i class="nb-dot"></i>${t("nbLive")} · <b data-left>${sesClock(live)}</b></a>` : SES.s ? `<a class="nb-livego" href="#/session">${KIND_ICON[SES.s.kind]} ${t("hsLive")} →</a>` : `<button type="button" class="btn btn-red nb-go" data-stgo>▶ ${t("nbStartStudy")}</button>`}
+      <div class="nb-sc" data-sescard="study">${sesCardHtml("study")}</div>${live && q.n !== live.id ? `<a class="nb-livego" href="${href({ n: live.id })}">✎ ${t("scOpenNote")} →</a>` : ""}
       <small class="muted nb-stat">${t("ckStMonth")} <b>${fmtH(hours)}</b> · ${notes.length} ${t("stNotesN")}</small>
       <div class="nb-scroll" id="nbtree">
         <a class="nb-f top ${!q.f ? "on" : ""}" href="${href({ f: "", n: q.n })}">📒 <span class="nb-fn">${t("nbAll")}</span><small>${notes.length}</small></a>
         <a class="nb-f top ${q.f === "~" ? "on" : ""}" href="${href({ f: "~", n: q.n })}">📥 <span class="nb-fn">${t("nbNone")}</span><small>${n("~") || ""}</small></a>
-        <p class="nb-grp">${t("nbRts")}</p>${rts.map(node).join("") || `<button type="button" class="small-link" id="nbseed">+ ${t("nbSeedRts")}</button>`}
+        <p class="nb-grp">${t("nbRts")}<button type="button" class="nb-icb sm" data-nbnewf="" data-grp="rts" title="${t("nbNewFolder")}">${ICO.newf}</button></p>${rts.map(node).join("") || `<button type="button" class="small-link" id="nbseed">+ ${t("nbSeedRts")}</button>`}
         <p class="nb-grp">${t("nbMine")}<button type="button" class="nb-icb sm" data-nbnewf="" title="${t("nbNewFolder")}">${ICO.newf}</button></p>${mine.map(node).join("")}
       </div>
     </aside>
@@ -198,12 +202,12 @@ async function viewStudyNotes() {
   });
   const folderName = async (title, val = "") => { const v = await ask(`<div class="card-head"><h3>${title}</h3></div><input name="name" required maxlength="60" value="${esc(val)}" placeholder="${t("nbFolderName")}" autocomplete="off">`, t("nbCreate"));
     return v && typeof v === "string" ? v.replace(/\//g, "-").trim() : null; };
-  const addFolder = async (parent) => {
-    const name = await folderName(parent ? `${t("nbNewSub")} · ${parent.split("/").join(" › ")}` : t("nbNewFolder")); if (!name) return;
+  const addFolder = async (parent, grp = null) => {
+    const name = await folderName(parent ? `${t("nbNewSub")} · ${parent.split("/").join(" › ")}` : grp ? `${t("nbNewFolder")} · ${t("nbRts")}` : t("nbNewFolder")); if (!name) return;
     const path = parent ? parent + "/" + name : name;
-    await db.addFolders([path]); if (parent) { open.add(parent); nbOpen.set(open); } go({ f: path });
+    await db.addFolders([path]); if (grp) await db.setGroup([path], grp); if (parent) { open.add(parent); nbOpen.set(open); } go({ f: path });
   };
-  $$("[data-nbnewf]").forEach((b) => b.onclick = () => addFolder(""));
+  $$("[data-nbnewf]").forEach((b) => b.onclick = () => addFolder("", b.dataset.grp || null));
   const renameFolder = (row) => {
     const p = row.dataset.f, span = row.querySelector(".nb-fn"); if (!span || span.isContentEditable) return;
     span.contentEditable = "true"; span.focus(); document.getSelection().selectAllChildren(span);
@@ -215,8 +219,9 @@ async function viewStudyNotes() {
       if (paths.includes(to)) { span.textContent = leaf(p); return; }
       await nbFlush(); await db.renameFolder(p, to);
       if (open.has(p)) { open.delete(p); open.add(to); nbOpen.set(open); }
-      const nf = q.f && (q.f === p || q.f.startsWith(p + "/")) ? to + q.f.slice(p.length) : q.f;
-      if (nf !== q.f) go({ f: nf }); else route();
+      const cf = new URLSearchParams(location.hash.split("?")[1] || "").get("f") || ""; // the folder open now (a double-click may have just opened it)
+      const nf = cf && (cf === p || cf.startsWith(p + "/")) ? to + cf.slice(p.length) : cf;
+      if (nf !== cf) go({ f: nf }); else route();
     };
     span.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); done(true); } if (e.key === "Escape") { e.preventDefault(); done(false); } };
     span.onblur = () => done(true);
@@ -236,10 +241,12 @@ async function viewStudyNotes() {
     row.ondblclick = (e) => { e.preventDefault(); renameFolder(row); };
     row.onkeydown = (e) => { if (e.key === "F2") renameFolder(row); };
     row.oncontextmenu = (e) => { e.preventDefault(); menu(e, [
-      ["✎", t("nbHere"), () => newNote(p)], ["sub", t("nbNewSub"), () => addFolder(p)], ["Aa", t("nbRename"), () => renameFolder(row)], ["🗑", t("nbDelete"), () => delFolder(p), "danger"]]); };
+      ["✎", t("nbHere"), () => newNote(p)], ["sub", t("nbNewSub"), () => addFolder(p)], ["Aa", t("nbRename"), () => renameFolder(row)],
+      ...(p.includes("/") ? [] : [["⇄", rtsSet.has(p) ? t("nbToMine") : t("nbToRts"), async () => { await db.setGroup([p], rtsSet.has(p) ? null : "rts"); route(); }]]),
+      ["🗑", t("nbDelete"), () => delFolder(p), "danger"]]); };
   });
   $$("[data-tw]").forEach((b) => b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); const p = b.dataset.tw; open.has(p) ? open.delete(p) : open.add(p); nbOpen.set(open); route(); });
-  $("#nbseed")?.addEventListener("click", async () => { await db.addFolders(NB_SEED); route(); });
+  $("#nbseed")?.addEventListener("click", async () => { await db.addFolders(NB_SEED); await db.setGroup(NB_ROOTS, "rts"); route(); });
 
   // right-click menu
   function menu(e, items) {
@@ -377,3 +384,7 @@ Object.assign(STRINGS.fr, { calLink: "Relier mon agenda", calLinkSub: "Tous tes 
   calOpenG: "Ajouter à Google", calOpenA: "Ajouter à Calendrier Apple", calStepG: "Si ça ne s'ouvre pas : Google Agenda > Autres agendas > + > À partir de l'URL > colle le lien.",
   calStepA: "Mac et iPhone : le bouton ouvre Calendrier, confirme S'abonner.", calStepN: "Notion Calendar affiche tes agendas Google : ajoute-le dans Google ci-dessus, il apparaît dans Notion Calendar.",
   calPrivate: "Ce lien est privé : toute personne qui l'a voit ton agenda.", calNew: "Nouveau lien", calNewQ: "Créer un nouveau lien ? L'ancien ne marchera plus nulle part.", calLinkErr: "Impossible de créer ton lien. Réessaie." });
+Object.assign(STRINGS.en, { scPaused: "Paused", scEnd: "End", scCockpit: "Cockpit", scOpenNote: "Open the session's note" });
+Object.assign(STRINGS.fr, { scPaused: "En pause", scEnd: "Terminer", scCockpit: "Cockpit", scOpenNote: "Ouvrir la note de la session" });
+Object.assign(STRINGS.en, { nbToMine: "Move to My folders", nbToRts: "Move to the RTS tree" });
+Object.assign(STRINGS.fr, { nbToMine: "Déplacer dans Mes dossiers", nbToRts: "Déplacer dans l'arborescence RTS" });

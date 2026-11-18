@@ -380,8 +380,7 @@ async function viewLog() {
     : sel.k === "m" ? `m=${iso(new Date(+sel.v.slice(0, 4), +sel.v.slice(5) - 1 + n, 15)).slice(0, 7)}` : `q=${qOf(iso(new Date(+sel.v.slice(0, 4), (+sel.v.slice(-1) - 1) * 3 + 3 * n, 15)))}`;
   const nextOk = shift(1).split("=")[1] <= (sel.k === "q" ? qOf(T) : sel.k === "m" ? T.slice(0, 7) : T);
   // quick start: the dock's own start buttons and duration box; a running session shows the way back instead
-  const startRow = `<div class="ck-start">${SES.s ? `<a class="hs-live" href="#/session">${KIND_ICON[SES.s.kind]} ${t("hsLive")} · <b>${t("backCockpit")} →</b></a>`
-    : `<button type="button" class="hs-btn grind" data-ckgo="grind"><span>♠</span><b>${t("hsGrind")}</b><small>${t("hsGrindSub")}</small></button>`}</div>`;
+  const startRow = `<div class="ck-start" data-sescard="grind">${sesCardHtml("grind")}</div>`; // start, pause, end: same card as Home
 
   const treeOn = CK_OPEN.get("tree");
   $("#main").innerHTML = `<div class="logbook cockpit ${treeOn ? "tree-on" : ""}">

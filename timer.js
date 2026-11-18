@@ -176,7 +176,26 @@ function dockHtml() {
     <dialog id="durd" class="card"></dialog><dialog id="timeup" class="card timeup"></dialog>
     <div id="brk" class="brk" hidden></div>`;
 }
+/* Start / pause / end card, same look as the Home start buttons (Alexis 2026-11-18): on Home, the Grind tab and the Study page.
+   paintDock repaints every card, so all of them always match the dock. */
+function sesCardHtml(kind) {
+  const s = SES.s, icon = kind === "grind" ? "♠" : "📚";
+  if (!s) return `<button type="button" class="hs-btn ${kind}" data-scgo><span>${icon}</span><b>${t(kind === "grind" ? "hsGrind" : "hsStudy")}</b><small>${t(kind === "grind" ? "hsGrindSub" : "hsStudySub")}</small></button>`;
+  if (s.kind !== kind) return `<a class="hs-btn ${kind} sc-other" href="${s.kind === "study" ? "#/study?n=" + s.id : "#/session"}"><span>${KIND_ICON[s.kind]}</span><b>${t("hsLive")}</b><small>${t(s.kind === "grind" ? "hsGrind" : "hsStudy")} →</small></a>`;
+  return `<div class="hs-btn ${kind} sc-live${s.paused_at ? " paused" : ""}"><span>${icon}</span><b data-left>${sesClock(s)}</b><small>${s.paused_at ? "⏸ " + t("scPaused") : "<i class=\"sc-dot\"></i>" + t("hsLive")}</small>
+    <div class="sc-acts"><button type="button" class="btn btn-sm${s.paused_at ? " btn-red" : ""}" data-scpause>${s.paused_at ? "▶ " + t("resume") : "⏸ " + t("pause")}</button><button type="button" class="btn btn-sm" data-scend>■ ${t("scEnd")}</button>${kind === "grind" && !location.hash.startsWith("#/session") ? `<a class="btn btn-sm" href="#/session">${t("scCockpit")} →</a>` : ""}</div></div>`;
+}
+function paintSesCards() { $$("[data-sescard]").forEach((el) => (el.innerHTML = sesCardHtml(el.dataset.sescard))); }
+document.addEventListener("click", async (e) => {
+  const c = e.target.closest("[data-sescard]"); if (!c) return;
+  const study = () => location.hash.startsWith("#/study");
+  if (e.target.closest("[data-scgo]")) sesGo(c.dataset.sescard);
+  else if (e.target.closest("[data-scpause]")) { if (typeof nbFlush === "function") await nbFlush(); await sesPause(); if (study()) route(); }
+  else if (e.target.closest("[data-scend]")) { if (typeof nbFlush === "function") await nbFlush(); await sesEnd(null); route(); }
+});
+
 function paintDock() {
+  paintSesCards();
   const box = $("#dkses"); if (!box) return;
   const s = SES.s;
   if (!has(ME, "player")) { box.innerHTML = ""; box.nextElementSibling?.setAttribute("hidden", ""); return; }

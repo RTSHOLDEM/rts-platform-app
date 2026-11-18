@@ -199,9 +199,9 @@ async function viewHome() {
   const lastList = (kind) => { const l = recent.filter((x) => x.kind === kind && x.ended_at).slice(0, 4);
     return `<div class="hs-last"><span class="hs-lt">${t("hsLast")}</span>${l.map((x) => `<a class="hs-ses" href="#/log?d=${x.started_at.slice(0, 10)}&s=${x.id}" data-ckpane="${kind}">
         <b>${dayL(x.started_at.slice(0, 10))}</b><span>${hhmm(x.started_at)} · ${dur(Number(x.minutes || 0))}${kind === "study" && TOPICS[x.topic] ? " · " + TOPICS[x.topic].icon + " " + t("topic_" + x.topic) : ""}</span><i>✎</i></a>`).join("") || `<p class="muted small">${t("hsNone")}</p>`}</div>`; };
-  const startBox = `${SES.s ? `<a class="hs-live" href="#/session">${KIND_ICON[SES.s.kind]} ${t("hsLive")} · <b>${t("backCockpit")} →</b></a>` : `<span class="eyebrow">${t("hsReady")}</span>`}<h2 class="hs-title">${t("hsTitle")}</h2>
-      <div class="hs-btns"><div class="hs-col"><button type="button" class="hs-btn grind" data-hsgo="grind"><span>♠</span><b>${t("hsGrind")}</b><small>${t("hsGrindSub")}</small></button></div>
-        <div class="hs-col"><button type="button" class="hs-btn study" data-hsgo="study"><span>📚</span><b>${t("hsStudy")}</b><small>${t("hsStudySub")}</small></button></div></div>`;
+  const startBox = `<span class="eyebrow">${t("hsReady")}</span><h2 class="hs-title">${t("hsTitle")}</h2>
+      <div class="hs-btns"><div class="hs-col" data-sescard="grind">${sesCardHtml("grind")}</div>
+        <div class="hs-col" data-sescard="study">${sesCardHtml("study")}</div></div>`;
   $("#main").innerHTML = `
     <div class="home1">
       <section class="hbanner card">
@@ -1268,7 +1268,7 @@ function replayRow(c, attended) {
 }
 
 /* Same rule as the database (006_team_scope.sql), so Direction in player view sees exactly what a player sees. */
-const myCoaching = (c) => { const l = (c.team_label || "").toLowerCase(); return !has(ME, "player") || isStaff() || l === ME.team_id || (!l && (c.teams || []).includes(ME.team)) || (ME.team === "elite" && ["academy", "challenger"].includes(l)); };
+const myCoaching = (c) => { const l = (c.team_label || "").toLowerCase(); return !has(ME, "player") || isStaff() || l === ME.team_id || (!l && (c.teams || []).includes(ME.team)) || (ME.team === "elite" && ["academy", "challenger"].includes(l)) || (ME.team_id === "supreme" && l === "master"); }; // Supreme sees Master too (2026-11-18)
 // Quizzes hidden for now (Alexis 2026-11-03: "uniquement coachings, les quiz on verra plus tard"). Set true to bring them back.
 const SHOW_QUIZ = false;
 async function viewCoaching() {
