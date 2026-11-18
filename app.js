@@ -61,19 +61,21 @@ function stats(entries, p) {
   }
   const tm = teamOf(p);
   const goal = p._goal;
-  const handsTarget = goal?.hands_target || tm.month_hands;
-  const pace = handsTarget * (new Date().getDate() / daysInMonth());
+  // Hours are the measure (Alexis 2026-11-18): hands only count against a target the player set himself.
+  const handsTarget = goal?.hands_target || null;
+  const play = sum(month, "play_h"), study = sum(month, "study_h"), hoursTarget = Math.round(weekTarget(p) * daysInMonth() / 7);
+  const pace = hoursTarget * (new Date().getDate() / daysInMonth());
   return {
-    play: sum(month, "play_h"), study: sum(month, "study_h"), hands: sum(month, "hands"), handsTarget, pace,
+    play, study, hours: play + study, hoursTarget, hands: sum(month, "hands"), handsTarget, pace,
     playTarget: goal?.play_h_target || null, studyTarget: goal?.study_h_target || null,
     streak, last: [...days].sort().pop() || null, filledToday: days.has(today()),
   };
 }
 
-/* Staff dot: hands vs pace + journal. Green on track, yellow slipping, red behind. */
+/* Staff dot: hours (grind + study) vs pace + journal. Green on track, yellow slipping, red behind. */
 function dot(s, p) {
   if (isAway(p, today())) return "grey";
-  let level = s.hands >= s.pace * 0.9 ? 0 : s.hands >= s.pace * 0.7 ? 1 : 2;
+  let level = s.hours >= s.pace * 0.9 ? 0 : s.hours >= s.pace * 0.7 ? 1 : 2;
   if (!s.last || s.last < daysAgo(2)) level = Math.min(2, level + 1);
   return ["green", "yellow", "red"][level];
 }
@@ -150,6 +152,8 @@ const xpBar = (v, max) => `<div class="xpbar big"><i style="width:${Math.min(100
 function forMe(e) {
   if (e.created_by === ME.id || (e.invitees || []).includes(ME.id)) return true;
   if (!e.open) return false;
+  // Alexis 2026-11-18: his own agenda shows only his coachings (and his team's); every other coach's slot is in the CEO view.
+  if (isAdmin() && e.kind === "coaching" && !(e.teams || []).includes(ME.team_id)) return false;
   const mine = [ME.team_id, ...(ME.coaches || []).flatMap((s) => TEAMS.filter((x) => x.side === s).map((x) => x.id))].filter(Boolean);
   return e.teams?.length ? e.teams.some((x) => mine.includes(x)) : true; // no team = open to all (conferences)
 }
@@ -174,7 +178,7 @@ async function viewHome() {
     const st = stats(mine, ME), wkHands = mine.filter((e) => e.day >= weekStart()).reduce((a, e) => a + Number(e.hands || 0), 0);
     wk = weekHours(mine) + live; target = weekTarget(ME);
     extra = `<span>♠ <b>${fmtNum(wkHands)}</b> ${t("handsWeek")}</span><span>🔥 <b>${st.streak}</b> ${st.streak === 1 ? t("day") : t("days")}</span>
-      <span>${t("handsMonth")} <b>${fmtNum(st.hands)}</b> / ${fmtNum(st.handsTarget)}</span>`;
+      <span>${t("hoursMonth")} <b>${fmtH(st.hours)}</b> / ${st.hoursTarget} h</span>`;
   }
   const pct = target ? Math.min(100, (wk / target) * 100) : 0;
   const mapBig = (() => { try { return sessionStorage.getItem("rts-hq-big") === "1"; } catch { return false; } })();
@@ -189,13 +193,14 @@ async function viewHome() {
   // Home (Alexis 2026-11-03): HQ, this week's goals, start a grind or study session, the calendar. No news.
   const wkL = mondayOf(today()), wG = wq.find((x) => x.period === "week" && x.label === wkL), wkDays = mine.filter((e) => e.day >= wkL);
   const wStudy = wkDays.reduce((a, e) => a + Number(e.study_h || 0), 0), wPlay = wkDays.reduce((a, e) => a + Number(e.play_h || 0), 0), wHands = wkDays.reduce((a, e) => a + Number(e.hands || 0), 0);
-  const gP = Number(wG?.play_h_target || 0), gH = Number(wG?.hands_target || 0), gItems = wG?.items || [];
+  const gP = Number(wG?.play_h_target || 0), gS = Number(wG?.study_h_target || 0), gH = Number(wG?.hands_target || 0), gItems = wG?.items || [];
   const gBar = (v, max) => `<span class="hg-bar"><i style="width:${Math.min(100, max ? (v / max) * 100 : 0)}%"></i></span>`;
   const goalsBox = `<button type="button" class="card hgoals" id="hgoals" title="${t("ckGTitle")}"><span class="hg-head"><b>🎯 ${t("ckGTitle")}</b><small>${t("weekN")} ${isoWeekN(wkL)} ✎</small></span>
       ${gP ? `<span class="hg-l"><span>♠ ${t("ckGPlay")}</span><b>${fmtH(wPlay)} <small>/ ${gP} h</small></b></span>${gBar(wPlay, gP)}` : ""}
+      ${gS ? `<span class="hg-l"><span>📚 ${t("ckGStudy")}</span><b>${fmtH(wStudy)} <small>/ ${gS} h</small></b></span>${gBar(wStudy, gS)}` : ""}
       ${gH ? `<span class="hg-l"><span>🃏 ${t("ckGHands")}</span><b>${fmtNum(wHands)} <small>/ ${fmtNum(gH)}</small></b></span>${gBar(wHands, gH)}` : ""}
       ${gItems.map((x) => `<span class="hg-i ${x.startsWith("✓ ") ? "done" : ""}">${x.startsWith("✓ ") ? "☑" : "☐"} ${esc(x.replace(/^✓ /, ""))}</span>`).join("")}
-      ${gP || gH || gItems.length ? "" : `<span class="hg-set">+ ${t("ckGSet")}</span>`}</button>`;
+      ${gP || gS || gH || gItems.length ? "" : `<span class="hg-set">+ ${t("ckGSet")}</span>`}</button>`;
   const lastList = (kind) => { const l = recent.filter((x) => x.kind === kind && x.ended_at).slice(0, 4);
     return `<div class="hs-last"><span class="hs-lt">${t("hsLast")}</span>${l.map((x) => `<a class="hs-ses" href="#/log?d=${x.started_at.slice(0, 10)}&s=${x.id}" data-ckpane="${kind}">
         <b>${dayL(x.started_at.slice(0, 10))}</b><span>${hhmm(x.started_at)} · ${dur(Number(x.minutes || 0))}${kind === "study" && TOPICS[x.topic] ? " · " + TOPICS[x.topic].icon + " " + t("topic_" + x.topic) : ""}</span><i>✎</i></a>`).join("") || `<p class="muted small">${t("hsNone")}</p>`}</div>`; };
@@ -427,9 +432,9 @@ async function viewGoals() {
       <div class="card-head"><h3>${t("goalsMonth")}</h3>${g ? `<span class="tag ${g.status === "confirmed" ? "ok" : "warn"}">${g.status === "confirmed" ? t("confirmed") : t("proposed")}</span>` : ""}</div>
       <div class="goals-grid">
         ${num("week_h_target", t("goalWeekH"), g?.week_h_target ?? ME._weekH, 1, tm.week_hours || 35)}
-        ${num("hands_target", t("goalHands"), g?.hands_target, 1000, tm.month_hands)}
         ${num("play_h_target", t("goalPlayH"), g?.play_h_target, 1, Math.round((tm.week_hours || 35) * 4.3 * 0.7))}
         ${num("study_h_target", t("goalStudyH"), g?.study_h_target, 1, Math.round((tm.week_hours || 35) * 4.3 * 0.3))}
+        ${num("hands_target", t("goalHandsOpt"), g?.hands_target, 1000, "")}
       </div>
       <label class="ta">${t("goalOther")}<textarea name="items" rows="4" placeholder="${t("goalOtherPh")}">${esc((g?.items || []).join("\n"))}</textarea></label>
       <p class="muted small">${t("goalsNote")}</p>
@@ -478,15 +483,15 @@ async function progressHtml(p, { callsOnly = false } = {}) {
     const g = goals.find((x) => ym(x.label) === m), js = jr.filter((e) => ym(e.day) === m), cs = calls.filter((c) => ym(c.day) === m);
     const sum = (k) => js.reduce((a, e) => a + Number(e[k] || 0), 0), hours = sum("play_h") + sum("study_h"), hands = sum("hands");
     const [y, mo] = m.split("-").map(Number), days = m === cur ? now.getDate() : new Date(y, mo, 0).getDate(), perWeek = hours / Math.max(1, days / 7);
-    const weekT = g?.week_h_target ?? tm.week_hours, handsT = g?.hands_target ?? tm.month_hands;
+    const weekT = g?.week_h_target ?? tm.week_hours, handsT = g?.hands_target || null;
     const stat = (label, v, target, shown, fmt = (x) => x) => `<div class="pg-stat"><span class="sub">${label}</span><b>${shown}${target ? ` <small class="muted">/ ${fmt(target)}</small>` : ""}</b>${target ? xpBar(v, +target) : ""}</div>`;
     return `<details class="pg-month" ${first || cs.length && m === months.find((x) => calls.some((c) => ym(c.day) === x)) ? "open" : ""}>
       <summary><h2>${fmtMonth(m + "-01")}</h2><span class="muted small">${cs.length} ${t("pgCalls").toLowerCase()} · ${fmtH(hours)} · ${fmtNum(hands)} ${t("hands").toLowerCase()}</span></summary>
       ${callsOnly ? "" : `<div class="card pg-goals">
         <div class="card-head"><h3>${t("objectives")}</h3><span>${g ? `<span class="tag ${g.status === "confirmed" ? "ok" : "warn"}">${g.status === "confirmed" ? t("confirmed") : t("proposed")}</span>` : `<span class="muted small">${t("pgTeamDefault")}</span>`}
           ${own && m === cur ? ` <a class="small-link" href="#/log?m=${m}">✎ ${t("pgEdit")}</a>` : ""}</span></div>
-        <div class="pg-stats">${stat(t("goalWeekH"), perWeek, weekT, fmtH(perWeek))}${stat(t("goalHands"), hands, handsT, fmtNum(hands), fmtNum)}
-          ${stat(t("goalPlayH"), sum("play_h"), g?.play_h_target, fmtH(sum("play_h")))}${stat(t("goalStudyH"), sum("study_h"), g?.study_h_target, fmtH(sum("study_h")))}</div>
+        <div class="pg-stats">${stat(t("goalWeekH"), perWeek, weekT, fmtH(perWeek))}${stat(t("goalPlayH"), sum("play_h"), g?.play_h_target, fmtH(sum("play_h")))}
+          ${stat(t("goalStudyH"), sum("study_h"), g?.study_h_target, fmtH(sum("study_h")))}${hands || handsT ? stat(t("goalHands"), hands, handsT, fmtNum(hands), fmtNum) : ""}</div>
         ${(g?.items || []).length ? `<p class="sub">${t("goalOther")}</p>${list(g.items)}` : ""}
       </div>`}
       ${cs.length ? cs.map(callCard).join("") : `<p class="muted small pg-none">${t("pgNoCalls")}</p>`}
@@ -1038,8 +1043,8 @@ async function viewJournal() {
           <table class="mini"><thead><tr><th>${t("month")}</th><th>${t("play")}</th><th>${t("study")}</th><th>${t("hands")}</th></tr></thead><tbody>
           ${months.map((m) => {
             const l = mine.filter((x) => x.day.startsWith(m)); const g = goals.find((x) => x.label.startsWith(m));
-            const hands = l.reduce((a, x) => a + Number(x.hands || 0), 0), target = g?.hands_target || tm.month_hands;
-            return `<tr><td>${fmtMonth(m)}<small>${l.length} ${t("days")}</small></td><td>${fmtH(l.reduce((a, x) => a + Number(x.play_h || 0), 0))}</td><td>${fmtH(l.reduce((a, x) => a + Number(x.study_h || 0), 0))}</td><td>${fmtNum(hands)}<small>/ ${fmtNum(target)}</small>${bar(hands, target)}</td></tr>`;
+            const hands = l.reduce((a, x) => a + Number(x.hands || 0), 0), target = g?.hands_target || 0;
+            return `<tr><td>${fmtMonth(m)}<small>${l.length} ${t("days")}</small></td><td>${fmtH(l.reduce((a, x) => a + Number(x.play_h || 0), 0))}</td><td>${fmtH(l.reduce((a, x) => a + Number(x.study_h || 0), 0))}</td><td>${fmtNum(hands)}${target ? `<small>/ ${fmtNum(target)}</small>${bar(hands, target)}` : ""}</td></tr>`;
           }).join("") || `<tr><td colspan="4" class="muted">—</td></tr>`}
           </tbody></table></div>
         ${awayCard()}
@@ -1123,17 +1128,17 @@ const PLAYER_TABS = {
     return `
       ${await focusList(p.id, true)}
       <div class="grid kpis">
-        ${kpi(t("handsMonth"), `${fmtNum(s.hands)} <small>/ ${fmtNum(s.handsTarget)}</small>`, bar(s.hands, s.handsTarget))}
-        ${kpi(t("hoursMonth"), fmtH(s.play + s.study), `<em>${fmtH(s.play)} ${t("play").toLowerCase()}${s.playTarget ? " / " + fmtH(s.playTarget) : ""} · ${fmtH(s.study)} ${t("study").toLowerCase()}${s.studyTarget ? " / " + fmtH(s.studyTarget) : ""}</em>`)}
+        ${kpi(t("hoursMonth"), `${fmtH(s.hours)} <small>/ ${s.hoursTarget} h</small>`, bar(s.hours, s.hoursTarget) + `<em>${fmtH(s.play)} ${t("play").toLowerCase()}${s.playTarget ? " / " + fmtH(s.playTarget) : ""} · ${fmtH(s.study)} ${t("study").toLowerCase()}${s.studyTarget ? " / " + fmtH(s.studyTarget) : ""}</em>`)}
+        ${kpi(t("handsMonth"), `${fmtNum(s.hands)}${s.handsTarget ? ` <small>/ ${fmtNum(s.handsTarget)}</small>` : ""}`, s.handsTarget ? bar(s.hands, s.handsTarget) : "")}
         ${kpi(t("streak"), `${s.streak} <small>${t("days")}</small>`, streakDots(j, p))}
       </div>
       <div class="grid two">
         <form class="card" id="gform">
           <div class="card-head"><h3>${t("objectives")} · ${fmtMonth(monthStart())}</h3>${g ? `<span class="tag ${g.status === "confirmed" ? "ok" : "warn"}">${g.status === "confirmed" ? t("confirmed") : t("proposed")}</span>` : ""}</div>
           <div class="row3">
-            <label>${t("hands")}<input name="hands_target" type="number" step="1000" value="${g?.hands_target ?? tm.month_hands}" ${dis(editGoal)}></label>
             <label>${t("play")} (h)<input name="play_h_target" type="number" value="${g?.play_h_target ?? Math.round(tm.week_hours * 4.3 * 0.7)}" ${dis(editGoal)}></label>
             <label>${t("study")} (h)<input name="study_h_target" type="number" value="${g?.study_h_target ?? Math.round(tm.week_hours * 4.3 * 0.3)}" ${dis(editGoal)}></label>
+            <label>${t("goalHandsOpt")}<input name="hands_target" type="number" step="1000" value="${g?.hands_target ?? ""}" ${dis(editGoal)}></label>
           </div>
           <label class="ta">${t("other")}<textarea name="items" rows="3" ${dis(editGoal)}>${esc((g?.items || []).join("\n"))}</textarea></label>
           ${!g ? `<p class="muted small">${t("teamDefault")} : ${fmtNum(tm.month_hands)} ${t("hands").toLowerCase()}</p>` : ""}
@@ -1291,7 +1296,10 @@ function replayRow(c, attended) {
 }
 
 /* Same rule as the database (006_team_scope.sql), so Direction in player view sees exactly what a player sees. */
-const myCoaching = (c) => { const l = (c.team_label || "").toLowerCase(); return !has(ME, "player") || isStaff() || l === ME.team_id || (!l && (c.teams || []).includes(ME.team)) || (ME.team === "elite" && ["academy", "challenger"].includes(l)) || (ME.team_id === "supreme" && l === "master"); }; // Supreme sees Master too (2026-11-18)
+// Shared through a tag (030, Alexis 2026-11-18): e.g. 'supreme_cond' gives Antho, Faycal, Abraham chosen Supreme coachings only.
+const ACCESS_TAGS = { supreme_cond: "Supreme conditionnel" };
+const sharedWithMe = (c) => (c.share_tags || []).some((x) => (ME.access_tags || []).includes(x));
+const myCoaching = (c) => { const l = (c.team_label || "").toLowerCase(); return sharedWithMe(c) || !has(ME, "player") || isStaff() || l === ME.team_id || (!l && (c.teams || []).includes(ME.team)) || (ME.team === "elite" && ["academy", "challenger"].includes(l)) || (ME.team_id === "supreme" && l === "master"); }; // Supreme sees Master too (2026-11-18)
 // Quizzes hidden for now (Alexis 2026-11-03: "uniquement coachings, les quiz on verra plus tard"). Set true to bring them back.
 const SHOW_QUIZ = false;
 async function viewCoaching() {
@@ -1302,7 +1310,8 @@ async function viewCoaching() {
   if (q.team === undefined && has(ME, "player") && cs.some((c) => c.team_label === myTeamLabel())) q.team = myTeamLabel();
   const teams = TEAM_ORDER.filter((x) => cs.some((c) => c.team_label === x));
   const coaches = [...new Set(cs.map((c) => c.coach).filter(Boolean))].sort();
-  const match = (c) => (!q.team || c.team_label === q.team) && (!q.coach || c.coach === q.coach)
+  const shared = cs.filter(sharedWithMe), sharedL = (ME.access_tags || []).map((x) => ACCESS_TAGS[x] || x).join(" · ");
+  const match = (c) => (q.team === "shared" ? sharedWithMe(c) : !q.team || c.team_label === q.team) && (!q.coach || c.coach === q.coach)
     && (!q.q || [c.title, c.themes, c.coach, c.summary].join(" ").toLowerCase().includes(q.q.toLowerCase()));
   const found = cs.filter(match);
   const byMonth = {};
@@ -1313,7 +1322,7 @@ async function viewCoaching() {
     <div class="finder card co-find">
       <input type="search" id="cq" placeholder="${t("searchCoaching")}" value="${esc(q.q || "")}">
       <div class="filters">
-        <div class="chips">${[["", t("all")], ...teams.map((x) => [x, x])].map(([v, l]) => `<a class="tagchip ${(q.team || "") === v ? "on" : ""}" href="${link("team", v)}">${esc(l)}</a>`).join("")}</div>
+        <div class="chips">${[["", t("all")], ...teams.map((x) => [x, x]), ...(shared.length && !isStaff() ? [["shared", "🔓 " + sharedL]] : [])].map(([v, l]) => `<a class="tagchip ${(q.team || "") === v ? "on" : ""}" href="${link("team", v)}">${esc(l)}</a>`).join("")}</div>
         <select id="ccoach"><option value="">${t("allCoaches")}</option>${coaches.map((x) => `<option ${q.coach === x ? "selected" : ""}>${esc(x)}</option>`).join("")}</select>
         <span class="muted small">${found.length} ${t("sessionsN")}</span>
       </div>
@@ -1337,6 +1346,7 @@ async function viewCoachingOne(id) {
   $("#main").innerHTML = `
     <a class="back" href="#/coaching">← ${t("coaching")}</a>
     <section class="hello"><p class="eyebrow">${meta}</p><h1 class="h-long">${esc(c.title)}</h1>
+      ${isAdmin() ? `<div class="chips co-share"><span class="muted small">${t("coShare")}</span>${Object.entries(ACCESS_TAGS).map(([k, l]) => `<button type="button" class="tagchip ${(c.share_tags || []).includes(k) ? "on" : ""}" data-share="${k}">🔓 ${esc(l)}</button>`).join("")}</div>` : ""}
       ${c.themes ? `<div class="chips static">${c.themes.split("·").map((x) => `<span class="tagchip">${esc(x.trim())}</span>`).join("")}</div>` : ""}</section>
     <div class="grid two">
       <div class="card summary"><div class="card-head"><h3>${t("summary")}</h3></div>
@@ -1351,6 +1361,10 @@ async function viewCoachingOne(id) {
       </div>
     </div>`;
   $$("[data-ex]").forEach((x) => x.onchange = () => db.setExercise(x.dataset.ex, x.checked));
+  $$("[data-share]").forEach((b) => b.onclick = async () => {
+    const k = b.dataset.share, l = c.share_tags || [], nu = l.includes(k) ? l.filter((x) => x !== k) : [...l, k];
+    b.disabled = true; try { await db.shareCoaching(c.id, nu); c.share_tags = nu; b.classList.toggle("on", nu.includes(k)); } catch (e) { alert(t("error") + " : " + e.message); } b.disabled = false;
+  });
 }
 
 function runQuiz(questions, title, back, quiz) {
@@ -1575,14 +1589,14 @@ async function calLinkDialog(reset = false) {
 }
 
 async function viewCalendar() {
-  const w = +(new URLSearchParams(location.hash.split("?")[1] || "").get("w") || 0);
+  const qs = new URLSearchParams(location.hash.split("?")[1] || ""), w = +(qs.get("w") || 0), ceo = isAdmin() && qs.get("all") === "1", A = ceo ? "&all=1" : "";
   const mon = new Date(weekStart() + "T00:00:00"); mon.setDate(mon.getDate() + 7 * w);
   const days = [...Array(7)].map((_, i) => { const d = new Date(mon); d.setDate(d.getDate() + i); return iso(d); });
   const ids = [...new Set([ME.team_id, ...(ME.coaches || []).flatMap((s) => TEAMS.filter((x) => x.side === s).map((x) => x.id))].filter(Boolean))];
   const cals = TEAMS.filter((x) => ids.includes(x.id) && x.calendar_id);
   const [all, dir, staff] = await Promise.all([db.events(new Date(mon.getTime() - 864e5).toISOString(), days[6] + "T23:59"), directory(),
     isAdmin() ? db.people().catch(() => []) : []]);
-  const events = all.filter(forMe).filter((e) => days.includes(iso(new Date(e.starts_at))));
+  const events = all.filter((e) => ceo || forMe(e)).filter((e) => days.includes(iso(new Date(e.starts_at))));
   const joins = await db.joins(events.map((e) => e.id));
   const who = (id) => nm(dir.find((d) => d.id === id) || staff.find((d) => d.id === id) || person(id));
   const coachList = staff.filter((p) => p.roles.some((r) => ["coach", "admin", "mentor", "manager"].includes(r)));
@@ -1592,7 +1606,8 @@ async function viewCalendar() {
   const nowD = new Date(), nowTop = (nowD.getHours() + nowD.getMinutes() / 60 - H0) * PX;
   const label = `${fmtDay(days[0])} → ${fmtDay(days[6])}`;
   $("#main").innerHTML = `${head(t("calendar"), t("calendar"), t("calSub3"))}
-    <div class="wk-bar"><a class="btn btn-sm" href="#/calendar?w=${w - 1}">←</a><a class="btn btn-sm${w ? "" : " on"}" href="#/calendar">${t("thisWeek")}</a><a class="btn btn-sm" href="#/calendar?w=${w + 1}">→</a>
+    <div class="wk-bar"><a class="btn btn-sm" href="#/calendar?w=${w - 1}${A}">←</a><a class="btn btn-sm${w ? "" : " on"}" href="#/calendar?w=0${A}">${t("thisWeek")}</a><a class="btn btn-sm" href="#/calendar?w=${w + 1}${A}">→</a>
+      ${isAdmin() ? `<span class="cal-view"><a class="${ceo ? "" : "on"}" href="#/calendar?w=${w}">👤 ${t("calMine")}</a><a class="${ceo ? "on" : ""}" href="#/calendar?w=${w}&all=1">🏢 ${t("calCeo")}</a></span>` : ""}
       <b class="wk-label">${label}</b><button class="btn btn-sm" id="calink">🔗 ${t("calLink")}</button><button class="btn btn-red btn-sm" id="addev">+ ${t("planSomething")}</button></div>
     <div class="card wk"><div class="wk-hours">${[...Array(H1 - H0)].map((_, i) => `<span style="top:${i * PX}px">${String(H0 + i).padStart(2, "0")}:00</span>`).join("")}</div>
       ${days.map((d) => `<div class="wk-day${d === today() ? " today" : ""}"><p class="wk-dh">${new Date(d + "T12:00").toLocaleDateString(LANG === "fr" ? "fr-FR" : "en-GB", { weekday: "short", day: "numeric" })}</p>
@@ -1698,7 +1713,7 @@ async function viewMentoring() {
   const all = await db.journalAll(daysAgo(400));
   const sel = players.find((p) => p.id === q.p) || players[0];
   const rows = players.map((p) => { const s = stats(all.filter((e) => e.player_id === p.id), p), d = dot(s, p);
-    return `<a class="mt-p ${sel && p.id === sel.id ? "on" : ""}" href="${"#/mentoring?" + new URLSearchParams({ p: p.id })}"><span class="dot ${d}"></span><span class="mt-n"><b>${nm(p)}</b><small>${esc(teamOf(p).label || "")} · ${fmtNum(s.hands)} / ${fmtNum(s.handsTarget)}</small></span></a>`; }).join("");
+    return `<a class="mt-p ${sel && p.id === sel.id ? "on" : ""}" href="${"#/mentoring?" + new URLSearchParams({ p: p.id })}"><span class="dot ${d}"></span><span class="mt-n"><b>${nm(p)}</b><small>${esc(teamOf(p).label || "")} · ♠ ${fmtH(s.play)} · 📚 ${fmtH(s.study)}</small></span></a>`; }).join("");
   let detail = `<div class="card mt-empty"><p class="muted">${players.length ? t("mtPick") : t("mtNone")}</p></div>`, ctx = null;
   if (sel) {
     const [r, gl] = await Promise.all([db.report(sel.id, month).catch(() => null), db.goals(sel.id).catch(() => []), boardLoad(sel.id)]);
@@ -1733,10 +1748,10 @@ async function viewMentoring() {
 function mtStats(p, all, month, gl) {
   const ent = all.filter((e) => e.player_id === p.id), s = stats(ent, p), wk = weekStart(), mEnd = iso(new Date(Date.UTC(+month.slice(0, 4), +month.slice(5, 7), 1)));
   const sum = (l, k) => l.reduce((a, e) => a + Number(e[k] || 0), 0), w = ent.filter((e) => e.day >= wk), m = ent.filter((e) => e.day >= month && e.day < mEnd);
-  const mT = gl.find((g) => g.label === month)?.hands_target || teamOf(p).month_hands;
+  const mT = gl.find((g) => g.label === month)?.hands_target || 0, mh = sum(m, "hands");
   const tile = (label, val, sub = "") => `<div class="card mt-t"><span>${label}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ""}</div>`;
   return `<div class="mt-tiles">${tile("♠ " + t("mtWeekG"), fmtH(sum(w, "play_h")))}${tile("📚 " + t("mtWeekS"), fmtH(sum(w, "study_h")))}
-    ${tile("🃏 " + fmtMonth(month), fmtNum(sum(m, "hands")), `/ ${fmtNum(mT)} · ${fmtH(sum(m, "play_h") + sum(m, "study_h"))}`)}${tile("🔥 " + t("streak"), `${s.streak} ${t("days")}`, s.last ? `${t("lastJournal")} : ${s.last === today() ? t("today") : fmtDay(s.last)}` : t("never"))}</div>`;
+    ${tile("⏱ " + fmtMonth(month), fmtH(sum(m, "play_h") + sum(m, "study_h")), `♠ ${fmtH(sum(m, "play_h"))} ${t("play").toLowerCase()} · 📚 ${fmtH(sum(m, "study_h"))} ${t("study").toLowerCase()}${mh ? ` · 🃏 ${fmtNum(mh)}${mT ? " / " + fmtNum(mT) : ""}` : ""}`)}${tile("🔥 " + t("streak"), `${s.streak} ${t("days")}`, s.last ? `${t("lastJournal")} : ${s.last === today() ? t("today") : fmtDay(s.last)}` : t("never"))}</div>`;
 }
 
 /* Player side (Alexis 2026-11-03, dashboard 2026-11-05): his own coaching dashboard, the same tiles his mentor sees;
@@ -1783,8 +1798,8 @@ async function viewTeam() {
     return { d, html: `<tr data-go="#/p/${p.id}/overview">
       <td><span class="dot ${d}"></span></td>
       <td><b>${nm(p)}</b><small>${esc(p.stakes || "")}</small></td>
-      <td>${fmtNum(s.hands)}<small>/ ${fmtNum(s.handsTarget)}</small>${bar(s.hands, s.handsTarget, d === "red" ? "bad" : d === "yellow" ? "warn" : "")}</td>
-      <td>${fmtH(s.play + s.study)}</td>
+      <td>${fmtNum(s.hands)}${s.handsTarget ? `<small>/ ${fmtNum(s.handsTarget)}</small>` : ""}</td>
+      <td>${fmtH(s.hours)}<small>/ ${s.hoursTarget} h</small>${bar(s.hours, s.hoursTarget, d === "red" ? "bad" : d === "yellow" ? "warn" : "")}</td>
       <td>${s.streak} ${t("days")}</td>
       <td><span class="tag ${isAway(p, today()) ? "" : !s.last || s.last < daysAgo(2) ? "warn" : "ok"}">${isAway(p, today()) ? t("onHoliday") : s.last ? (s.last === today() ? t("today") : fmtDay(s.last)) : t("never")}</span></td>
       <td>${quizBehind ? `<span class="tag warn">${quizBehind}</span>` : "—"}</td></tr>` };
@@ -1877,7 +1892,7 @@ async function viewCeo() {
   players.forEach((p) => {
     const s = stats(all.filter((e) => e.player_id === p.id), p);
     const g = (per[teamOf(p).label] ||= { n: 0, hands: 0, target: 0, hours: 0, red: 0 });
-    g.n++; g.hands += s.hands; g.target += s.handsTarget; g.hours += s.play + s.study;
+    g.n++; g.hands += s.hands; g.target += s.hoursTarget; g.hours += s.play + s.study;
     if (dot(s, p) === "red") { g.red++; behind.push(p); }
   });
   $("#main").innerHTML = `${head(t("ceo"), t("ceo"), t("ceoSub"))}
@@ -1887,7 +1902,7 @@ async function viewCeo() {
       ${kpi(t("behindList"), `${behind.length} <small>/ ${players.length} ${t("players")}</small>`)}
     </div>
     <div class="card table-card"><table><thead><tr><th>${t("teamCol")}</th><th>${t("players")}</th><th>${t("handsMonth")}</th><th>${t("hoursMonth")}</th><th><span class="dot red"></span></th></tr></thead>
-      <tbody>${Object.entries(per).map(([k, g]) => `<tr><td><b>${esc(k)}</b></td><td>${g.n}</td><td>${fmtNum(g.hands)}<small>/ ${fmtNum(g.target * new Date().getDate() / daysInMonth())} ${t("pace")}</small>${bar(g.hands, g.target)}</td><td>${fmtH(g.hours)}</td><td>${g.red}</td></tr>`).join("")}</tbody></table></div>
+      <tbody>${Object.entries(per).map(([k, g]) => `<tr><td><b>${esc(k)}</b></td><td>${g.n}</td><td>${fmtNum(g.hands)}</td><td>${fmtH(g.hours)}<small>/ ${Math.round(g.target * new Date().getDate() / daysInMonth())} h ${t("pace")}</small>${bar(g.hours, g.target)}</td><td>${g.red}</td></tr>`).join("")}</tbody></table></div>
     <div class="card"><div class="card-head"><h3>${t("behindList")}</h3></div><div class="chips static">${behind.map((p) => `<a class="tagchip" href="#/p/${p.id}/overview">${nm(p)}</a>`).join("") || "—"}</div></div>`;
 }
 

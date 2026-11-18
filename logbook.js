@@ -29,8 +29,8 @@ Object.assign(STRINGS.en, {
   toReviewT: "To review", reviewedT: "Reviewed", allT: "All", noHandsT: "No hand here.", hhText: "Hand history", openFull: "Full size",
   hsReady: "Ready?", hsTitle: "Start a session", hsGrind: "Poker session", hsGrindSub: "You play, the clock runs", hsStudy: "Study session", hsStudySub: "Wizard, review, trainer", hsLive: "Session running", ckStudyNotes: "Notes of the day →", resDayT: "Study of the day", resDayAll: "See all", resNoNotes: "No notes in this session.", resDayNone: "No study session that day.", hsLast: "My last sessions", hsNone: "No session yet.", hbCk: "Grind", hbCkOpen: "Open", hqBig: "Open the HQ big", hqSmall: "Make the HQ small",
   ckYear: "Year", ckWork: "Work", ckJournalSub: "Your feelings of the day", ckWritten: "written", ckJrWrite: "Write",
-  ckGTitle: "This week's goals", ckGPlay: "Play hours", ckGHands: "Hands", ckGFree: "Other goals (one per line)", ckGFreePh: "e.g. Review 20 hands with the solver\nStop after 3 buy-ins lost",
-  ckGOpt: "All optional. They show at the top right of your Cockpit.", ckGAsk: "New week: your goals?", ckGLater: "Later", ckGSet: "Set my goals",
+  ckGTitle: "This week's goals", ckGPlay: "Play hours", ckGStudy: "Study hours", ckGHands: "Hands", ckGHandsOpt: "Hands target (optional)", ckGHoursFirst: "What counts most: your hours this week, grind and study.", ckGFree: "Other goals (one per line)", ckGFreePh: "e.g. Review 20 hands with the solver\nStop after 3 buy-ins lost",
+  ckGOpt: "They show on your Home and Cockpit.", ckGAsk: "New week: how many hours?", ckGLater: "Later", ckGSet: "Set my goals",
   ckGWhen: "Ask me for my week goals", ckGSun: "Sunday evening", ckGMon: "Monday (first login)", ckWkSub: "Counted on the week (on its last day so far).", ckPrevW: "Previous week", ckNextW: "Next week",
   ckToday: "Today", ckAdd: "Add", ckEdit: "Edit", ckAddT: "Add", ckDone: "Done that day", ckHandsDay: "Hands that day", ckCoachCal: "From the calendar",
   ckCoaching: "Coaching", ckWeekGoals: "Week goals", ckAddSes: "Add a session I did", ckAddGo: "Add", ckNoCoach: "No coaching that day.",
@@ -69,8 +69,8 @@ Object.assign(STRINGS.fr, {
   toReviewT: "À revoir", reviewedT: "Revues", allT: "Toutes", noHandsT: "Aucune main ici.", hhText: "Historique", openFull: "Plein écran",
   hsReady: "Prêt ?", hsTitle: "Lance une session", hsGrind: "Session de poker", hsGrindSub: "Tu joues, le chrono tourne", hsStudy: "Session d'études", hsStudySub: "Wizard, review, trainer", hsLive: "Session en cours", ckStudyNotes: "Notes du jour →", resDayT: "Études du jour", resDayAll: "Tout voir", resNoNotes: "Pas de notes dans cette session.", resDayNone: "Aucune session d'études ce jour-là.", hsLast: "Mes dernières sessions", hsNone: "Pas encore de session.", hbCk: "Grind", hbCkOpen: "Ouvrir", hqBig: "Ouvrir le QG en grand", hqSmall: "Réduire le QG",
   ckYear: "Année", ckWork: "Travail", ckJournalSub: "Tes ressentis du jour", ckWritten: "écrit", ckJrWrite: "Écrire",
-  ckGTitle: "Objectifs de la semaine", ckGPlay: "Heures de jeu", ckGHands: "Mains", ckGFree: "Autres objectifs (un par ligne)", ckGFreePh: "ex. Revoir 20 mains au solver\nStop après 3 caves perdues",
-  ckGOpt: "Tout est facultatif. Ils s'affichent en haut à droite du Cockpit.", ckGAsk: "Nouvelle semaine : tes objectifs ?", ckGLater: "Plus tard", ckGSet: "Fixer mes objectifs",
+  ckGTitle: "Objectifs de la semaine", ckGPlay: "Heures de jeu", ckGStudy: "Heures d'étude", ckGHands: "Mains", ckGHandsOpt: "Objectif de mains (facultatif)", ckGHoursFirst: "Le plus important : tes heures de la semaine, grind et étude.", ckGFree: "Autres objectifs (un par ligne)", ckGFreePh: "ex. Revoir 20 mains au solver\nStop après 3 caves perdues",
+  ckGOpt: "Ils s'affichent sur ton Accueil et ton Cockpit.", ckGAsk: "Nouvelle semaine : combien d'heures ?", ckGLater: "Plus tard", ckGSet: "Fixer mes objectifs",
   ckGWhen: "Me demander mes objectifs de la semaine", ckGSun: "Le dimanche soir", ckGMon: "Le lundi (première connexion)", ckWkSub: "Compté sur la semaine (sur son dernier jour passé).", ckPrevW: "Semaine précédente", ckNextW: "Semaine suivante",
   ckToday: "Aujourd'hui", ckAdd: "Ajouter", ckEdit: "Modifier", ckAddT: "Ajouter", ckDone: "Fait ce jour-là", ckHandsDay: "Mains du jour", ckCoachCal: "Du calendrier",
   ckCoaching: "Coaching", ckWeekGoals: "Objectifs semaine", ckAddSes: "Ajouter une session faite", ckAddGo: "Ajouter", ckNoCoach: "Pas de coaching ce jour-là.",
@@ -113,17 +113,20 @@ const dur = (min) => (min >= 60 ? `${Math.floor(min / 60)} h ${String(min % 60).
 const MOODS = ["😫", "😕", "😐", "🙂", "🔥"];
 
 /* ---------- saved hands: one line per hand, titled by its note (or its time), small picture on demand ---------- */
+let HAND_NOTES = new Map(); // hand id -> its note (study page), filled by the Hands page
 const handTitle = (h) => (h.note || "").split("\n")[0].trim().slice(0, 80) || `${fmtDay(h.created_at.slice(0, 10))} · ${hhmm(h.created_at)}`;
 function handRow(h, hands = []) {
   const pic = h.image_path || h.image_data;
   return `<details class="hd ${h.reviewed ? "done" : ""}" data-hd="${h.id}"><summary>
       <span class="hd-ic">${pic ? "🖼" : h.link ? "🔗" : "📋"}</span><b class="hd-t">${esc(handTitle(h))}</b>
-      ${(h.tags || []).map((k) => `<span class="tag">${esc(tagLabel(k))}</span>`).join("")}<small class="muted">${h.note ? hhmm(h.created_at) : ""}</small>${h.reviewed ? `<span class="tag ok">✓</span>` : `<span class="tag red">${t("toReviewT")}</span>`}</summary>
+      ${(h.tags || []).map((k) => `<span class="tag">${esc(tagLabel(k))}</span>`).join("")}${h.discussion ? `<span class="tag">💬 ${t("hnCoach")}</span>` : ""}${HAND_NOTES.get(h.id) ? `<span class="tag">📝</span>` : ""}<small class="muted">${h.note ? hhmm(h.created_at) : ""}</small>${h.reviewed ? `<span class="tag ok">✓</span>` : `<span class="tag red">${t("toReviewT")}</span>`}</summary>
     <div class="hd-body">
       ${pic ? `<img class="hd-thumb" data-img="${esc(h.image_path || "")}" ${h.image_data ? `src="${h.image_data}"` : ""} alt="" title="${t("openFull")}">` : ""}
       <div class="hd-side">${tagEditHtml(h, hands)}${(h.note || "").includes("\n") ? `<p class="small">${esc(h.note)}</p>` : ""}
+        ${h.discussion ? `<details class="hd-hh" open><summary class="small-link">💬 ${t("hnDisc")}</summary><p class="small hd-disc sensitive">${esc(h.discussion).replace(/\n/g, "<br>")}</p></details>` : ""}
         ${h.hh ? `<details class="hd-hh"><summary class="small-link">${t("hhText")}</summary><pre class="hh">${esc(h.hh)}</pre></details>` : ""}
         <p class="row-btns">${isHH(h.hh) ? `<a class="btn btn-sm btn-red" href="#/replayer/${h.id}">▶ ${t("popReplay")}</a>` : ""}${h.link ? `<a class="btn btn-sm" href="${esc(h.link)}" target="_blank" rel="noopener">🔗 ${t("popLink")}</a>` : ""}${isHH(h.hh) ? `<button class="btn btn-sm btn-gto" data-gto="${h.id}" title="${t("gtoTip")}">GTO Wizard</button>` : ""}${h.hh ? `<button class="btn btn-sm" data-copy="${h.id}">${t("copyHH")}</button>` : ""}
+          ${HAND_NOTES.get(h.id) ? `<a class="btn btn-sm" href="#/study?n=${HAND_NOTES.get(h.id)}">📝 ${t("hnOpen")}</a>` : `<button class="btn btn-sm btn-ghost-red" data-hnote="${h.id}">📝 ${t("hnWrite")}</button>`}
           <button class="btn btn-sm ${h.reviewed ? "" : "btn-red"}" data-rev="${h.id}" data-v="${h.reviewed ? "" : "1"}">${h.reviewed ? t("undo") : "✓ " + t("reviewed")}</button></p></div>
     </div></details>`;
 }
@@ -133,6 +136,7 @@ function bindHands(hands) {
   }));
   $$(".hd-thumb").forEach((im) => im.onclick = () => { const lb = $("#lb"); if (!lb || !im.src) return; lb.querySelector("img").src = im.src; lb.showModal(); });
   $$("[data-rev]").forEach((b) => b.onclick = async () => { b.disabled = true; await db.setHand(b.dataset.rev, { reviewed: !!b.dataset.v }); route(); });
+  $$("[data-hnote]").forEach((b) => b.onclick = () => handNote(hands.find((h) => h.id === b.dataset.hnote)));
   // GTO Wizard (Alexis 2026-11-03): it has no link to open a hand and ignores pastes sent by another site (tested),
   // so one click copies the HH and opens it; there: Upload (top right), Cmd+V, Enter = analysed.
   $$("[data-gto]").forEach((b) => b.onclick = () => {
@@ -149,6 +153,7 @@ async function viewHands() {
   const my = RENDER;
   const [hands, sessions] = await Promise.all([db.hands(), db.sessions(ME.id, daysAgo(400)).catch(() => [])]);
   if (my !== RENDER) return;
+  HAND_NOTES = new Map(sessions.filter((s) => s.hand_id).map((s) => [s.hand_id, s.id]));
   // The pool of saved hands (Alexis 2026-11-18): filter by review state AND by tags (e.g. HU + vs Reg + Fold / Catch).
   const qs = new URLSearchParams(location.hash.split("?")[1] || ""), f = qs.get("f") || "all", sel = (qs.get("t") || "").split(",").filter(Boolean);
   const byRev = (h, k) => (k === "todo" ? !h.reviewed : k === "done" ? h.reviewed : true), byTags = (h) => sel.every((k) => (h.tags || []).includes(k));
@@ -161,7 +166,7 @@ async function viewHands() {
   const sess = (id) => sessions.find((x) => x.id === id);
   $("#main").innerHTML = `${head(t("tabHands"), t("handsPool"), t("handsPoolSub"))}
     <div class="nb-bar">${[["todo", "toReviewT"], ["done", "reviewedT"], ["all", "allT"]].map(([k, lb]) => `<a class="chip ${f === k ? "on" : ""}" href="${url(k, sel)}">${t(lb)} · ${hands.filter((h) => byRev(h, k) && byTags(h)).length}</a>`).join("")}
-      <span class="grow"></span><a class="btn btn-sm btn-ghost-red" href="#/replayer">▶ RTS Replayer</a></div>
+      <span class="grow"></span><button type="button" class="btn btn-sm btn-red" id="hdimport">⬇ ${t("hnImport")}</button><a class="btn btn-sm btn-ghost-red" href="#/replayer">▶ RTS Replayer</a></div>
     <div class="hd-filter">${Object.values(HAND_TAGS).map((row) => `<span class="hf-row">${row.map(chip).join("")}</span>`).join("")}
       ${myCustomTags(hands).length ? `<span class="hf-row">${myCustomTags(hands).map(chip).join("")}</span>` : ""}
       ${sel.length ? `<a class="small-link" href="${url(f, [])}">✕ ${t("hfClear")}</a>` : ""}</div>
@@ -172,6 +177,9 @@ async function viewHands() {
           return `${x ? `<p class="hd-sess">${KIND_ICON[x.kind] || "♠"} ${hhmm(x.started_at)}${x.ended_at ? " → " + hhmm(x.ended_at) : ""}${x.minutes ? " · " + dur(x.minutes) : ""}</p>` : ""}${ls.map((h) => handRow(h, hands)).join("")}`; }).join("")}</details>`;
     }).join("") || empty(sel.length ? t("hfNone") : t("noHandsT"))}</div>`;
   fitToDock(".res-scroll"); bindHands(hands);
+  $("#hdimport").onclick = () => importHandDlg();
+  const one = qs.get("h") && document.querySelector(`[data-hd="${qs.get("h")}"]`);
+  if (one) { one.open = true; one.closest(".hd-day").open = true; one.dispatchEvent(new Event("toggle")); setTimeout(() => one.scrollIntoView({ block: "center" }), 100); }
   bindTagEdit(hands, (h) => { // keep the hand open after a tag click
     const open = $$("[data-hd]").filter((d) => d.open).map((d) => d.dataset.hd); route();
     setTimeout(() => open.forEach((id) => { const d = document.querySelector(`[data-hd="${id}"]`); if (d) d.open = true; }), 400); });
@@ -268,7 +276,7 @@ async function viewLog() {
       ${extra}
       ${(g?.items || []).map((x, i) => `<label class="pg-step ${x.startsWith("✓ ") ? "done" : ""}"><input type="checkbox" data-gtick="${period}|${label}|${i}" ${x.startsWith("✓ ") ? "checked" : ""}><span>${esc(x.replace(/^✓ /, ""))}</span></label>`).join("") || `<p class="muted small">${t("noGoals")}</p>`}
       <details class="pg-edit"><summary class="small-link">✎ ${t("pgEdit")}</summary><form data-gform="${period}|${label}">
-        ${period === "month" ? `<div class="goals-grid two">${[["week_h_target", "goalWeekH", 1, tm.week_hours || 35], ["hands_target", "goalHands", 1000, tm.month_hands], ["play_h_target", "goalPlayH", 1, ""], ["study_h_target", "goalStudyH", 1, ""]]
+        ${period === "month" ? `<div class="goals-grid two">${[["week_h_target", "goalWeekH", 1, tm.week_hours || 35], ["play_h_target", "goalPlayH", 1, ""], ["study_h_target", "goalStudyH", 1, ""], ["hands_target", "goalHandsOpt", 1000, ""]]
           .map(([k, l, st, ph]) => `<label>${t(l)}<input name="${k}" type="number" min="0" step="${st}" value="${g?.[k] ?? ""}" placeholder="${ph}"></label>`).join("")}</div>` : ""}
         <textarea name="items" rows="4" placeholder="${t("goalsPh")}">${esc((g?.items || []).map((x) => x.replace(/^✓ /, "")).join("\n"))}</textarea>
         <button class="btn btn-sm btn-red">${t("save")}</button></form></details></div>`;
@@ -316,8 +324,9 @@ async function viewLog() {
   } else if (sel.k === "m") {
     const x = sumDays(monthDays(sel.v)), g = mG, [y, mo] = sel.v.split("-").map(Number);
     const n = sel.v === T.slice(0, 7) ? new Date().getDate() : new Date(y, mo, 0).getDate(), perWeek = hrs(x) / Math.max(1, n / 7);
-    mid = `<div class="card"><div class="pg-stats">${stat(t("goalWeekH"), perWeek, (g?.week_h_target ?? tm.week_hours) + " h", fmtH(perWeek))}${stat(t("goalHands"), x.hands, fmtNum(g?.hands_target ?? tm.month_hands), fmtNum(x.hands))}
-        ${stat(t("goalPlayH"), x.play, g?.play_h_target ? g.play_h_target + " h" : null, fmtH(x.play))}${stat(t("goalStudyH"), x.study, g?.study_h_target ? g.study_h_target + " h" : null, fmtH(x.study))}</div>
+    mid = `<div class="card"><div class="pg-stats">${stat(t("goalWeekH"), perWeek, (g?.week_h_target ?? tm.week_hours) + " h", fmtH(perWeek))}
+        ${stat(t("goalPlayH"), x.play, g?.play_h_target ? g.play_h_target + " h" : null, fmtH(x.play))}${stat(t("goalStudyH"), x.study, g?.study_h_target ? g.study_h_target + " h" : null, fmtH(x.study))}
+        ${x.hands || g?.hands_target ? stat(t("goalHands"), x.hands, g?.hands_target ? fmtNum(g.hands_target) : null, fmtNum(x.hands)) : ""}</div>
         <p class="muted small">${x.logged} ${t("daysLogged")}</p></div>
       ${weekLog(sel.v, g?.week_h_target || weekTarget(ME))}
       <div class="grid two ck-pair">${monthDays(sel.v).length ? handsBox(monthDays(sel.v), fmtMonth(sel.v + "-01")) : ""}
@@ -486,7 +495,7 @@ function weekPanelHtml(o) {
       ${tg ? `<div class="ck-track ck-stack"><i class="s" style="width:${pc(o.study, tg)}%"></i></div>` : ""}
       <div class="ck-key"><span>${o.extra || ""}</span></div></div></div>`; }
   const gi = o.wG?.items || [], pG = pc(o.play, o.target), pS = Math.min(100 - pG, pc(o.study, o.target));
-  const lines = [gP ? `<span class="ck-gl">♠ <b>${fmtH(o.play)}</b> / ${gP} h</span>` : "", gH ? `<span class="ck-gl">🃏 <b>${fmtNum(o.hands)}</b> / ${fmtNum(gH)}</span>` : "",
+  const lines = [gP ? `<span class="ck-gl">♠ <b>${fmtH(o.play)}</b> / ${gP} h</span>` : "", gS ? `<span class="ck-gl">📚 <b>${fmtH(o.study)}</b> / ${gS} h</span>` : "", gH ? `<span class="ck-gl">🃏 <b>${fmtNum(o.hands)}</b> / ${fmtNum(gH)}</span>` : "",
     ...gi.slice(0, 3).map((x, i) => `<label class="ck-gl ${x.startsWith("✓ ") ? "done" : ""}"><input type="checkbox" data-wgtick="${i}" ${x.startsWith("✓ ") ? "checked" : ""}><span>${esc(x.replace(/^✓ /, ""))}</span></label>`),
     gi.length > 3 ? `<span class="ck-gl muted">+${gi.length - 3}</span>` : ""].filter(Boolean).join("");
   return `<div class="ck-week">${left}
@@ -499,7 +508,7 @@ function bindWeekPanel(label, wG) {
   $$("#wpgoals, [data-wpgopen]").forEach((b) => b.onclick = () => openWeekGoals(label, wG, false));
   $$("[data-wgtick]").forEach((cb) => cb.onchange = async () => {
     const items = [...(wG?.items || [])], i = +cb.dataset.wgtick; items[i] = (cb.checked ? "✓ " : "") + items[i].replace(/^✓ /, ""); cb.disabled = true;
-    await db.saveGoal({ player_id: ME.id, period: "week", label, status: wG?.status || "proposed", items, play_h_target: wG?.play_h_target ?? null, hands_target: wG?.hands_target ?? null }); route();
+    await db.saveGoal({ player_id: ME.id, period: "week", label, status: wG?.status || "proposed", items, play_h_target: wG?.play_h_target ?? null, study_h_target: wG?.study_h_target ?? null, hands_target: wG?.hands_target ?? null }); route();
   });
 }
 function openWeekGoals(label, g, ask) {
@@ -508,8 +517,11 @@ function openWeekGoals(label, g, ask) {
   const items = (g?.items || []).map((x) => x.replace(/^✓ /, "")), day = ME.goals_day || "mon";
   dl.innerHTML = `<form method="dialog" class="wg"><div class="card-head"><h3>🎯 ${t(ask ? "ckGAsk" : "ckGTitle")}</h3><button class="x" value="cancel" formnovalidate>×</button></div>
     <p class="muted small">${t("weekN")} ${isoWeekN(label)} · ${fmtDay(label)} → ${fmtDay(addDays(6, new Date(label + "T12:00:00")))}</p>
-    <div class="goals-grid two"><label>♠ ${t("ckGPlay")}<input name="play_h_target" type="number" min="0" step="1" value="${g?.play_h_target ?? ""}" placeholder="20"></label>
-      <label>🃏 ${t("ckGHands")}<input name="hands_target" type="number" min="0" step="1000" value="${g?.hands_target ?? ""}" placeholder="15000"></label></div>
+    <p class="wg-hint">⏱ ${t("ckGHoursFirst")}</p>
+    <div class="goals-grid two"><label>♠ ${t("ckGPlay")}<input name="play_h_target" type="number" min="0" step="1" value="${g?.play_h_target ?? ""}" placeholder="20" ${ask ? "autofocus" : ""}></label>
+      <label>📚 ${t("ckGStudy")}<input name="study_h_target" type="number" min="0" step="1" value="${g?.study_h_target ?? ""}" placeholder="10"></label></div>
+    <details class="wg-more" ${g?.hands_target ? "open" : ""}><summary class="small-link">🃏 ${t("ckGHandsOpt")}</summary>
+      <label>${t("ckGHands")}<input name="hands_target" type="number" min="0" step="1000" value="${g?.hands_target ?? ""}" placeholder="15000"></label></details>
     <label>${t("ckGFree")}<textarea name="items" rows="5" placeholder="${t("ckGFreePh")}">${esc(items.join("\n"))}</textarea></label>
     <p class="muted small">${t("ckGOpt")}</p>
     <div class="wg-when"><span>${t("ckGWhen")}</span>${[["sun", "ckGSun"], ["mon", "ckGMon"]].map(([v, k]) => `<label class="chip ${day === v ? "on" : ""}"><input type="radio" name="gday" value="${v}" ${day === v ? "checked" : ""} hidden>${t(k)}</label>`).join("")}</div>
@@ -522,7 +534,7 @@ function openWeekGoals(label, g, ask) {
     if (dl.returnValue !== "save") return;
     const old = g?.items || [], n = (k) => (f[k].value === "" ? null : +f[k].value);
     const list = f.items.value.split("\n").map((x) => x.trim()).filter(Boolean).map((x) => (old.includes("✓ " + x) ? "✓ " + x : x));
-    await db.saveGoal({ player_id: ME.id, period: "week", label, status: g?.status || "proposed", items: list, play_h_target: n("play_h_target"), hands_target: n("hands_target") });
+    await db.saveGoal({ player_id: ME.id, period: "week", label, status: g?.status || "proposed", items: list, play_h_target: n("play_h_target"), study_h_target: n("study_h_target"), hands_target: n("hands_target") });
     route();
   };
   dl.showModal();
@@ -535,7 +547,7 @@ async function weekGoalsPrompt() {
   const key = "rts-wg-" + ME.id + "-" + label;
   try { if (localStorage.getItem(key)) return; } catch { return; }
   const g = (await db.weekGoals(ME.id).catch(() => [])).find((x) => x.period === "week" && x.label === label);
-  if (g && ((g.items || []).length || g.play_h_target || g.hands_target)) return;
+  if (g && (g.play_h_target || g.study_h_target)) return; // hours are what we ask each week (Alexis 2026-11-18)
   if ($("dialog[open]")) return;
   try { localStorage.setItem(key, "1"); } catch {} // asked once a week, "Later" does not come back at every login
   openWeekGoals(label, g, true);
@@ -650,3 +662,108 @@ function bindSessions(sessions) {
 }
 Object.assign(STRINGS.en, { tabHands: "Hands", handsPool: "My hands", handsPoolSub: "Every hand you saved. Pick tags to find a spot. Only you see them.", hfClear: "Clear tags", hfNone: "No hand with these tags.", teAdd: "your tag, Enter" });
 Object.assign(STRINGS.fr, { tabHands: "Mains", handsPool: "Mes mains", handsPoolSub: "Toutes les mains que tu as gardées. Choisis des tags pour retrouver un spot. Toi seul les vois.", hfClear: "Enlever les tags", hfNone: "Aucune main avec ces tags.", teAdd: "ton tag, Entrée" });
+
+/* Read a pasted hand (Winamax, Betclic/Unibet, iPoker, PokerStars-like) into a situation for the notes:
+   format, pot (SRP / 3BP / 4BP / Limp / Multiway), my position, the opponent's, the board, my cards (Alexis 2026-11-18).
+   Anything it can't read stays empty: the player picks it in the situation box. */
+function hhSpot(hh) {
+  const s = String(hh || "").replace(/\r/g, "");
+  const card = (tok) => {
+    let c = tok.trim().replace(/[\[\]]/g, "");
+    if (/^[shdc](10|[2-9tjqka])$/i.test(c)) c = c.slice(1) + c[0]; // iPoker: suit first
+    const m = c.match(/^(10|[2-9tjqka])([shdc])$/i);
+    return m ? (m[1] === "10" ? "T" : m[1].toUpperCase()) + m[2].toLowerCase() : null;
+  };
+  const cardsIn = (txt) => [...String(txt).matchAll(/\[([^\]\n]+)\]/g)].flatMap((m) => m[1].trim().split(/\s+/)).map(card).filter(Boolean);
+  const hl = typeof heroLine === "function" ? heroLine(s) : null;
+  const heroName = (hl?.[1] || (s.match(/Dealt to (\S+)/) || [])[1] || "").trim();
+  let mine = hl ? cardsIn(`[${hl[2] || ""}]`) : [];
+  if (!mine.length && heroName) { const m = s.match(new RegExp("Dealt to " + heroName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*\\n?\\s*((?:\\[[^\\]]+\\]\\s*){1,2})")); if (m) mine = cardsIn(m[1]); } // Winamax: cards on the next line
+  // the board: each street marker, its line and (Winamax) the next line
+  const lines = s.split("\n"), board = [];
+  const street = /(\*\*\*\s*(flop|turn|river)\s*\*\*\*|\[b\]\s*(flop|turn|river)\s*\[\/b\])/i;
+  let flopAt = -1;
+  lines.forEach((l, i) => { if (!street.test(l)) return; if (flopAt < 0) flopAt = i;
+    let c = cardsIn(l.replace(street, "")); if (!c.length) c = cardsIn(lines[i + 1] || "");
+    c.forEach((x) => board.includes(x) || board.push(x)); });
+  // seats + button, before the hole cards
+  const holeAt = lines.findIndex((l) => /hole cards|dealt to|pre-?flop/i.test(l));
+  const head = lines.slice(0, holeAt < 0 ? lines.length : holeAt);
+  const seats = head.filter((l) => !/sitting out/i.test(l)).map((l) => l.match(/^Seat (\d+): (.+?) \(/)).filter(Boolean).map((m) => ({ n: +m[1], name: m[2].trim(), dealer: /\bDEALER\s*$/.test(head.find((l) => l.startsWith(m[0])) || "") }));
+  const btnSeat = +(s.match(/Seat #(\d+) is the button/i) || [])[1] || 0, btnName = (s.match(/^(.+?) has the button/im) || [])[1]?.trim();
+  let bi = seats.findIndex((x) => x.n === btnSeat || x.name === btnName || x.dealer);
+  const n = seats.length, LBL = { 2: ["BTN", "BB"], 3: ["BTN", "SB", "BB"], 4: ["BTN", "SB", "BB", "CO"], 5: ["BTN", "SB", "BB", "HJ", "CO"], 6: ["BTN", "SB", "BB", "UTG", "HJ", "CO"] }[n];
+  const posOf = (name) => { if (bi < 0 || !LBL) return null; const i = seats.findIndex((x) => x.name === name); return i < 0 ? null : LBL[(i - bi + n) % n]; };
+  // preflop: raises and who folded
+  const pre = lines.slice(holeAt < 0 ? 0 : holeAt, flopAt < 0 ? lines.length : flopAt);
+  const who = (l) => seats.find((x) => l.startsWith(x.name + " ") || l.startsWith(x.name + ":"))?.name;
+  const raises = pre.filter((l) => /\braises?\b/i.test(l) && who(l)), folded = new Set(pre.filter((l) => /\bfolds?\b/i.test(l)).map(who).filter(Boolean));
+  const inFlop = seats.map((x) => x.name).filter((x) => !folded.has(x));
+  const pot = flopAt >= 0 && inFlop.length > 2 ? "Multiway" : ["Limp", "SRP", "3BP"][raises.length] || "4BP";
+  const vName = flopAt >= 0 ? (inFlop.length === 2 ? inFlop.find((x) => x !== heroName) : null) : who([...raises].reverse().find((l) => who(l) !== heroName) || "");
+  const format = n === 2 ? "Heads-up" : "6-max";
+  const hero = posOf(heroName), villain = pot === "Multiway" ? null : vName ? posOf(vName) : null;
+  return { spot: { format, pot, hero: hero || null, villain: villain && villain !== hero ? villain : null, board: board.slice(0, 5) }, cards: mine };
+}
+
+/* Write a note from a saved hand (Alexis 2026-11-18): the situation is read from the hand (he can change it), the note is filed
+   in that folder of his Études, starts with his cards and the talk with his coach if there is one, then "What I learn". */
+async function handNote(h) {
+  if (!h) return;
+  const r = isHH(h.hh) ? hhSpot(h.hh) : { spot: {}, cards: [] };
+  spotPicker(r.spot, async (sp) => {
+    const folder = sp ? nbSpotFolder(sp) : "";
+    if (folder) await db.addFolders(folder.split("/").map((_, i, a) => a.slice(0, i + 1).join("/")));
+    const head = (h.note || "").split("\n")[0].trim().slice(0, 60);
+    const title = head || (sp ? nbSpotTitle(sp) : "") || t("hnHandLine"); // his own words first, else the situation
+    const html = [r.cards.length ? `<p><b>${t("hnHandLine")} :</b> ${r.cards.map((c) => pcard(c)).join(" ")}</p>` : "",
+      h.discussion ? `<h3>💬 ${t("hnDisc")}</h3><blockquote>${esc(h.discussion).replace(/\n/g, "<br>")}</blockquote>` : "",
+      `<h3>💡 ${t("hnLearn")}</h3><div><br></div>`].join("");
+    const at = new Date().toISOString();
+    const x = await db.addSession({ kind: "study", started_at: at, ended_at: at, minutes: 0, topic: "wizard", folder: folder || null, spot: sp || null,
+      title, notes: nbText(html), notes_html: html, hand_id: h.id });
+    location.hash = "#/study?" + new URLSearchParams({ f: folder || "~", n: x.id });
+  });
+}
+
+/* Import a hand shared on Discord with the coach's answer (Alexis 2026-11-18): it joins the Hands, the talk stays with it,
+   then (ticked by default) a note filed by situation. */
+function importHandDlg() {
+  let d = $("#hdimpd");
+  if (!d) { d = document.createElement("dialog"); d.id = "hdimpd"; d.className = "card hd-imp"; document.body.appendChild(d); }
+  d.innerHTML = `<form method="dialog" class="wg"><div class="card-head"><h3>⬇ ${t("hnImport")}</h3><button class="x" value="cancel" formnovalidate>×</button></div>
+    <p class="muted small">${t("hnImpSub")}</p>
+    <label>1. ${t("hnHandL")}<textarea name="hh" rows="6" class="mono sensitive" placeholder="Winamax Poker - CashGame - HandId: #…"></textarea></label>
+    <label>2. ${t("hnDiscL")}<textarea name="disc" rows="7" class="sensitive" placeholder="${t("hnDiscPh")}"></textarea></label>
+    <label>${t("hnTitleL")}<input name="note" placeholder="${t("hnTitlePh")}"></label>
+    <label class="hd-now"><input type="checkbox" name="now" checked> <span>${t("hnNoteNow")}</span></label>
+    <p class="saved" id="hdimperr"></p>
+    <p class="row-btns"><button class="btn btn-red" value="save">${t("save")}</button><button class="btn" value="cancel" formnovalidate>${t("cancel")}</button></p></form>`;
+  const f = d.querySelector("form");
+  f.onsubmit = async (ev) => {
+    if (ev.submitter?.value !== "save") return;
+    ev.preventDefault();
+    const raw = f.hh.value.trim(), url = (raw.match(/https?:\/\/\S+/) || [])[0] || null;
+    const hh = raw.replace(/https?:\/\/\S+/g, "").replace(/^```\w*$/gm, "").replace(/```/g, "").trim(); // Discord code blocks
+    if (!isHH(hh) && !url) { $("#hdimperr").textContent = t("hnNeedHand"); return; }
+    const disc = f.disc.value.trim() || null;
+    $("#hdimperr").textContent = "…";
+    try {
+      const res = await db.addHand({ hh: isHH(hh) ? hh : null, link: url, note: f.note.value.trim() || null, discussion: disc, reviewed: !!disc });
+      const h = Array.isArray(res) ? res[0] : res;
+      d.close();
+      if (f.now.checked && h?.id) handNote(h); else route();
+    } catch (e) { $("#hdimperr").textContent = t("error") + " : " + e.message; }
+  };
+  d.showModal(); setTimeout(() => f.hh.focus(), 50);
+}
+Object.assign(STRINGS.en, { hnWrite: "Write a note", hnOpen: "My note", hnImport: "Import a hand (Discord)", hnCoach: "Coach",
+  hnImpSub: "Paste the hand you shared on Discord and the talk with your coach. The hand goes to your Hands with the talk, and you write what you learn in a note filed by situation.",
+  hnHandL: "The hand: its history or the replayer link", hnDiscL: "The talk with your coach (copy it from Discord)", hnDiscPh: "Paste the messages here",
+  hnTitleL: "In a few words (optional)", hnTitlePh: "e.g. KQ river: call or fold vs reg", hnNoteNow: "Then write what I learn (a note filed by situation)",
+  hnNeedHand: "Paste the hand history or its link.", hnDisc: "Talk with my coach", hnLearn: "What I learn", hnHandLine: "My hand", nbHand: "The hand" });
+Object.assign(STRINGS.fr, { hnWrite: "Écrire une note", hnOpen: "Ma note", hnImport: "Importer une main (Discord)", hnCoach: "Coach",
+  hnImpSub: "Colle la main que tu as partagée sur Discord et l'échange avec ton coach. La main va dans tes Mains avec l'échange, et tu écris ce que tu retiens dans une note rangée par situation.",
+  hnHandL: "La main : son historique ou le lien du replayer", hnDiscL: "L'échange avec ton coach (copie-le depuis Discord)", hnDiscPh: "Colle les messages ici",
+  hnTitleL: "En quelques mots (facultatif)", hnTitlePh: "ex. KQ river : call ou fold vs reg", hnNoteNow: "Puis écrire ce que je retiens (note rangée par situation)",
+  hnNeedHand: "Colle l'historique de la main ou son lien.", hnDisc: "Échange avec mon coach", hnLearn: "Ce que je retiens", hnHandLine: "Ma main", nbHand: "La main" });

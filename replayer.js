@@ -109,7 +109,7 @@ async function viewReplayer(id) {
       <div class="rp-stage">${cur ? `
         <div class="rp-bar"><span class="rp-cards">${cardsHtml(handInfo(cur.hh).cards)}</span>
           <b>${esc([handInfo(cur.hh).stakes, handInfo(cur.hh).site].filter(Boolean).join(" · "))}</b>
-          <span class="rp-tools"><button class="chip btn-gto" id="rpgto" title="${t("gtoTip")}">GTO Wizard ↗</button><button class="chip" id="rpcopy">📋 ${t("rpCopyHH")}</button><button class="chip" id="rplink">🔗 ${t("rpCopyLink")}</button><a class="chip" id="rpfull" target="_blank" rel="noopener">${t("fullScreen")} ↗</a></span></div>
+          <span class="rp-tools"><button class="chip btn-gto" id="rpgto" title="${t("gtoTip")}">GTO Wizard ↗</button><button class="chip" id="rpcopy">📋 ${t("rpCopyHH")}</button><button class="chip" id="rplink">🔗 ${t("rpCopyLink")}</button><button class="chip" id="rpnote">📝 ${t("hnWrite")}</button><a class="chip" id="rpfull" target="_blank" rel="noopener">${t("fullScreen")} ↗</a></span></div>
         <div class="rp-sub">${cur.note ? `<p class="rp-q">${esc(cur.note)}</p>` : ""}${tagEditHtml(cur, hands)}</div>
         <div class="rp-frame" id="rpframe"></div>` : form}</div>
     </section>`;
@@ -132,6 +132,7 @@ async function viewReplayer(id) {
     $("#rpgto").onclick = () => { navigator.clipboard.writeText(cur.hh).catch(() => {}); window.open("https://app.gtowizard.com/", "_blank", "noopener"); hqToast(`✓ ${t("gtoCopied")}`, 9000); };
     // Two clear buttons: the hand history text, or the shared replay link (Alexis 2026-11-18)
     const done = (b, label) => { b.textContent = "✓ " + t("rpCopied"); setTimeout(() => (b.textContent = label), 2000); };
+    $("#rpnote").onclick = () => handNote(cur);
     $("#rpcopy").onclick = async (e) => { const b = e.currentTarget; try { await navigator.clipboard.writeText(cur.hh); done(b, "📋 " + t("rpCopyHH")); } catch {} };
     bindTagEdit(hands, () => route()); // tags change after saving (Alexis 2026-11-18); the replayer frame stays alive
     $("#rplink").onclick = async (e) => { const b = e.currentTarget; try { await navigator.clipboard.writeText(url); done(b, "🔗 " + t("rpCopyLink")); } catch {} };

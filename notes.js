@@ -151,7 +151,8 @@ async function viewStudyNotes() {
         <label class="nb-mv" title="${t("nbMove")}">📁 <select id="nbmv">${fOpts(cur.folder || "")}</select></label>
         <span class="nb-spot" id="nbspotv">${spotChips(cur.spot)}</span>
         <button type="button" class="btn btn-sm nb-spotb" id="nbspotb">🂠 ${cur.spot ? t("nbSpot") : t("nbSpotSet")}</button>
-        <button type="button" class="btn btn-sm nb-histb" id="nbhist" title="${t("nbHistTip")}">🕘 ${t("nbHist")}</button></div>
+        <button type="button" class="btn btn-sm nb-histb" id="nbhist" title="${t("nbHistTip")}">🕘 ${t("nbHist")}</button>
+        ${cur.hand_id ? `<a class="btn btn-sm" href="#/hands?h=${cur.hand_id}">🃏 ${t("nbHand")}</a>` : ""}</div>
       <div class="nb-tb" id="nbtb">
         ${tb("bold", "<b>B</b>", t("nbBold"))}${tb("italic", "<i>I</i>", t("nbItalic"))}${tb("underline", "<u>U</u>", t("nbUnder"))}${tb("strikeThrough", "<s>S</s>", t("nbStrike"))}<i class="nb-sep"></i>
         <span class="nb-sw" title="${t("nbColor")}">A${NB_COLORS.map(([c, l]) => `<button type="button" class="nb-col" data-color="${c}" style="--c:${c || "var(--text)"}" title="${l}" tabindex="-1"></button>`).join("")}</span><i class="nb-sep"></i>
@@ -356,7 +357,8 @@ const nbSpotTitle = (sp) => [sp.pot, sp.hero && sp.villain && sp.pot !== "Multiw
 function spotPicker(start, done) {
   const insert = !!start.insert;
   const st = { format: start.format || "6-max", pot: start.pot || "SRP", hero: start.hero || "", villain: start.villain || "", board: [...(start.board || [])] };
-  const d = $("#nbspot");
+  let d = $("#nbspot");
+  if (!d) { d = document.createElement("dialog"); d.id = "nbspot"; d.className = "card nb-spotd"; document.body.appendChild(d); }
   const draw = () => {
     const pos = NB_POS[st.format] || NB_POS["6-max"];
     const seg = (key, items) => `<div class="sb-seg">${items.map((v) => `<label class="${st[key] === v ? "on" : ""}" data-k="${key}" data-v="${v}">${v}</label>`).join("")}</div>`;

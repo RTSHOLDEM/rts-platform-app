@@ -62,6 +62,7 @@ function liveDb() {
     async editCall(c) { return rows(sb.from("mentorings").update({ conclusions: c.conclusions, feedback: c.feedback, next_steps: c.next_steps, steps_done: [] }).eq("id", c.id).select()); },
     async tickStep(id, idx, done) { const { error } = await sb.rpc("tick_step", { call_id: id, idx, done }); if (error) throw error; },
     async coachings() { return rows(sb.from("coachings").select("*").order("day", { ascending: false })); },
+    async shareCoaching(id, tags) { return rows(sb.from("coachings").update({ share_tags: tags }).eq("id", id).select("id")); },
     async attendance(pid) { return (await rows(sb.from("attendance").select("coaching_id").eq("player_id", pid))).map((r) => r.coaching_id); },
     async exercises() { return rows(sb.from("exercises").select("*")); },
     async exerciseDone(pid) { return (await rows(sb.from("exercise_done").select("exercise_id").eq("player_id", pid))).map((r) => r.exercise_id); },
@@ -239,7 +240,8 @@ function demoDb() {
     async saveMentoring(x) { const o = S.mentorings.find((y) => y.id === x.id); if (o) o.status = x.status; save(); return [o]; },
     async editCall(c) { const o = S.mentorings.find((y) => y.id === c.id); if (o) { Object.assign(o, c, { steps_done: [] }); save(); } return [o]; },
     async tickStep(id, idx, done) { const o = S.mentorings.find((y) => y.id === id); if (o) { o.steps_done = (o.steps_done || []).filter((i) => i !== idx).concat(done ? [idx] : []); save(); } },
-    async coachings() { const m = me(); return D_COACHINGS.filter((c) => inTeams(m, c.teams)).sort((a, b) => (a.day < b.day ? 1 : -1)); },
+    async coachings() { const m = me(); return D_COACHINGS.filter((c) => inTeams(m, c.teams) || (c.share_tags || []).some((x) => (m.access_tags || []).includes(x))).sort((a, b) => (a.day < b.day ? 1 : -1)); },
+    async shareCoaching(id, tags) { const c = D_COACHINGS.find((x) => x.id === id); if (c) c.share_tags = tags; return [c]; },
     async attendance(pid) { return D_ATTENDANCE[pid] || []; },
     async exercises() { const m = me(); return D_EXERCISES.filter((e) => inTeams(m, e.teams)); },
     async exerciseDone(pid) { return S.exdone[pid] || []; },
@@ -310,7 +312,8 @@ function demoDb() {
     async hands() { return (S.hands ||= []).filter((h) => h.player_id === meId()).sort((a, b) => (a.created_at < b.created_at ? 1 : -1)); },
     async addHand(h, file) {
       if (file) h.image_data = await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(file); });
-      (S.hands ||= []).push({ ...h, id: "h" + Date.now() + Math.random().toString(36).slice(2, 5), player_id: meId(), reviewed: false, created_at: new Date().toISOString() }); save();
+      const row = { reviewed: false, ...h, id: "h" + Date.now() + Math.random().toString(36).slice(2, 5), player_id: meId(), created_at: new Date().toISOString() };
+      (S.hands ||= []).push(row); save(); return [row];
     },
     async setHand(id, v) { Object.assign(S.hands.find((h) => h.id === id), v); save(); },
     async handImage() { return null; },

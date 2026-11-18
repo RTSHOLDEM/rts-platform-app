@@ -1731,3 +1731,18 @@ dialog.nb-safe { width: min(820px, 96vw); }
 .nb-tr span { display: flex; flex-direction: column; gap: 2px; min-width: 0; } .nb-tr small { color: var(--muted); font-size: 11px; }
 .nb-trashb { margin-top: 6px; width: 100%; border: 0; background: none; color: var(--muted); cursor: pointer; font: inherit; text-align: left; }
 @media (max-width: 760px) { .nb-hs { grid-template-columns: 1fr; height: auto; } .nb-hl { max-height: 160px; } }
+
+/* weekly goals: hours first (2026-11-18) */
+.wg-hint { margin: 0; font-size: 13px; font-weight: 600; color: var(--text); }
+.wg-more summary { cursor: pointer; margin: 2px 0 6px; }
+/* calendar: my agenda / CEO view (2026-11-18) */
+.cal-view { display: inline-flex; gap: 2px; padding: 2px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); }
+.cal-view a { display: inline-flex; gap: 5px; padding: 4px 10px; border-radius: 999px; font-size: 12px; text-decoration: none; color: inherit; }
+.cal-view a.on { background: var(--red); color: #fff; }
+.co-share { align-items: center; margin-top: 8px; }
+
+/* hands: coach talk + import (2026-11-18) */
+.hd-disc { margin: 4px 0 0; padding-left: 10px; border-left: 3px solid var(--line-2); max-height: 240px; overflow: auto; }
+.hd-imp { width: min(640px, 94vw); }
+.hd-imp textarea { width: 100%; }
+.hd-now { display: flex !important; flex-direction: row; align-items: center; gap: 8px; color: var(--text) !important; }
