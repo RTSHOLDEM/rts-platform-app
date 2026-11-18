@@ -40,18 +40,26 @@ Hero wins €224.05
 Total pot €226.30 Rake €2.25`;
 const imgOf = (dt) => [...(dt?.files || [])].find((f) => /^image\//.test(f.type))
   || [...(dt?.items || [])].map((i) => (i.kind === "file" ? i.getAsFile() : null)).find((f) => f && /^image\//.test(f.type)) || null;
-async function hhFromImage(file) {
+// Original Macintosh wait (Alexis 2026-11-18): the wristwatch, its hand ticking, while a screenshot is read; the cursor turns into it too.
+const MAC_WATCH = `<svg class="macwatch" viewBox="0 0 16 16" aria-hidden="true" shape-rendering="crispEdges"><path d="M5.4 .4h5.2v3H5.4zM5.4 12.6h5.2v3H5.4z" fill="#fff" stroke="#111" stroke-width=".8"/><circle cx="8" cy="8" r="5.4" fill="#fff" stroke="#111" stroke-width="1.4"/><rect x="13.4" y="7" width="1.6" height="2" fill="#111"/><g class="mw-m"><rect x="7.4" y="4" width="1.2" height="4.4" fill="#111"/></g><g class="mw-h"><rect x="7.4" y="7.4" width="2.8" height="1.2" fill="#111"/></g></svg>`;
+const ocrBusy = () => `${MAC_WATCH}<span>${esc(t("ocrReading"))}</span>`;
+async function hhFromImage(file, doc = document) {
+  const root = doc.documentElement; root.dataset.wait = +(root.dataset.wait || 0) + 1; root.classList.add("mac-wait");
+  try { return await hhFromImage0(file); }
+  finally { root.dataset.wait = Math.max(0, +root.dataset.wait - 1); if (!+root.dataset.wait) root.classList.remove("mac-wait"); }
+}
+async function hhFromImage0(file) {
   const bmp = await createImageBitmap(file), k = Math.min(2000 / Math.max(bmp.width, bmp.height), Math.max(1, 1700 / Math.max(bmp.width, bmp.height))); // small phone captures enlarged ~2x: suits read 3/3 right vs wrong once at 1x (2026-11-18)
   const c = Object.assign(document.createElement("canvas"), { width: Math.round(bmp.width * k), height: Math.round(bmp.height * k) });
   c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
   try { return (await db.hhFromImage(c.toDataURL("image/png").split(",")[1], "image/png")).hh; }
   catch (e) { throw new Error(t({ limit: "ocrLimit", not_a_hand: "ocrNotHand" }[e.message] || "ocrFail")); }
 }
-Object.assign(STRINGS.en, { ocrDrop: "Drop or paste a screenshot of the hand (Betclic): it becomes a replayer link", ocrReading: "📷 Reading the screenshot…",
+Object.assign(STRINGS.en, { ocrDrop: "Drop or paste a screenshot of the hand (Betclic): it becomes a replayer link", ocrReading: "Reading the screenshot…",
   ocrDone: "✓ Hand read from the screenshot: check the cards and amounts", ocrLinked: "🔗 Replayer link copied", ocrClick: "Click 🔗 Copy link to share it",
   ocrLimit: "Limit of 30 screenshots a day reached. Try again tomorrow.", ocrNotHand: "This image doesn't look like a poker hand.",
   ocrFail: "Can't read it right now. Paste the hand history as text.", ocrOr: "📷 or a screenshot" });
-Object.assign(STRINGS.fr, { ocrDrop: "Glisse ou colle une capture de la main (Betclic) : elle devient un lien replayer", ocrReading: "📷 Lecture de la capture…",
+Object.assign(STRINGS.fr, { ocrDrop: "Glisse ou colle une capture de la main (Betclic) : elle devient un lien replayer", ocrReading: "Lecture de la capture…",
   ocrDone: "✓ Main lue depuis la capture : vérifie les cartes et les montants", ocrLinked: "🔗 Lien replayer copié", ocrClick: "Clique 🔗 Copier le lien pour le partager",
   ocrLimit: "Limite de 30 captures par jour atteinte. Réessaie demain.", ocrNotHand: "Cette image ne ressemble pas à une main de poker.",
   ocrFail: "Lecture impossible pour le moment. Colle l'historique en texte.", ocrOr: "📷 ou une capture" });
@@ -176,7 +184,7 @@ async function viewReplayer(id) {
   const fromImage = async (file) => {
     if (busy || !file) return; busy = true;
     const say = (s) => ($("#rpmsg") ? ($("#rpmsg").textContent = s) : hqToast(s, 60000));
-    say(t("ocrReading"));
+    if ($("#rpmsg")) $("#rpmsg").innerHTML = ocrBusy(); else say(t("ocrReading"));
     try { const hh = await hhFromImage(file); sessionStorage.setItem("rp-ocr", "1"); await save(hh, "", file); }
     catch (e) { $("#rpmsg") ? say(e.message) : hqToast(e.message, 8000); }
     busy = false;

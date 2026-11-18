@@ -1783,3 +1783,18 @@ dialog.nb-safe { width: min(820px, 96vw); }
 }
 
 .hl-box .hl-title { margin: 0; padding: 9px 12px; font-size: 13px; color: var(--muted); }
+
+/* Mac wristwatch wait (2026-11-18): hands tick in 12 steps like the 1984 Macintosh */
+.macwatch { width: 18px; height: 18px; vertical-align: -4px; margin-right: 6px; flex: none; }
+.macwatch .mw-m, .macwatch .mw-h { transform-box: view-box; transform-origin: 8px 8px; }
+.macwatch .mw-m { animation: mwTick 1.2s steps(12) infinite; }
+.macwatch .mw-h { animation: mwTick 14.4s steps(12) infinite; }
+@keyframes mwTick { to { transform: rotate(360deg); } }
+.mac-wait, .mac-wait * { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M5 0h6v3H5zM5 13h6v3H5z' fill='%23111' stroke='%23fff' stroke-width='.6'/%3E%3Ccircle cx='8' cy='8' r='5.4' fill='%23fff' stroke='%23111' stroke-width='1.4'/%3E%3Crect x='7.4' y='4' width='1.2' height='4.4' fill='%23111'/%3E%3Crect x='7.4' y='7.4' width='2.8' height='1.2' fill='%23111'/%3E%3C/svg%3E") 16 16, wait !important; }
+
+/* Grind log (Alexis 2026-11-18): no scrollbar on the whole page, only inside the day's box */
+@media (min-width: 1101px) {
+  .logbook.cockpit > .ck-mid { display: flex; flex-direction: column; overflow: hidden; padding-right: 0; }
+  .logbook.cockpit > .ck-mid > * { flex: none; }
+  .logbook.cockpit > .ck-mid > .ck-pane { flex: 0 1 auto; min-height: 140px; overflow: auto; scrollbar-width: thin; }
+}

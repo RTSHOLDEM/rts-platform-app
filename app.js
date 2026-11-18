@@ -371,7 +371,7 @@ async function viewSession() {
       $$("[data-rm]", el).forEach((b) => b.onclick = () => { URL.revokeObjectURL(shots[b.dataset.rm].url); shots.splice(b.dataset.rm, 1); showShots(); }); };
     // A dropped screenshot is also read into a hand history (replayer.js hhFromImage, Alexis 2026-11-18), kept with the picture.
     let reading = null;
-    const readShot = (f) => { const form = $("#hform"); if (!f || form.hh.value.trim()) return; const st = $("#hsaved"); st.textContent = t("ocrReading");
+    const readShot = (f) => { const form = $("#hform"); if (!f || form.hh.value.trim()) return; const st = $("#hsaved"); st.innerHTML = ocrBusy();
       reading = hhFromImage(f).then((hh) => { if (!form.hh.value.trim()) form.hh.value = hh; st.textContent = t("ocrDone"); }).catch((e) => { st.textContent = e.message; }).finally(() => { reading = null; }); };
     const files = (list) => { const im = [...list].filter((f) => f.type.startsWith("image/")); im.forEach((f) => shots.push({ f, url: URL.createObjectURL(f) })); showShots(); $("#hform").note.focus(); readShot(im[0]); };
     $("#hstrips").onclick = (e) => { const id = e.target.closest("[data-strip]")?.dataset.strip, h = mineHere.find((x) => String(x.id) === id); if (h) openStrip(h); };
@@ -385,7 +385,7 @@ async function viewSession() {
     // Cmd+V a screenshot anywhere in the cockpit saves it too.
     document.onpaste = (e) => { if (location.hash !== "#/session") return; const im = [...(e.clipboardData?.files || [])]; if (im.length) { e.preventDefault(); files(im); } };
     $("#hform").onsubmit = async (ev) => {
-      ev.preventDefault(); if (reading) { $("#hsaved").textContent = t("ocrReading"); await reading; }
+      ev.preventDefault(); if (reading) { $("#hsaved").innerHTML = ocrBusy(); await reading; }
       const f = new FormData(ev.target), hh = f.get("hh").trim() || null, note = f.get("note").trim() || null;
       if (!hh && !shots.length) return;
       if (!shots.length) return save({ hh, note });
@@ -801,6 +801,14 @@ function bindTagEdit(hands, after) {
   });
 }
 const POP_CSS = `
+/* Mac wristwatch wait (2026-11-18): hands tick in 12 steps like the 1984 Macintosh */
+.macwatch { width: 18px; height: 18px; vertical-align: -4px; margin-right: 6px; flex: none; }
+.macwatch .mw-m, .macwatch .mw-h { transform-box: view-box; transform-origin: 8px 8px; }
+.macwatch .mw-m { animation: mwTick 1.2s steps(12) infinite; }
+.macwatch .mw-h { animation: mwTick 14.4s steps(12) infinite; }
+@keyframes mwTick { to { transform: rotate(360deg); } }
+.mac-wait, .mac-wait * { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M5 0h6v3H5zM5 13h6v3H5z' fill='%23111' stroke='%23fff' stroke-width='.6'/%3E%3Ccircle cx='8' cy='8' r='5.4' fill='%23fff' stroke='%23111' stroke-width='1.4'/%3E%3Crect x='7.4' y='4' width='1.2' height='4.4' fill='%23111'/%3E%3Crect x='7.4' y='7.4' width='2.8' height='1.2' fill='%23111'/%3E%3C/svg%3E") 16 16, wait !important; }
+
 *{box-sizing:border-box;margin:0}
 html,body{height:100%;background:#0b0b0d;color:#f4f4f2;font:500 13px Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
 .bar{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:14px;padding:10px 14px;border-top:2px solid #fd0606}
@@ -961,8 +969,8 @@ async function openPop(pending) {
   };
   let reading = null; // a screenshot is read into a hand history too, so the hand opens in the replayer
   const addFiles = (list) => { const im = [...list].filter((f) => f.type.startsWith("image/")); im.forEach((f) => shots.push({ f, url: URL.createObjectURL(f) })); paint(); q("hq").focus();
-    if (im[0] && !hh) { q("hm").textContent = t("ocrReading");
-      reading = hhFromImage(im[0]).then((x) => { if (!hh) { hh = x; paint(); } q("hm").textContent = t("ocrDone"); }).catch((e) => { q("hm").textContent = e.message; }).finally(() => { reading = null; }); } };
+    if (im[0] && !hh) { q("hm").innerHTML = ocrBusy();
+      reading = hhFromImage(im[0], d).then((x) => { if (!hh) { hh = x; paint(); } q("hm").textContent = t("ocrDone"); }).catch((e) => { q("hm").textContent = e.message; }).finally(() => { reading = null; }); } };
   const isLink = (txt) => /^https?:\/\/\S+$/.test(txt.trim());
   const takeText = (txt) => { if (isHH(txt)) hh = txt.trim(); else if (isLink(txt)) link = txt.trim(); else return false; paint(); q("hq").focus(); return true; };
   const tags = {};
@@ -993,7 +1001,7 @@ async function openPop(pending) {
   });
   const saveHand = async () => {
     if (!SES.s) return;
-    if (reading) { q("hm").textContent = t("ocrReading"); await reading; }
+    if (reading) { q("hm").innerHTML = ocrBusy(); await reading; }
     if (!shots.length && !hh && !link) { drop.classList.add("over"); w.setTimeout(() => drop.classList.remove("over"), 600); return; }
     const note = q("hq").value.trim() || null, sid = SES.s.id, tg = Object.values(tags).filter(Boolean), base = { session_id: sid, note, tags: tg, link };
     q("hs").disabled = true; q("hm").textContent = "…";

@@ -757,7 +757,7 @@ function importHandDlg() {
   let shot = null; // the screenshot the hand was read from, saved with it
   const fromImage = async (file) => {
     if (!file) return;
-    $("#hdimperr").textContent = t("ocrReading");
+    $("#hdimperr").innerHTML = ocrBusy();
     try { f.hh.value = await hhFromImage(file); shot = file; $("#hdimperr").textContent = t("ocrDone"); }
     catch (e) { $("#hdimperr").textContent = e.message; }
   };

@@ -92,6 +92,18 @@ async function sesEnd(notes, auto = false) {
   const ms = s.planned_min ? Math.min(elapsed(s), s.planned_min * 6e4) : elapsed(s);
   const minutes = Math.max(1, Math.round(ms / 60000));
   const endAt = auto && s.paused_at ? s.paused_at : new Date().toISOString();
+  // Alexis 2026-11-18: micro sessions (under 5 min) with no notes and no hands are deleted, not logged. Study notes live in sessions: kept.
+  if (ms < 5 * 6e4) {
+    const row = (await db.sessions(ME.id, s.started_at).catch(() => [])).find((x) => x.id === s.id) || s;
+    const txt = [notes, row.notes, row.notes_html, row.title].some((x) => String(x || "").replace(/<[^>]*>/g, "").trim());
+    const hs = txt ? true : (await db.hands().catch(() => [{ session_id: s.id }])).some((h) => h.session_id === s.id);
+    if (!txt && !hs) {
+      await db.dropSession(s.id);
+      hqMove("lobby"); $("#timeup")?.close(); closePop(); paintDock();
+      if (location.hash.startsWith("#/session") || location.hash.startsWith("#/log") || location.hash.startsWith("#/study")) route();
+      return;
+    }
+  }
   await db.saveSession({ id: s.id, ended_at: endAt, minutes, ...(notes != null ? { notes } : {}),
     ...(s.paused_at ? { paused_ms: Number(s.paused_ms || 0) + (new Date(endAt) - new Date(s.paused_at)), paused_at: null } : {}) });
   const day = s.started_at.slice(0, 10), e = (await db.journal(ME.id, day)).find((x) => x.day === day) || { player_id: ME.id, day };
