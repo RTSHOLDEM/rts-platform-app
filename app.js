@@ -1336,16 +1336,19 @@ const sharedWithMe = (c) => (c.share_tags || []).some((x) => (ME.access_tags || 
 const myCoaching = (c) => { const l = (c.team_label || "").toLowerCase(); return sharedWithMe(c) || !has(ME, "player") || isStaff() || l === ME.team_id || (!l && (c.teams || []).includes(ME.team)) || (ME.team === "elite" && ["academy", "challenger"].includes(l)) || (ME.team_id === "supreme" && l === "master"); }; // Supreme sees Master too (2026-11-18)
 // Quizzes hidden for now (Alexis 2026-11-03: "uniquement coachings, les quiz on verra plus tard"). Set true to bring them back.
 const SHOW_QUIZ = false;
+// Recruitment interviews (033, Alexis 2026-11-18): never in the coachings; their own list, coaches + admin only.
+const canItw = () => isAdmin() || has(ME, "coach");
 async function viewCoaching() {
-  const [csAll, att, qz] = await Promise.all([db.coachings(), db.attendance(ME.id), db.quizzes()]);
-  const cs = csAll.filter(myCoaching);
+  const [csAll, att, qz, itw] = await Promise.all([db.coachings(), db.attendance(ME.id), db.quizzes(), canItw() ? db.interviews() : []]);
+  const q0 = Object.fromEntries(new URLSearchParams(location.hash.split("?")[1] || ""));
+  const cs = q0.team === "itw" && itw.length ? itw : csAll.filter(myCoaching);
   const q = Object.fromEntries(new URLSearchParams(location.hash.split("?")[1] || ""));
   // A player lands on his own team's sessions; "All" is one tap away.
   if (q.team === undefined && has(ME, "player") && cs.some((c) => c.team_label === myTeamLabel())) q.team = myTeamLabel();
-  const teams = TEAM_ORDER.filter((x) => cs.some((c) => c.team_label === x));
+  const teams = TEAM_ORDER.filter((x) => csAll.filter(myCoaching).some((c) => c.team_label === x));
   const coaches = [...new Set(cs.map((c) => c.coach).filter(Boolean))].sort();
   const shared = cs.filter(sharedWithMe), sharedL = (ME.access_tags || []).map((x) => ACCESS_TAGS[x] || x).join(" · ");
-  const match = (c) => (q.team === "shared" ? sharedWithMe(c) : !q.team || c.team_label === q.team) && (!q.coach || c.coach === q.coach)
+  const match = (c) => (q.team === "shared" ? sharedWithMe(c) : q.team === "itw" || !q.team || c.team_label === q.team) && (!q.coach || c.coach === q.coach)
     && (!q.q || [c.title, c.themes, c.coach, c.summary].join(" ").toLowerCase().includes(q.q.toLowerCase()));
   const found = cs.filter(match);
   const byMonth = {};
@@ -1356,7 +1359,7 @@ async function viewCoaching() {
     <div class="finder card co-find">
       <input type="search" id="cq" placeholder="${t("searchCoaching")}" value="${esc(q.q || "")}">
       <div class="filters">
-        <div class="chips">${[["", t("all")], ...teams.map((x) => [x, x]), ...(shared.length && !isStaff() ? [["shared", "🔓 " + sharedL]] : [])].map(([v, l]) => `<a class="tagchip ${(q.team || "") === v ? "on" : ""}" href="${link("team", v)}">${esc(l)}</a>`).join("")}</div>
+        <div class="chips">${[["", t("all")], ...teams.map((x) => [x, x]), ...(shared.length && !isStaff() ? [["shared", "🔓 " + sharedL]] : []), ...(itw.length ? [["itw", "🎙 " + t("itwChip") + " · " + itw.length]] : [])].map(([v, l]) => `<a class="tagchip ${(q.team || "") === v ? "on" : ""}" href="${link("team", v)}">${esc(l)}</a>`).join("")}</div>
         <select id="ccoach"><option value="">${t("allCoaches")}</option>${coaches.map((x) => `<option ${q.coach === x ? "selected" : ""}>${esc(x)}</option>`).join("")}</select>
         <span class="muted small">${found.length} ${t("sessionsN")}</span>
       </div>
@@ -1372,15 +1375,16 @@ async function viewCoaching() {
 }
 
 async function viewCoachingOne(id) {
-  const [cs, ex, done, qz] = await Promise.all([db.coachings(), db.exercises(), db.exerciseDone(ME.id), db.quizzes()]);
-  const c = cs.filter(myCoaching).find((x) => String(x.id) === id);
+  const [cs, ex, done, qz, itw] = await Promise.all([db.coachings(), db.exercises(), db.exerciseDone(ME.id), db.quizzes(), canItw() ? db.interviews() : []]);
+  const isItw = itw.some((x) => String(x.id) === id);
+  const c = isItw ? itw.find((x) => String(x.id) === id) : cs.filter(myCoaching).find((x) => String(x.id) === id);
   if (!c) { $("#main").innerHTML = empty(t("notFound")); return; }
   const mine = ex.filter((e) => e.coaching_id === c.id), quiz = qz.find((q) => q.coaching_id === c.id);
   const meta = [fmtDay(c.day) + (c.starts_at ? " · " + hhmm(c.starts_at) : ""), c.coach, c.team_label, c.duration].filter(Boolean).map(esc).join(" · ");
   $("#main").innerHTML = `
-    <a class="back" href="#/coaching">← ${t("coaching")}</a>
+    <a class="back" href="#/coaching${isItw ? "?team=itw" : ""}">← ${isItw ? "🎙 " + t("itwChip") : t("coaching")}</a>${isItw ? `<p class="muted small">🔒 ${t("itwPrivate")}</p>` : ""}
     <section class="hello"><p class="eyebrow">${meta}</p><h1 class="h-long">${esc(c.title)}</h1>
-      ${isAdmin() ? `<div class="chips co-share"><span class="muted small">${t("coShare")}</span>${Object.entries(ACCESS_TAGS).map(([k, l]) => `<button type="button" class="tagchip ${(c.share_tags || []).includes(k) ? "on" : ""}" data-share="${k}">🔓 ${esc(l)}</button>`).join("")}</div>` : ""}
+      ${isAdmin() && !isItw ? `<div class="chips co-share"><span class="muted small">${t("coShare")}</span>${Object.entries(ACCESS_TAGS).map(([k, l]) => `<button type="button" class="tagchip ${(c.share_tags || []).includes(k) ? "on" : ""}" data-share="${k}">🔓 ${esc(l)}</button>`).join("")}</div>` : ""}
       ${c.themes ? `<div class="chips static">${c.themes.split("·").map((x) => `<span class="tagchip">${esc(x.trim())}</span>`).join("")}</div>` : ""}</section>
     <div class="grid two">
       <div class="card summary"><div class="card-head"><h3>${t("summary")}</h3></div>

@@ -62,6 +62,7 @@ function liveDb() {
     async editCall(c) { return rows(sb.from("mentorings").update({ conclusions: c.conclusions, feedback: c.feedback, next_steps: c.next_steps, steps_done: [] }).eq("id", c.id).select()); },
     async tickStep(id, idx, done) { const { error } = await sb.rpc("tick_step", { call_id: id, idx, done }); if (error) throw error; },
     async coachings() { return rows(sb.from("coachings").select("*").order("day", { ascending: false })); },
+    async interviews() { try { return await rows(sb.from("interviews").select("*").order("day", { ascending: false })); } catch { return []; } }, // coaches only (033)
     async shareCoaching(id, tags) { return rows(sb.from("coachings").update({ share_tags: tags }).eq("id", id).select("id")); },
     async attendance(pid) { return (await rows(sb.from("attendance").select("coaching_id").eq("player_id", pid))).map((r) => r.coaching_id); },
     async exercises() { return rows(sb.from("exercises").select("*")); },
@@ -246,6 +247,7 @@ function demoDb() {
     async saveMentoring(x) { const o = S.mentorings.find((y) => y.id === x.id); if (o) o.status = x.status; save(); return [o]; },
     async editCall(c) { const o = S.mentorings.find((y) => y.id === c.id); if (o) { Object.assign(o, c, { steps_done: [] }); save(); } return [o]; },
     async tickStep(id, idx, done) { const o = S.mentorings.find((y) => y.id === id); if (o) { o.steps_done = (o.steps_done || []).filter((i) => i !== idx).concat(done ? [idx] : []); save(); } },
+    async interviews() { const m = me(); return ["coach", "admin"].some((r) => (m.roles || []).includes(r)) ? [{ id: "itw-demo-1", day: "2026-11-14", starts_at: "2026-11-14T11:59:00Z", minutes: 48, duration: "48 min", coach: "Adrien", kind: "Entretien", title: "Entretien technique : BvB, c-bet et rivers", summary: "## En bref\nCandidat fictif (démo) : test sur un spot BvB dans Wizard.", replay_url: "https://zoom.us" }] : []; },
     async coachings() { const m = me(); return D_COACHINGS.filter((c) => inTeams(m, c.teams) || (c.share_tags || []).some((x) => (m.access_tags || []).includes(x))).sort((a, b) => (a.day < b.day ? 1 : -1)); },
     async shareCoaching(id, tags) { const c = D_COACHINGS.find((x) => x.id === id); if (c) c.share_tags = tags; return [c]; },
     async attendance(pid) { return D_ATTENDANCE[pid] || []; },
