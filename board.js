@@ -10,7 +10,8 @@
    Nothing is written until someone types: defaults are built on the fly in the reader's language. */
 
 const BOARD = { pid: null, items: {}, tm: {}, ctx: null };
-const BSECS = ["reviews", "header", "links", "goals", "habits", "calls", "routine", "shape", "journal", "time", "sheets"];
+// 2026-11-19 (Alexis: "beaucoup plus simple"): only monthly reviews, 1on1 calls and the journal show; the rest stays in the code, hidden
+const BSECS = ["reviews", "calls", "journal"];
 const BICON = { reviews: "🤝", header: "🏁", links: "🔗", goals: "🎯", habits: "✅", calls: "📞", routine: "☀️", shape: "💪", journal: "📓", time: "⏱", sheets: "🧭" };
 const BTABLES = ["links", "goals", "habits", "calls", "routine", "shape", "time"];
 const L2t = (fr, en) => (LANG === "fr" ? fr : en);
@@ -50,7 +51,7 @@ function bDefTable(sec) {
     c(L2t("Commentaires de progression", "Progress comments"), "text")], rows: [] };
   if (sec === "habits") return { cols: [c("Date", "date")], rows: [], addType: "check", pct: true, dated: true };
   if (sec === "calls") return { cols: [c(L2t("Coach", "Coach name"), "text"), c(L2t("Semaine", "Week number"), "choice", Array.from({ length: 13 }, (_, i) => L2t("Semaine ", "Week ") + (i + 1))),
-    c("Date", "date"), c(L2t("P.O.I. / défi", "P.O.I. / challenge"), "text"), c(L2t("Commentaires", "Comments"), "text"), c(L2t("Lien vers les notes", "Link to notes doc"), "link")], rows: [] };
+    c("Date", "date"), c(L2t("P.O.I. / défi", "P.O.I. / challenge"), "text"), c(L2t("Commentaires", "Comments"), "text"), c(L2t("Lien Zoom", "Zoom link"), "link")], rows: [] };
   if (sec === "routine") {
     const cols = [c(L2t("Rituel de début de travail", "Work start ritual"), "text"), c(L2t("Rituel de fin de travail", "Work closing ritual"), "text"),
       c(L2t("Routine du matin", "Morning routine"), "text"), c(L2t("Routine du soir", "Evening routine"), "text")];

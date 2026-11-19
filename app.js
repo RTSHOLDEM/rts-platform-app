@@ -15,7 +15,9 @@ const daysAgo = (n) => addDays(-n);
 const fmtDay = (d) => new Date(d + "T12:00:00").toLocaleDateString(LANG === "fr" ? "fr-FR" : "en-GB", { day: "numeric", month: "long" });
 const fmtMonth = (d) => new Date(d.slice(0, 7) + "-15T12:00:00").toLocaleDateString(LANG === "fr" ? "fr-FR" : "en-GB", { month: "long", year: "numeric" });
 const fmtNum = (n) => Math.round(Number(n || 0)).toLocaleString(LANG === "fr" ? "fr-FR" : "en-GB");
-const fmtH = (n) => (Math.round(Number(n || 0) * 10) / 10).toLocaleString(LANG === "fr" ? "fr-FR" : "en-GB") + " h";
+// Hours read like a clock (Alexis 2026-11-19): 45 min, 1h45, 3 h. Never 0,7 h or 1,75 h.
+const fmtH = (n) => { const m = Math.round(Number(n || 0) * 60); if (m <= 0) return "0 h"; if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60), r = m % 60; return r ? `${h}h${String(r).padStart(2, "0")}` : `${h} h`; };
 const eur = (n) => `<span class="sensitive">${fmtNum(n)} €</span>`;
 const bar = (v, max, cls = "") => `<div class="bar ${cls}"><i style="width:${Math.min(100, max ? (v / max) * 100 : 0)}%"></i></div>`;
 const daysInMonth = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); };
@@ -1035,9 +1037,14 @@ async function openPop(pending) {
   };
   if (av) av.playbackRate = 1.6;
   tick(); w.setInterval(tick, 200);
-  w.addEventListener("pagehide", () => { if (nTimer) saveN(); POP.win = null; });
+  // The player closes the pop-up himself = the session ends (Alexis 2026-11-19). A close by the app (end, cleanup) is marked quiet first.
+  w.addEventListener("pagehide", () => {
+    if (nTimer) saveN();
+    const quiet = POP.quiet; POP.quiet = false; POP.win = null;
+    if (!quiet && SES.s && SES.s.id === s0.id) sesEnd(nt.value);
+  });
 }
-function closePop() { if (POP.win && !POP.win.closed) POP.win.close(); POP.win = null; }
+function closePop() { if (POP.win && !POP.win.closed) { POP.quiet = true; POP.win.close(); } POP.win = null; }
 /* Notes typed on the cockpit page show up in the pop out (unless the player is typing there). */
 function popNotes(v) { const nt = POP.win && !POP.win.closed && POP.win.document.getElementById("nt"); if (nt && POP.win.document.activeElement !== nt) nt.value = v; }
 const popPaint = () => {}; // the pop out redraws itself 5 times a second
@@ -1770,7 +1777,8 @@ async function viewMentoring() {
     return `<a class="mt-p ${sel && p.id === sel.id ? "on" : ""}" href="${"#/mentoring?" + new URLSearchParams({ p: p.id })}"><span class="dot ${d}"></span><span class="mt-n"><b>${nm(p)}</b><small>${esc(teamOf(p).label || "")} · ♠ ${fmtH(s.play)} · 📚 ${fmtH(s.study)}</small></span></a>`; }).join("");
   let detail = `<div class="card mt-empty"><p class="muted">${players.length ? t("mtPick") : t("mtNone")}</p></div>`, ctx = null;
   if (sel) {
-    const [r, gl] = await Promise.all([db.report(sel.id, month).catch(() => null), db.goals(sel.id).catch(() => []), boardLoad(sel.id)]);
+    const [r, gl, wq, reps] = await Promise.all([db.report(sel.id, month).catch(() => null), db.goals(sel.id).catch(() => []), db.weekGoals(sel.id).catch(() => []), db.reports(sel.id).catch(() => []), boardLoad(sel.id)]);
+    const P = { per: q.per === "q" ? "q" : "m", month, qq: q.qq || qOf(today()), all, gl, wq, reps, href };
     sel._goal = gl.find((g) => g.label === monthStart());
     const rep = (k, l) => r?.[k] ? `<div class="mt-r"><span>${l}</span><p class="sensitive">${esc(String(r[k]))}</p></div>` : "";
     const own = [rep("rating", t("rating")), rep("wins", t("wins")), rep("struggles", t("struggles")), rep("next_focus", t("nextFocus"))].join("");
@@ -1790,12 +1798,14 @@ async function viewMentoring() {
         ta.onblur = () => { if (tm) { clearTimeout(tm); tm = null; save(); } };
       } };
     detail = `<div class="mt-d"><div class="mt-head"><h2>${nm(sel)} <small class="muted">${esc(teamOf(sel).label || "")}${sel.stakes ? " · " + esc(sel.stakes) : ""}</small></h2><span class="row-btns"><a class="small-link" href="#/mentoring?cp=${sel.id}">🎯 ${t("mcGoals")}</a><a class="small-link" href="#/p/${sel.id}/overview">${t("mtOpen")}</a></span></div>
-      ${mtStats(sel, all, month, gl)}${q.s ? boardSection(ctx) : boardTiles(ctx)}</div>`;
+      ${q.s ? boardSection(ctx) : mtPanelHtml(sel, P)}</div>`;
+    ctx.P = P;
   }
   const meLink = has(ME, "player") ? `<a class="mt-p mt-me" href="#/mentoring?me=1"><span>📒</span><span class="mt-n"><b>${t("mtMine")}</b><small>${t("mtMineSub")}</small></span></a>` : "";
   $("#main").innerHTML = `<div class="mt-grid"><nav class="card mt-list"><div class="card-head"><h3>🤝 ${t("mtMy")}</h3><small class="muted">${players.length}</small></div>${rows || ""}${meLink}</nav>${detail}</div>`;
   fitToDock(".mt-grid");
   if (ctx && q.s) boardBind();
+  else if (ctx) mtPanelBind(sel, ctx.P);
 }
 
 /* The 4 numbers on top of a dashboard: grind and study this week, the review month's hands, the journal streak. */

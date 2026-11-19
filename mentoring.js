@@ -221,3 +221,57 @@ function pastHoursDlg(kind = "grind") {
 
 // any [data-addh] button anywhere opens the window (Grind, Études)
 document.addEventListener("click", (e) => { const b = e.target.closest("[data-addh]"); if (b) pastHoursDlg(b.dataset.addh); });
+
+/* Mentor side, simplified (Alexis 2026-11-19): one screen per player, by month or by quarter (Max and Alexis follow quarterly).
+   The period's hours and hands against the targets, the goals, what the player wrote, and the mentor's own notes (autosave,
+   the player sees them: month = the monthly report's mentor note, quarter = the quarter goal's mentor note).
+   Extras kept: 1on1 calls (Zoom links) and the journal. Communication itself happens on calls and Discord. */
+Object.assign(STRINGS.en, { mtMonth: "Month", mtQuarter: "Quarter", mtPlayerRev: "What he wrote", mtMyNotes: "My notes", mtNotesQ: "Quarter notes",
+  mtSeen: "The player sees these notes.", mtNoGoalsP: "No goal set for this period.", mtEditGoals: "Edit the goals", mtNoRev: "Nothing written yet.", mtMore: "More" });
+Object.assign(STRINGS.fr, { mtMonth: "Mois", mtQuarter: "Trimestre", mtPlayerRev: "Ce qu'il a écrit", mtMyNotes: "Mes notes", mtNotesQ: "Notes du trimestre",
+  mtSeen: "Le joueur voit ces notes.", mtNoGoalsP: "Pas d'objectif pour cette période.", mtEditGoals: "Modifier les objectifs", mtNoRev: "Rien d'écrit pour l'instant.", mtMore: "Plus" });
+const mtShiftM = (m, n) => iso(new Date(Date.UTC(+m.slice(0, 4), +m.slice(5, 7) - 1 + n, 1)));
+const mtShiftQ = (q, n) => qOf(iso(new Date(Date.UTC(+q.slice(0, 4), (+q.slice(-1) - 1) * 3 + 3 * n, 15))));
+function mtPanelHtml(p, o) {
+  const { per, month, qq, all, gl, wq, reps, href } = o, isQ = per === "q";
+  const g = isQ ? wq.find((x) => x.period === "quarter" && x.label === qq) : gl.find((x) => x.label === month);
+  const months = isQ ? qMonths(qq).map((m) => m + "-01") : [month];
+  const a = months[0], last = months[months.length - 1], b = iso(new Date(Date.UTC(+last.slice(0, 4), +last.slice(5, 7), 0)));
+  const ent = all.filter((e) => e.player_id === p.id && e.day >= a && e.day <= b), sum = (k) => ent.reduce((x, e) => x + Number(e[k] || 0), 0);
+  const play = sum("play_h"), study = sum("study_h"), hands = sum("hands"), days = new Set(ent.filter((e) => (e.played || "").trim()).map((e) => e.day)).size;
+  const tile = (ic, l, v, shown, tg, tShown) => `<div class="card mt-t"><span>${ic} ${l}</span><b>${shown}${tg ? ` <small>/ ${tShown}</small>` : ""}</b>${tg ? `<span class="hg-bar"><i style="width:${Math.min(100, (v / tg) * 100)}%"></i></span>` : ""}</div>`;
+  const pT = Number(g?.play_h_target || 0), sT = Number(g?.study_h_target || 0), hT = Number(g?.hands_target || 0);
+  const label = isQ ? fmtQ(qq) : fmtMonth(month), prev = isQ ? { qq: mtShiftQ(qq, -1) } : { m: mtShiftM(month, -1) }, next = isQ ? { qq: mtShiftQ(qq, 1) } : { m: mtShiftM(month, 1) };
+  const items = g?.items || [], done = items.filter(gDone).length;
+  const monthLine = (m) => { const mg = gl.find((x) => x.label === m), it = mg?.items || []; return `<span class="mt-ml"><span>${fmtMonth(m)}</span><span class="hg-bar"><i style="width:${it.length ? (it.filter(gDone).length / it.length) * 100 : 0}%"></i></span><b>${it.length ? `${it.filter(gDone).length}/${it.length}` : "—"}</b></span>`; };
+  const goals = `<section class="card mt-c"><div class="card-head"><h3>🎯 ${t("mcGoals")}</h3><small class="muted">${items.length ? `${done}/${items.length}` : ""}</small></div>
+    <div class="mt-cb">${items.map((x) => `<p class="mt-gi ${gDone(x) ? "done" : ""}">${gDone(x) ? "☑" : "☐"} ${esc(gTxt(x))}</p>`).join("") || `<p class="muted small">${t("mtNoGoalsP")}</p>`}
+    ${isQ ? `<div class="mt-mls">${months.map(monthLine).join("")}</div>` : ""}</div>
+    <a class="small-link mt-cl" href="#/mentoring?cp=${p.id}">✎ ${t("mtEditGoals")} →</a></section>`;
+  const rOf = (m) => reps.find((r) => r.month === m);
+  const rev = isQ ? months.map((m) => { const r = rOf(m); return `<div class="mt-qr"><b>${fmtMonth(m)}${r?.rating ? ` · ${r.rating}/10` : ""}</b>${r && (r.wins || r.struggles) ? `<p class="sensitive mc-clip">${esc([r.wins, r.struggles].filter(Boolean).join(" · "))}</p>` : `<p class="muted small">${t("mtNoRev")}</p>`}</div>`; }).join("")
+    : (() => { const r = rOf(month), f = (k, l) => r?.[k] ? `<div class="mt-r"><span>${l}</span><p class="sensitive">${esc(String(r[k]))}</p></div>` : "";
+        return [f("rating", t("rating")), f("wins", t("wins")), f("struggles", t("struggles")), f("next_focus", t("nextFocus"))].join("") || `<p class="muted small">${t("mtNoRev")}</p>`; })();
+  const note = isQ ? g?.mentor_note || "" : rOf(month)?.mentor_note || "";
+  return `<div class="mt-per"><span class="chips mt-sw"><a class="chip ${isQ ? "" : "on"}" href="${href({ per: "", s: "" })}">${t("mtMonth")}</a><a class="chip ${isQ ? "on" : ""}" href="${href({ per: "q", s: "" })}">${t("mtQuarter")}</a></span>
+      <span class="mt-pnav"><a class="mc-arr" href="${href(prev)}">‹</a><b>${esc(label)}</b><a class="mc-arr" href="${href(next)}">›</a></span><span></span></div>
+    <div class="mt-tiles">${tile("♠", t("mcGrindH"), play, fmtH(play), pT, pT + " h")}${tile("📚", t("mcStudyH"), study, fmtH(study), sT, sT + " h")}${tile("🃏", t("mcHands"), hands, fmtNum(hands), hT, fmtNum(hT))}
+      <div class="card mt-t"><span>📓 ${t("journal")}</span><b>${days} <small>${t("days")}</small></b></div></div>
+    <div class="mt-cols3">${goals}
+      <section class="card mt-c"><div class="card-head"><h3>📝 ${t("mtPlayerRev")}</h3></div><div class="mt-cb">${rev}</div></section>
+      <form class="card mt-c mt-notes" id="mtf"><div class="card-head"><h3>✎ ${isQ ? t("mtNotesQ") : t("mtMyNotes")}</h3><small class="saved" id="mtok"></small></div>
+        <textarea name="mentor_note" class="sensitive" placeholder="${t("mtNotesPh")}">${esc(note)}</textarea><small class="muted">${t("mtSeen")}</small></form></div>
+    <div class="mt-xtra">${["calls", "journal"].map((s) => `<a class="card bd-tile sm" href="${href({ s })}"><span class="bd-ic">${BICON[s]}</span><span class="bd-tx"><b>${esc(bTitle(s))}</b><small>${esc(bSummary(s, {}))}</small></span></a>`).join("")}</div>`;
+}
+function mtPanelBind(p, o) {
+  const { per, month, qq, wq } = o, ta = $("#mtf textarea"); if (!ta) return; let tm = null;
+  const save = async () => { $("#mtok").textContent = "…";
+    try {
+      if (per === "q") { const g = wq.find((x) => x.period === "quarter" && x.label === qq);
+        await db.saveGoal({ player_id: p.id, period: "quarter", label: qq, status: g?.status || "proposed", items: g?.items || [], mentor_note: ta.value });
+        if (g) g.mentor_note = ta.value; else wq.push({ period: "quarter", label: qq, items: [], mentor_note: ta.value }); }
+      else await db.saveReport({ player_id: p.id, month, mentor_note: ta.value });
+      $("#mtok").textContent = t("saved"); } catch (err) { $("#mtok").textContent = err.message; } };
+  ta.oninput = () => { clearTimeout(tm); $("#mtok").textContent = ""; tm = setTimeout(save, 900); }; // saves while the mentor types
+  ta.onblur = () => { if (tm) { clearTimeout(tm); tm = null; save(); } };
+}

@@ -1947,3 +1947,23 @@ dialog.nb-safe { width: min(820px, 96vw); }
 /* balanced head: add hours left, year + today right, the date dead centre */
 .lg-head.ck-head { justify-content: space-between; }
 .lg-head.ck-head > span.ck-hl-l { display: flex; }
+/* mentor panel (2026-11-19): month / quarter, tiles, goals | his review | my notes, extras */
+.mt-d { grid-template-rows: auto auto auto minmax(0, 1fr) auto; gap: 12px; }
+.mt-per { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
+.mt-sw { justify-self: start; margin: 0; }
+.mt-pnav { display: flex; align-items: center; gap: 12px; } .mt-pnav b { font: 400 22px/1 var(--serif); min-width: 150px; text-align: center; }
+.mt-pnav .mc-arr { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+.mt-t .hg-bar { margin-top: 6px; }
+.mt-cols3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; min-height: 0; }
+.mt-c { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.mt-cb { flex: 1; min-height: 0; overflow: auto; }
+.mt-gi { margin: 0 0 6px; font-size: 13px; } .mt-gi.done { color: var(--muted); text-decoration: line-through; }
+.mt-mls { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
+.mt-ml { display: grid; grid-template-columns: 90px minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 12px; } .mt-ml .hg-bar { margin: 0; }
+.mt-cl { margin-top: 8px; }
+.mt-qr { margin-bottom: 10px; } .mt-qr b { font-size: 12.5px; } .mt-qr p { margin: 2px 0 0; font-size: 12.5px; }
+.mt-notes textarea { flex: 1; min-height: 120px; resize: none; } .mt-notes > small { margin-top: 6px; }
+.mt-xtra { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.bd-tile.sm { flex-direction: row; align-items: center; gap: 12px; padding: 12px 16px; min-height: 0; } .bd-tile.sm .bd-ic { font-size: 20px; }
+@media (max-width: 1000px) { .mt-cols3, .mt-xtra { grid-template-columns: 1fr; } }
+.mt-t b { white-space: nowrap; }
