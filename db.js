@@ -144,6 +144,7 @@ function liveDb() {
       return rows(sb.from("hands").insert({ ...h, player_id: me.id }).select());
     },
     async setHand(id, v) { return rows(sb.from("hands").update(v).eq("id", id)); },
+    async dropHand(h) { await rows(sb.from("hands").delete().eq("id", h.id)); if (h.image_path) await sb.storage.from("hands").remove([h.image_path]); },
     async toolUrl(name) { const { data, error } = await sb.storage.from("tools").createSignedUrl(name, 600, { download: true }); return error ? null : data.signedUrl; },
     async handImage(path) { const { data, error } = await sb.storage.from("hands").createSignedUrl(path, 600); return error ? null : data.signedUrl; },
     async cards() { return rows(sb.from("study_cards").select("*").order("created_at", { ascending: false })); },
@@ -325,6 +326,7 @@ function demoDb() {
       (S.hands ||= []).push(row); save(); return [row];
     },
     async setHand(id, v) { Object.assign(S.hands.find((h) => h.id === id), v); save(); },
+    async dropHand(h) { S.hands = (S.hands || []).filter((x) => x.id !== h.id); (S.sessions || []).forEach((s) => { if (s.hand_id === h.id) s.hand_id = null; }); save(); },
     async handImage() { return null; },
     async cards() { const m = me(); return (S.cards ||= []).filter((c) => canSee(m, byId(c.player_id)) || (c.shared && byId(c.player_id)?.team === m.team)); },
     async addCard(c) { (S.cards ||= []).push({ due: addDays(1), interval_days: 1, hits: 0, ...c, id: "k" + Date.now() + Math.random().toString(36).slice(2, 6), player_id: meId(), shared: !!c.shared, created_at: new Date().toISOString() }); save(); return [S.cards.at(-1)]; },

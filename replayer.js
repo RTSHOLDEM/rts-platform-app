@@ -2,8 +2,8 @@
    Hands live in the 'hands' table (only the player sees his own). The replayer gets each hand packed in its link,
    so nothing is stored on Paul's server. Loaded before app.js; uses its helpers ($, t, db, esc, head...) at call time. */
 const REPLAYER = "https://rts.pokereplayer.com";
-Object.assign(STRINGS.en, { rpCopyHH: "Copy hand history", rpCopyLink: "Copy link", rpCopied: "Copied" });
-Object.assign(STRINGS.fr, { rpCopyHH: "Copier l'historique", rpCopyLink: "Copier le lien", rpCopied: "Copié" });
+Object.assign(STRINGS.en, { rpCopyHH: "Copy hand history", rpCopyLink: "Copy link", rpCopied: "Copied", rpDel: "Delete", rpDelQ: "Delete this hand for good?" });
+Object.assign(STRINGS.fr, { rpCopyHH: "Copier l'historique", rpCopyLink: "Copier le lien", rpCopied: "Copié", rpDel: "Supprimer", rpDelQ: "Supprimer cette main définitivement ?" });
 /* A screenshot of a hand (Betclic first) becomes a hand history, then a replayer link (Alexis 2026-11-18).
    The image goes to our server function hh-from-image, which asks Claude Haiku 5.5 to write it out in the Betclic
    format; the key never reaches the page. 30 screenshots a player a day. */
@@ -169,7 +169,7 @@ async function viewReplayer(id) {
       <div class="rp-stage">${cur ? `
         <div class="rp-bar"><span class="rp-cards">${cardsHtml(handInfo(cur.hh).cards)}</span>
           <b>${esc([handInfo(cur.hh).stakes, handInfo(cur.hh).site].filter(Boolean).join(" · "))}</b>
-          <span class="rp-tools"><button class="chip btn-gto" id="rpgto" title="${t("gtoTip")}">GTO Wizard ↗</button><button class="chip" id="rpcopy">📋 ${t("rpCopyHH")}</button><button class="chip" id="rplink">🔗 ${t("rpCopyLink")}</button><button class="chip" id="rpnote">📝 ${t("hnWrite")}</button><a class="chip" id="rpfull" target="_blank" rel="noopener">${t("fullScreen")} ↗</a></span></div>
+          <span class="rp-tools"><button class="chip btn-gto" id="rpgto" title="${t("gtoTip")}">GTO Wizard ↗</button><button class="chip" id="rpcopy">📋 ${t("rpCopyHH")}</button><button class="chip" id="rplink">🔗 ${t("rpCopyLink")}</button><button class="chip" id="rpnote">📝 ${t("hnWrite")}</button><a class="chip" id="rpfull" target="_blank" rel="noopener">${t("fullScreen")} ↗</a><button class="chip rp-del" id="rpdel" title="${t("rpDel")}">🗑</button></span></div>
         <div class="rp-sub">${cur.note ? `<p class="rp-q">${esc(cur.note)}</p>` : ""}${tagEditHtml(cur, hands)}</div>
         <div class="rp-frame" id="rpframe"></div>` : form}</div>
     </section>`;
@@ -210,6 +210,13 @@ async function viewReplayer(id) {
     // Two clear buttons: the hand history text, or the shared replay link (Alexis 2026-11-18)
     const done = (b, label) => { b.textContent = "✓ " + t("rpCopied"); setTimeout(() => (b.textContent = label), 2000); };
     $("#rpnote").onclick = () => handNote(cur);
+    // Delete a hand from "Mes mains" (Alexis 2026-11-19): confirm, then the next hand opens
+    $("#rpdel").onclick = async () => {
+      if (!confirm(t("rpDelQ"))) return;
+      await db.dropHand(cur);
+      const next = hands[hands.indexOf(cur) + 1] || hands[hands.indexOf(cur) - 1];
+      location.hash = next ? `#/replayer/${next.id}` : "#/replayer/new";
+    };
     $("#rpcopy").onclick = async (e) => { const b = e.currentTarget; try { await navigator.clipboard.writeText(cur.hh); done(b, "📋 " + t("rpCopyHH")); } catch {} };
     bindTagEdit(hands, () => route()); // tags change after saving (Alexis 2026-11-18); the replayer frame stays alive
     $("#rplink").onclick = async (e) => { const b = e.currentTarget; try { await navigator.clipboard.writeText(url); done(b, "🔗 " + t("rpCopyLink")); } catch {} };
