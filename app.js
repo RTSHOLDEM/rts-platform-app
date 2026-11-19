@@ -1370,7 +1370,8 @@ async function viewCoaching() {
   const teams = TEAM_ORDER.filter((x) => csAll.filter(myCoaching).some((c) => c.team_label === x));
   const coaches = [...new Set(cs.map((c) => c.coach).filter(Boolean))].sort();
   const shared = cs.filter(sharedWithMe), sharedL = (ME.access_tags || []).map((x) => ACCESS_TAGS[x] || x).join(" · ");
-  const match = (c) => (q.team === "shared" ? sharedWithMe(c) : q.team === "itw" || !q.team || c.team_label === q.team) && (!q.coach || c.coach === q.coach)
+  const lives = cs.filter((c) => c.kind === "Live play"); // Alexis's PokerAcademie live plays (2026-11-19)
+  const match = (c) => (q.team === "shared" ? sharedWithMe(c) : q.team === "live" ? c.kind === "Live play" : q.team === "itw" || !q.team || c.team_label === q.team) && (!q.coach || c.coach === q.coach)
     && (!q.q || [c.title, c.themes, c.coach, c.summary].join(" ").toLowerCase().includes(q.q.toLowerCase()));
   const found = cs.filter(match);
   const byMonth = {};
@@ -1381,7 +1382,7 @@ async function viewCoaching() {
     <div class="finder card co-find">
       <input type="search" id="cq" placeholder="${t("searchCoaching")}" value="${esc(q.q || "")}">
       <div class="filters">
-        <div class="chips">${[["", t("all")], ...teams.map((x) => [x, x]), ...(shared.length && !isStaff() ? [["shared", "🔓 " + sharedL]] : []), ...(itw.length ? [["itw", "🎙 " + t("itwChip") + " · " + itw.length]] : [])].map(([v, l]) => `<a class="tagchip ${(q.team || "") === v ? "on" : ""}" href="${link("team", v)}">${esc(l)}</a>`).join("")}</div>
+        <div class="chips">${[["", t("all")], ...teams.map((x) => [x, x]), ...(lives.length ? [["live", "▶ Live play · " + lives.length]] : []), ...(shared.length && !isStaff() ? [["shared", "🔓 " + sharedL]] : []), ...(itw.length ? [["itw", "🎙 " + t("itwChip") + " · " + itw.length]] : [])].map(([v, l]) => `<a class="tagchip ${(q.team || "") === v ? "on" : ""}" href="${link("team", v)}">${esc(l)}</a>`).join("")}</div>
         <select id="ccoach"><option value="">${t("allCoaches")}</option>${coaches.map((x) => `<option ${q.coach === x ? "selected" : ""}>${esc(x)}</option>`).join("")}</select>
         <span class="muted small">${found.length} ${t("sessionsN")}</span>
       </div>
