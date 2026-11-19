@@ -128,7 +128,8 @@ function handRow(h, hands = []) {
         ${h.hh ? `<details class="hd-hh"><summary class="small-link">${t("hhText")}</summary><pre class="hh">${esc(h.hh)}</pre></details>` : ""}
         <p class="row-btns">${isHH(h.hh) ? `<a class="btn btn-sm btn-red" href="#/replayer/${h.id}">▶ ${t("popReplay")}</a>` : ""}${h.link ? `<a class="btn btn-sm" href="${esc(h.link)}" target="_blank" rel="noopener">🔗 ${t("popLink")}</a>` : ""}${isHH(h.hh) ? `<button class="btn btn-sm btn-gto" data-gto="${h.id}" title="${t("gtoTip")}">GTO Wizard</button>` : ""}${h.hh ? `<button class="btn btn-sm" data-copy="${h.id}">${t("copyHH")}</button>` : ""}
           ${HAND_NOTES.get(h.id) ? `<a class="btn btn-sm" href="#/study?n=${HAND_NOTES.get(h.id)}">📝 ${t("hnOpen")}</a>` : `<button class="btn btn-sm btn-ghost-red" data-hnote="${h.id}">📝 ${t("hnWrite")}</button>`}
-          <button class="btn btn-sm ${h.reviewed ? "" : "btn-red"}" data-rev="${h.id}" data-v="${h.reviewed ? "" : "1"}">${h.reviewed ? t("undo") : "✓ " + t("reviewed")}</button></p></div>
+          <button class="btn btn-sm ${h.reviewed ? "" : "btn-red"}" data-rev="${h.id}" data-v="${h.reviewed ? "" : "1"}">${h.reviewed ? t("undo") : "✓ " + t("reviewed")}</button>
+          <button class="btn btn-sm hd-del" data-hdel="${h.id}" title="${t("rpDel")}">🗑</button></p></div>
     </div></details>`;
 }
 function bindHands(hands) {
@@ -138,6 +139,11 @@ function bindHands(hands) {
   $$(".hd-thumb").forEach((im) => im.onclick = () => { const lb = $("#lb"); if (!lb || !im.src) return; lb.querySelector("img").src = im.src; lb.showModal(); });
   $$("[data-rev]").forEach((b) => b.onclick = async () => { b.disabled = true; await db.setHand(b.dataset.rev, { reviewed: !!b.dataset.v }); route(); });
   $$("[data-hnote]").forEach((b) => b.onclick = () => handNote(hands.find((h) => h.id === b.dataset.hnote)));
+  // Delete a hand here too (Alexis 2026-11-19): confirm, then the list redraws
+  $$("[data-hdel]").forEach((b) => b.onclick = async () => {
+    if (!confirm(t("rpDelQ"))) return;
+    b.disabled = true; await db.dropHand(hands.find((h) => h.id === b.dataset.hdel) || { id: b.dataset.hdel }); route();
+  });
   // GTO Wizard (Alexis 2026-11-03): it has no link to open a hand and ignores pastes sent by another site (tested),
   // so one click copies the HH and opens it; there: Upload (top right), Cmd+V, Enter = analysed.
   $$("[data-gto]").forEach((b) => b.onclick = () => {

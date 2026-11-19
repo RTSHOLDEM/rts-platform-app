@@ -1801,3 +1801,4 @@ dialog.nb-safe { width: min(820px, 96vw); }
 
 /* replayer: delete a hand (2026-11-19) */
 .rp-tools .rp-del:hover { background: var(--red, #c8102e); color: #fff; }
+.row-btns .hd-del { margin-left: auto; } .row-btns .hd-del:hover { background: var(--red, #c8102e); color: #fff; }
