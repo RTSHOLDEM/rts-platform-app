@@ -1802,3 +1802,100 @@ dialog.nb-safe { width: min(820px, 96vw); }
 /* replayer: delete a hand (2026-11-19) */
 .rp-tools .rp-del:hover { background: var(--red, #c8102e); color: #fff; }
 .row-btns .hd-del { margin-left: auto; } .row-btns .hd-del:hover { background: var(--red, #c8102e); color: #fff; }
+
+/* Scrollbars follow the platform everywhere (Alexis 2026-11-19: the white bars in Notes stood out).
+   Cause: no color-scheme on the page, so the browser drew light native bars. One rule for the whole app. */
+:root { color-scheme: dark; }
+* { scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #3a3a40; }
+::-webkit-scrollbar-corner { background: transparent; }
+
+/* Mentoring cockpit (2026-11-19) */
+.mc { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+.mc-top { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.mc-top h2 { margin: 0; }
+.mc-row4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.mc-row3 { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1.1fr); gap: 12px; min-height: 0; flex: 1; }
+.mc-h, .mc-b { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: auto; }
+.mc-hd { display: flex; justify-content: space-between; align-items: flex-start; }
+.mc-hd > span { display: flex; flex-direction: column; gap: 2px; }
+.mc-hd b { font-size: 15px; }
+.mc-ed { background: none; border: 1px solid var(--line-2); color: var(--muted); border-radius: 8px; padding: 2px 8px; cursor: pointer; }
+.mc-ed:hover { color: var(--text); border-color: var(--muted); }
+.mc-nums { display: flex; flex-direction: column; gap: 4px; }
+.mc-items { display: flex; flex-direction: column; gap: 4px; }
+.mc-it { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 14px; }
+.mc-it label { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; min-width: 0; }
+.mc-it input { accent-color: var(--red); margin-top: 3px; }
+.mc-it.done label span { color: var(--muted); text-decoration: line-through; }
+.mc-cheers { display: inline-flex; gap: 3px; flex: none; }
+.mc-ch { background: var(--surface-2); border: 1px solid var(--line-2); border-radius: 999px; padding: 0 6px; font-size: 12px; cursor: pointer; color: var(--text); }
+.mc-ch i { font-style: normal; margin-left: 2px; color: var(--muted); }
+.mc-ch.on { border-color: var(--red); background: var(--red-soft); }
+.mc-ch.zero { opacity: .45; } .mc-ch.zero:hover { opacity: 1; }
+.mc-ch:disabled { cursor: default; }
+.mc-add { background: none; border: 1px dashed var(--line-2); color: var(--muted); border-radius: 10px; padding: 8px; cursor: pointer; font: inherit; }
+.mc-add:hover { color: var(--text); border-color: var(--muted); }
+.mc-prog { display: flex; align-items: center; gap: 8px; margin-top: auto; }
+.mc-prog .hg-bar { flex: 1; }
+.mc-prog small { color: var(--muted); }
+.mc-note { margin: 0; padding: 6px 10px; border-left: 2px solid var(--red); font-size: 13px; color: var(--muted); }
+.mc-note b { color: var(--text); font-weight: 600; }
+.mc-ul { margin: 0; padding-left: 18px; font-size: 14px; }
+.mc-clip { margin: 0; font-size: 14px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.mc-fb { color: var(--text); }
+.mc-more { margin-top: auto; }
+.mc-wl { display: flex; flex-direction: column; gap: 8px; }
+.mc-w { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
+.mc-wt { display: flex; flex-direction: column; min-width: 0; }
+.mc-wt b { font-size: 14px; }
+.mc-dlg { width: min(520px, 92vw); }
+.mc-dlg textarea { width: 100%; background: var(--surface-2); color: var(--text); border: 1px solid var(--line-2); border-radius: 10px; padding: 10px 12px; font: 400 14px var(--body); resize: vertical; }
+@media (max-width: 1100px) { .mc-row4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .mc-row3 { grid-template-columns: 1fr; } }
+/* home: mentoring card */
+.mh { display: flex; flex-direction: column; gap: 6px; text-decoration: none; color: inherit; }
+.mh:hover { border-color: var(--line-2); }
+.mh-r { display: grid; grid-template-columns: 74px 1fr 34px; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.mh-r b { color: var(--text); text-align: right; font-size: 13px; }
+.mh-f { font-size: 12px; }
+.hleft { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+.hleft > .hcal { flex: 1; min-height: 0; }
+/* add hours you didn't log */
+.ph-d { width: min(460px, 92vw); }
+.ph-kind { display: flex; gap: 8px; margin: 6px 0 10px; }
+.ph-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 10px; }
+.ph-row input, .ph-topic select { display: block; width: 100%; margin-top: 6px; background: var(--surface-2); color: var(--text); border: 1px solid var(--line-2); border-radius: 10px; padding: 9px 10px; font: 400 14px var(--body); }
+.ph-topic { margin-top: 10px; }
+.ck-addh { white-space: nowrap; }
+.mc-it { flex-direction: column; align-items: stretch; gap: 2px; }
+.mc-it .mc-cheers { padding-left: 24px; }
+.mc-w .btn-sm { padding: 4px 10px; font-size: 12px; white-space: nowrap; flex: none; }
+.mc-w .tag { flex: none; }
+/* Grind head: the 3 buttons sit on the right, one line each (Alexis 2026-11-19) */
+.ck-head > .ck-hl { justify-self: end; flex-wrap: nowrap; } .ck-hl .btn { white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+/* session row: the open/close arrow moves to the right as a clean chevron (Alexis 2026-11-19) */
+.lg-sess > summary::before { content: none; }
+.lg-sess > summary::after { content: ""; flex: none; width: 7px; height: 7px; margin: 0 4px 3px 6px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg); transition: transform .15s, border-color .15s; }
+.lg-sess[open] > summary::after { transform: rotate(-135deg); margin-bottom: -3px; border-color: var(--red); }
+.lg-sess > summary:hover::after { border-color: var(--text, #fff); }
+/* Études extras (2026-11-19): back-to list, add hours link, group swap, report suggestion */
+.nb-stat { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.nb-addh { margin-left: auto; background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 8px; padding: 3px 8px; font: 600 11px/1.2 var(--body); cursor: pointer; white-space: nowrap; }
+.nb-addh:hover { color: var(--text); border-color: var(--red); }
+.nb-back { display: flex; flex-direction: column; gap: 4px; margin: 0 0 8px; }
+.nb-bt { font: 600 10.5px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.nb-bk { display: flex; align-items: baseline; gap: 8px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); text-decoration: none; color: var(--text); min-width: 0; }
+.nb-bk b { font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+.nb-bk small { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.nb-bk:hover { border-color: var(--red); }
+.nb-back.home { margin: 18px auto 0; max-width: 664px; width: 100%; text-align: left; } .nb-back.home .nb-bt { text-align: center; }
+.nb-grp .nb-swap { font-size: 13px; color: var(--muted); }
+.nb-grp .nb-swap + .nb-icb.sm { margin-left: 4px; }
+.rp-sug { border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); padding: 10px 12px; margin: 6px 0 12px; }
+.rp-sh { display: flex; align-items: center; gap: 10px; } .rp-sh .btn { margin: 0 0 0 auto; }
+.rp-sl { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; max-height: 150px; overflow: auto; }
+.rp-sl a { display: flex; gap: 8px; align-items: baseline; padding: 4px 6px; border-radius: 8px; text-decoration: none; color: var(--text); font-size: 13px; }
+.rp-sl a:hover { background: var(--surface); } .rp-sl small { color: var(--muted); }

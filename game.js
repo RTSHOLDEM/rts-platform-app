@@ -499,9 +499,10 @@ function newsItem(n) {
   if (n.kind === "achievement" && !a) return "";
   const who = nm({ name: n.author_name || "?" }), rx = n.news_reactions || []; // nm(): initials in camera mode
   const head = a ? `<span class="nw-ic">${a.icon}</span><p><b>${who}</b> ${t("newsUnlocked")} <b>${esc(L2(a))}</b></p>`
+    : n.kind === "goal" ? `<span class="nw-ic">🏆</span><p><b>${who}</b> ${t("newsGoal")} <b>${esc(n.title || "")}</b>${n.body ? `<br><small class="muted">${esc(n.body)}</small>` : ""}</p>`
     : `<span class="nw-ic">📣</span><p>${n.title ? `<b>${esc(n.title)}</b><br>` : ""}${esc(n.body || "")}</p>`;
   return `<article class="nw ${n.kind}" data-nw="${n.id}">${head}
-    <div class="nw-foot"><small class="muted">${a ? "" : who + " · "}${agoTxt(n.created_at)}</small>
+    <div class="nw-foot"><small class="muted">${a || n.kind === "goal" ? "" : who + " · "}${agoTxt(n.created_at)}</small>
       <span class="nw-rx">${NEWS_EMOJI.map((e) => { const c = rx.filter((r) => r.emoji === e).length, on = rx.some((r) => r.emoji === e && r.user_id === ME.id);
         return `<button class="${on ? "on" : ""} ${c ? "" : "zero"}" data-rx="${e}">${e}${c ? `<i>${c}</i>` : ""}</button>`; }).join("")}</span>
       ${!a && (n.author_id === ME.id || isAdmin()) ? `<button class="x" data-nwdel title="${t("del")}">×</button>` : ""}</div></article>`;

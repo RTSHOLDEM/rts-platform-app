@@ -48,7 +48,7 @@ function liveDb() {
     async journalAll(from) { return rows(sb.from("journal").select("player_id,day,study_h,play_h,hands,tags").gte("day", from)); },
     async saveJournal(e) { return rows(sb.from("journal").upsert({ ...e, updated_at: new Date().toISOString() }, { onConflict: "player_id,day" }).select()); },
     async goals(pid) { return rows(sb.from("goals").select("*").eq("player_id", pid).eq("period", "month").order("label", { ascending: false })); },
-    async weekGoals(pid) { return rows(sb.from("goals").select("*").eq("player_id", pid).in("period", ["week", "quarter"]).order("label", { ascending: false })); },
+    async weekGoals(pid) { return rows(sb.from("goals").select("*").eq("player_id", pid).in("period", ["week", "quarter", "year"]).order("label", { ascending: false })); },
     async saveGoal(g) { return rows(sb.from("goals").upsert({ ...g, updated_at: new Date().toISOString() }, { onConflict: "player_id,period,label" }).select()); },
     // mentoring dashboard (022): one row per piece, player + his mentor + admin only
     async board(pid) { return rows(sb.from("board_items").select("key,data,updated_at").eq("player_id", pid)); },
@@ -203,7 +203,8 @@ function demoDb() {
   const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
   const S = load("rts-demo-v3", null) || {
     people: D_PEOPLE, journal: D_JOURNAL,
-    goals: D_GOALS.map((g) => ({ ...g, label: g.label === "current" ? monthStart() : g.label })),
+    goals: D_GOALS.map((g) => { const d = iso(new Date()), w = new Date(); w.setDate(w.getDate() - ((w.getDay() + 6) % 7)); const L = { current: monthStart(), thisweek: iso(w), thisyear: d.slice(0, 4), thisq: `${d.slice(0, 4)}-Q${Math.floor((+d.slice(5, 7) - 1) / 3) + 1}` };
+      return { ...g, label: L[g.label] || g.label }; }),
     reports: D_REPORTS.map((r) => ({ ...r, month: r.month === "prev" ? prevMonthStart() : r.month })),
     mentorings: D_MENTORINGS, situations: D_SITUATIONS, quizzes: D_QUIZZES,
     exdone: D_EXDONE, answers: [], deck: [],
@@ -235,7 +236,7 @@ function demoDb() {
     async journalAll(from) { const m = me(); return S.journal.filter((e) => e.day >= from && canSee(m, byId(e.player_id)) && !hid(byId(e.player_id))); },
     async saveJournal(e) { const i = S.journal.findIndex((x) => x.player_id === e.player_id && x.day === e.day); i >= 0 ? (S.journal[i] = e) : S.journal.push(e); save(); return [e]; },
     async goals(pid) { return canSee(me(), byId(pid)) ? S.goals.filter((g) => g.player_id === pid && (g.period || "month") === "month").sort((a, b) => (a.label < b.label ? 1 : -1)) : []; },
-    async weekGoals(pid) { return canSee(me(), byId(pid)) ? S.goals.filter((g) => g.player_id === pid && ["week", "quarter"].includes(g.period)).sort((a, b) => (a.label < b.label ? 1 : -1)) : []; },
+    async weekGoals(pid) { return canSee(me(), byId(pid)) ? S.goals.filter((g) => g.player_id === pid && ["week", "quarter", "year"].includes(g.period)).sort((a, b) => (a.label < b.label ? 1 : -1)) : []; },
     async saveGoal(g) { const i = S.goals.findIndex((x) => x.player_id === g.player_id && x.label === g.label); i >= 0 ? (S.goals[i] = { ...S.goals[i], ...g }) : S.goals.push(g); save(); return [g]; },
     async board(pid) { return boardOk(pid) ? (S.board ||= []).filter((x) => x.player_id === pid) : []; },
     async saveBoard(pid, key, data) { if (!boardOk(pid)) throw new Error("not allowed"); const l = (S.board ||= []), i = l.findIndex((x) => x.player_id === pid && x.key === key), r = { player_id: pid, key, data, updated_at: new Date().toISOString() };

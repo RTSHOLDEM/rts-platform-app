@@ -117,6 +117,7 @@ async function viewStudyNotes() {
   const n = (f) => notes.filter((s) => inF(s, f)).length;
   const open = nbOpen.get(); if (q.f && q.f !== "~") q.f.split("/").forEach((_, i, a) => open.add(a.slice(0, i + 1).join("/")));
   const cur = q.n ? all.find((s) => s.id === q.n) || null : null;
+  if (cur) nbTouch(cur.id);
   if (cur?.folder && !q.f) cur.folder.split("/").slice(0, -1).forEach((_, i, a) => open.add(a.slice(0, i + 1).join("/")));
   const hours = all.filter((s) => s.started_at >= monthStart()).reduce((a, s) => a + Number(s.minutes || 0), 0) / 60;
   const live = liveId ? running : null;
@@ -166,12 +167,15 @@ async function viewStudyNotes() {
     <aside class="card nb-tree">
       <div class="nb-th"><b>${t("nbNotes")}</b><span class="nb-ic"><button type="button" class="nb-icb" data-nbnewf="" title="${t("nbNewFolder")}">${ICO.newf}</button><button type="button" class="nb-icb red" data-nbnew title="${t("nbNewNote")}">${ICO.pen}</button></span></div>
       <div class="nb-sc" data-sescard="study">${sesCardHtml("study")}</div>${live && q.n !== live.id ? `<a class="nb-livego" href="${href({ n: live.id })}">✎ ${t("scOpenNote")} →</a>` : ""}
-      <small class="muted nb-stat">${t("ckStMonth")} <b>${fmtH(hours)}</b> · ${notes.length} ${t("stNotesN")}</small>
+      <small class="muted nb-stat">${t("ckStMonth")} <b>${fmtH(hours)}</b> · ${notes.length} ${t("stNotesN")}<button type="button" class="nb-addh" data-addh="study" title="${t("phT")}">⏱ ${t("phBtn")}</button></small>
+      ${nbBackHtml(nbRecent(all, 3, cur?.id || ""))}
       <div class="nb-scroll" id="nbtree">
         <a class="nb-f top ${!q.f ? "on" : ""}" href="${href({ f: "", n: q.n })}">📒 <span class="nb-fn">${t("nbAll")}</span><small>${notes.length}</small></a>
         <a class="nb-f top ${q.f === "~" ? "on" : ""}" href="${href({ f: "~", n: q.n })}">📥 <span class="nb-fn">${t("nbNone")}</span><small>${n("~") || ""}</small></a>
-        <p class="nb-grp">${t("nbRts")}<button type="button" class="nb-icb sm" data-nbnewf="" data-grp="rts" title="${t("nbNewFolder")}">${ICO.newf}</button></p>${rts.map(node).join("") || `<button type="button" class="small-link" id="nbseed">+ ${t("nbSeedRts")}</button>`}
-        <p class="nb-grp">${t("nbMine")}<button type="button" class="nb-icb sm" data-nbnewf="" title="${t("nbNewFolder")}">${ICO.newf}</button></p>${mine.map(node).join("")}
+        ${(() => { const swap = `<button type="button" class="nb-icb sm nb-swap" data-nbswap title="${t("nbSwap")}">⇅</button>`, first = NB_ORDER.get();
+          const gR = (top) => `<p class="nb-grp">${t("nbRts")}${top ? swap : ""}<button type="button" class="nb-icb sm" data-nbnewf="" data-grp="rts" title="${t("nbNewFolder")}">${ICO.newf}</button></p>${rts.map(node).join("") || `<button type="button" class="small-link" id="nbseed">+ ${t("nbSeedRts")}</button>`}`;
+          const gM = (top) => `<p class="nb-grp">${t("nbMine")}${top ? swap : ""}<button type="button" class="nb-icb sm" data-nbnewf="" title="${t("nbNewFolder")}">${ICO.newf}</button></p>${mine.map(node).join("")}`;
+          return first === "mine" ? gM(true) + gR(false) : gR(true) + gM(false); })()}
       </div>
       <button type="button" class="nb-f top nb-trashb" id="nbtrash">🗑 <span class="nb-fn">${t("nbTrash")}</span><small id="nbtrashn"></small></button>
     </aside>
@@ -432,3 +436,24 @@ Object.assign(STRINGS.en, { nbHist: "History", nbHistTip: "Every version of this
 Object.assign(STRINGS.fr, { nbHist: "Historique", nbHistTip: "Toutes les versions de cette note, restaurables", nbHistNone: "Pas encore d'ancienne version. Une est gardée toutes les 10 minutes pendant que tu écris.",
   nbRestoreV: "Restaurer cette version", nbRestoreTip: "La note telle qu'elle est maintenant reste aussi dans l'historique.", nbRestored: "Note restaurée", nbRestore: "Restaurer",
   nbTrash: "Corbeille", nbTrashSub: "Les notes supprimées restent ici 30 jours.", nbTrashEmpty: "La corbeille est vide.", nbDeletedOn: "Supprimée le" });
+
+/* Études extras (Alexis 2026-11-19):
+   - "Retourner sur": the last notes worked on (opened or written), on Études under the session card and on Accueil.
+   - The two folder groups (RTS tree, My folders) can swap places: ⇅ on the first group's header, kept in this browser.
+   - The monthly report suggests itself from the month's notes (in app.js, report form). */
+Object.assign(STRINGS.en, { nbBack: "Back to", nbSwap: "Swap the two groups", rpSugT: "Suggested from your notes", rpSugUse: "Insert in my report", rpSugHead: "Worked on this month" });
+Object.assign(STRINGS.fr, { nbBack: "Retourner sur", nbSwap: "Inverser les deux groupes", rpSugT: "Suggestion à partir de tes notes", rpSugUse: "Insérer dans mon rapport", rpSugHead: "Travaillé ce mois-ci" });
+const NB_REC = () => "rts-nb-recent-" + (ME?.id || "");
+function nbTouch(id) { try { const l = JSON.parse(localStorage.getItem(NB_REC()) || "[]").filter((x) => x !== id); l.unshift(id); localStorage.setItem(NB_REC(), JSON.stringify(l.slice(0, 20))); } catch {} }
+// the notes worked on last: opened or written here first (this browser), then the newest
+function nbRecent(sessions, k = 3, skip = "") {
+  let seen = []; try { seen = JSON.parse(localStorage.getItem(NB_REC()) || "[]"); } catch {}
+  const ok = sessions.filter((s) => s.kind === "study" && s.ended_at && !s._gone && s.id !== skip && ((s.title || "").trim() || (s.notes || "").trim() || s.notes_html));
+  const rank = (s) => { const i = seen.indexOf(s.id); return i < 0 ? 99 : i; };
+  return ok.sort((a, b) => rank(a) - rank(b) || (a.started_at < b.started_at ? 1 : -1)).slice(0, k);
+}
+function nbBackHtml(list, cls = "") {
+  return list.length ? `<div class="nb-back ${cls}"><span class="nb-bt">↩ ${t("nbBack")}</span>${list.map((s) => `<a class="nb-bk" href="#/study?n=${s.id}" title="${esc(nbTitleOf(s))}"><b>${esc(nbTitleOf(s))}</b><small>${s.folder ? esc(s.folder.split("/").pop()) + " · " : ""}${fmtDay(s.started_at.slice(0, 10))}</small></a>`).join("")}</div>` : "";
+}
+const NB_ORDER = { get: () => { try { return localStorage.getItem("rts-nb-order") || "rts"; } catch { return "rts"; } }, set: (v) => { try { localStorage.setItem("rts-nb-order", v); } catch {} } };
+document.addEventListener("click", (e) => { const b = e.target.closest("[data-nbswap]"); if (!b) return; e.preventDefault(); NB_ORDER.set(NB_ORDER.get() === "rts" ? "mine" : "rts"); route(); });

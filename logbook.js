@@ -360,7 +360,8 @@ async function viewLog() {
     const loose = hands.filter((h) => !h.session_id && h.created_at.slice(0, 10) === d);
     const now = Date.now(), coach = evs.filter((x) => x.kind === "coaching" && forMe(x) && x.starts_at.slice(0, 10) === d && new Date(x.starts_at).getTime() <= now);
     const coachMin = coach.reduce((a, x) => a + Number(x.minutes || 60), 0);
-    const pane = CK_PANE.get();
+    // the day's sessions are always shown, no click on the Grind tile needed (Alexis 2026-11-19)
+    const pane = ["", "journal"].includes(CK_PANE.get()) ? "grind" : CK_PANE.get();
     const manCoach = ss.filter((x) => x.kind === "coaching"), coachAll = coachMin + manCoach.reduce((a, x) => a + Number(x.minutes || 0), 0);
     const tile = (k, icon, label, val, sub = "", go = "") => `<button type="button" class="ck-t ${pane === k ? "on" : ""}" data-pane="${k}" ${go ? `data-go="${go}"` : ""}><span class="ck-tl">${icon} ${label}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ""}<span class="ck-act">+ ${t("ckAdd")}</span></button>`;
     const addOn = CK_ADD.get();
@@ -396,8 +397,8 @@ async function viewLog() {
     const written = (e.played || "").trim();
     const jTile = `<button type="button" class="ck-t ck-jt ${pane === "journal" ? "on" : ""}" data-pane="journal" title="${t("journalW")} · ${t("ckJournalSub")}" aria-label="${t("journalW")}">
         <span class="ck-nb"><i>${e.mood ? MOODS[e.mood - 1] : written ? "✓" : "✎"}</i>${written ? `<small>✓ ${t("ckWritten")}</small>` : ""}</span></button>`;
-    return `<div class="ck-strip w2">${tile("grind", "♠", t("grindW"), fmtH(Number(e.play_h || 0)), Number(e.study_h || 0) ? "📚 " + fmtH(Number(e.study_h)) + " " + t("studyW").toLowerCase() : "")}
-        ${jTile}</div>
+    // the little journal sheet is gone from Grind (Alexis 2026-11-19: not useful there)
+    return `<div class="ck-strip w1">${tile("grind", "♠", t("grindW"), fmtH(Number(e.play_h || 0)), Number(e.study_h || 0) ? "📚 " + fmtH(Number(e.study_h)) + " " + t("studyW").toLowerCase() : "")}</div>
       ${panes[pane] ? `<div class="card ck-pane ${pane === "journal" ? "ck-jpane" : ""}">${panes[pane]()}</div>` : ""}`;
   }
   function topicSel(cur) { return `<label>${t("topicL")} <select name="topic">${Object.keys(TOPICS).map((k) => `<option value="${k}" ${k === cur ? "selected" : ""}>${TOPICS[k].icon} ${t("topic_" + k)}</option>`).join("")}</select></label>`; }
@@ -413,9 +414,9 @@ async function viewLog() {
   $("#main").innerHTML = `<div class="logbook cockpit ${treeOn ? "tree-on" : ""}">
       <nav class="card lg-tree ck-tree" ${treeOn ? "" : "hidden"}>${tree}
         <details class="lg-away">${awayCard().replace('<form class="card" id="aform">', '<summary class="small-link">🏖 ' + t("away") + '</summary><form class="card" id="aform">')}</details></nav>
-      <section class="lg-mid ck-mid">${wkPanel}${startRow}<div class="lg-head ck-head"><span class="ck-hl"><button type="button" class="btn ck-yr ${treeOn ? "on" : ""}" id="cktree" aria-pressed="${treeOn}">🗓 ${t("ckYear")}</button><a class="btn ck-today ${sel.k === "d" && sel.v === T ? "on" : ""}" href="#/log">📍 ${t("ckToday")}</a></span>
+      <section class="lg-mid ck-mid">${wkPanel}${startRow}<div class="lg-head ck-head"><span></span>
         <span class="ck-nav"><a class="btn btn-sm" href="#/log?${shift(-1)}">←</a><h2>${title}</h2>${nextOk ? `<a class="btn btn-sm" href="#/log?${shift(1)}">→</a>` : `<span class="btn btn-sm ck-off">→</span>`}</span>
-        <span></span></div>${mid}</section></div>`;
+        <span class="ck-hl"><button type="button" class="btn ck-addh" data-addh="grind" title="${t("phT")}">⏱ ${t("phBtn")}</button><button type="button" class="btn ck-yr ${treeOn ? "on" : ""}" id="cktree" aria-pressed="${treeOn}">🗓 ${t("ckYear")}</button><a class="btn ck-today ${sel.k === "d" && sel.v === T ? "on" : ""}" href="#/log">📍 ${t("ckToday")}</a></span></div>${mid}</section></div>`;
   fitToDock(".logbook");
 
   // bindings

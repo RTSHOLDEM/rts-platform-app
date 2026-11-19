@@ -206,7 +206,8 @@ async function viewHome() {
         <b>${dayL(x.started_at.slice(0, 10))}</b><span>${hhmm(x.started_at)} · ${dur(Number(x.minutes || 0))}${kind === "study" && TOPICS[x.topic] ? " · " + TOPICS[x.topic].icon + " " + t("topic_" + x.topic) : ""}</span><i>✎</i></a>`).join("") || `<p class="muted small">${t("hsNone")}</p>`}</div>`; };
   const startBox = `<span class="eyebrow">${t("hsReady")}</span><h2 class="hs-title">${t("hsTitle")}</h2>
       <div class="hs-btns"><div class="hs-col" data-sescard="grind">${sesCardHtml("grind")}</div>
-        <div class="hs-col" data-sescard="study">${sesCardHtml("study")}</div></div>`;
+        <div class="hs-col" data-sescard="study">${sesCardHtml("study")}</div></div>
+      ${player ? nbBackHtml(nbRecent(recent, 3), "home") : ""}`;
   $("#main").innerHTML = `
     <div class="home1">
       <section class="hbanner card">
@@ -218,7 +219,7 @@ async function viewHome() {
           ${extra ? `<span class="hb-stats">${extra}<span class="hb-open">${t("hbCkOpen")} →</span></span>` : ""}</a>`}
       </section>
       <div class="hmain ${mapBig ? "map-big" : ""}">
-        ${cal}
+        ${player ? `<div class="hleft">${cal}<div id="mchome"></div></div>` : cal}
         ${player ? `<section class="hstart">${startBox}</section>` : ""}
         <div class="hq-side"><section class="hq-stage"><button type="button" class="hq-zoom" id="hqzoom" title="${t(mapBig ? "hqSmall" : "hqBig")}">${mapBig ? "⤡" : "⤢"}</button><div id="hqmap"></div></section></div>
       </div>
@@ -231,7 +232,8 @@ async function viewHome() {
     el.style.height = Math.max(380, bottom - el.getBoundingClientRect().top) + "px";
   };
   fit(); addEventListener("resize", fit);
-  if (player) bindWeekPanel(wkL, wG); // the whole week sits on Home: one bar grind + study, the week goals (Alexis 2026-11-03)
+  if (player) bindWeekPanel(wkL, wG);
+  if (player) mcHomeHtml().then((h) => { const el = $("#mchome"); if (el && my === RENDER) el.outerHTML = h; }); // the whole week sits on Home: one bar grind + study, the week goals (Alexis 2026-11-03)
   $$("[data-ckpane]").forEach((a) => a.onclick = () => { try { sessionStorage.setItem("ck-pane", a.dataset.ckpane); } catch {} });
   $$("[data-hsgo]").forEach((b) => b.onclick = () => sesGo(b.dataset.hsgo)); // the session may have loaded after this page
   $("#hqzoom").onclick = () => {
@@ -608,7 +610,8 @@ async function viewStudy() {
   const posSel = (n, l) => `<label>${l} <select name="${n}"><option value="">—</option>${["UTG", "HJ", "CO", "BTN", "SB", "BB"].map((x) => `<option>${x}</option>`).join("")}</select></label>`;
   $("#main").innerHTML = `<div class="st-top">${head(t("tabStudy"), t("library"), `${fmtH(hours)} ${t("studyMonth").toLowerCase()} · ${mine.length} ${t("myCards").toLowerCase()}`)}
     <div class="st-acts">${SES.s ? `<a class="hs-live" href="#/session">${t("hsLive")} · <b>${t("backCockpit")} →</b></a>` : `<button type="button" class="hs-btn study" data-stgo><span>📚</span><b>${t("hsStudy")}</b><small>${t("hsStudySub")}</small></button>`}
-      <button type="button" class="hs-btn new" id="stnew"><span>✍</span><b>${t("stNew")}</b><small>${t("srcMine")}</small></button></div></div>
+      <button type="button" class="hs-btn new" id="stnew"><span>✍</span><b>${t("stNew")}</b><small>${t("srcMine")}</small></button>
+      <button type="button" class="hs-btn new" data-addh="study"><span>⏱</span><b>${t("phBtn")}</b><small>${t("phSub")}</small></button></div></div>
     <dialog id="stnewd" class="card"><form id="stnewf"><div class="card-head"><h3>✍ ${t("stNewT")}</h3><button class="x" type="button" data-stx>×</button></div>
       <div class="st-sel"><label>Pot <select name="pot"><option value="">—</option>${POT_ORDER.filter((x) => x !== "—").map((x) => `<option value="${x}">${esc(potLabel(x))}</option>`).join("")}</select></label>
         ${posSel("hero_pos", "Hero")}${posSel("villain_pos", "Villain")}
@@ -1159,6 +1162,9 @@ const PLAYER_TABS = {
     j.filter((e) => e.day >= daysAgo(60)).forEach((e) => (e.tags || []).forEach((k) => (tagCount[k] = (tagCount[k] || 0) + 1)));
     const editGoal = own && g?.status !== "confirmed";
     const dis = (ok) => (ok ? "" : "disabled");
+    // the month's notes, offered as a draft for the report (Alexis 2026-11-19)
+    const mNotes = own ? (await db.sessions(p.id, month).catch(() => [])).filter((s) => s.kind === "study" && s.started_at.slice(0, 7) === month.slice(0, 7) && !s._gone && ((s.title || "").trim() || (s.notes || "").trim())).reverse() : [];
+    window.__rpNotes = mNotes;
     return `
       ${await focusList(p.id, true)}
       <div class="grid kpis">
@@ -1188,6 +1194,8 @@ const PLAYER_TABS = {
         <div class="card-head"><h3>${t("report")}</h3>
           <select id="rmonth">${[monthStart(), prevMonthStart()].map((m) => `<option value="${m}" ${m === month ? "selected" : ""}>${fmtMonth(m)}</option>`).join("")}</select></div>
         <p class="muted small">${t("reportPrivate")}</p>
+        ${mNotes.length ? `<div class="rp-sug"><div class="rp-sh"><b>✨ ${t("rpSugT")}</b><small class="muted">${mNotes.length} ${t("stNotesN")}</small><button type="button" class="btn btn-sm btn-red" id="rpsug">${t("rpSugUse")}</button></div>
+          <div class="rp-sl">${mNotes.map((s) => `<a href="#/study?n=${s.id}">📝 <b>${esc(nbTitleOf(s))}</b><small>${fmtDay(s.started_at.slice(0, 10))}${s.folder ? " · " + esc(s.folder.split("/").join(" › ")) : ""}</small></a>`).join("")}</div></div>` : ""}
         <label class="ta">${t("rating")}<input name="rating" type="number" min="1" max="10" value="${r.rating ?? ""}" ${dis(own)}></label>
         <div class="grid two tight">
           <label class="ta">${t("wins")}<textarea name="wins" rows="3" class="sensitive" ${dis(own)}>${esc(r.wins)}</textarea></label>
@@ -1264,6 +1272,13 @@ const PLAYER_BIND = {
       route();
     });
     $("#gconfirm")?.addEventListener("click", async () => { await db.saveGoal({ player_id: p.id, period: "month", label: monthStart(), status: "confirmed", confirmed_by: ME.id }); route(); });
+    // the suggestion: the month's notes grouped by folder, added to "wins" (the player edits before saving)
+    $("#rpsug")?.addEventListener("click", () => {
+      const by = {}; (window.__rpNotes || []).forEach((s) => (by[s.folder ? s.folder.split("/").join(" › ") : "—"] ||= []).push(nbTitleOf(s)));
+      const txt = `${t("rpSugHead")} :\n` + Object.entries(by).map(([f, l]) => `• ${f === "—" ? "" : f + " : "}${l.join(", ")}`).join("\n");
+      const ta = $("#rform textarea[name=wins]"); if (!ta) return;
+      ta.value = (ta.value.trim() ? ta.value.trim() + "\n\n" : "") + txt; ta.rows = Math.min(12, txt.split("\n").length + 2); ta.focus();
+    });
     $("#rmonth")?.addEventListener("change", (e) => { location.hash = `#/p/${p.id}/overview?m=${e.target.value}`; });
     $("#rform")?.addEventListener("submit", async (ev) => {
       ev.preventDefault(); const f = new FormData(ev.target);
@@ -1795,6 +1810,7 @@ function mtStats(p, all, month, gl) {
 /* Player side (Alexis 2026-11-03, dashboard 2026-11-05): his own coaching dashboard, the same tiles his mentor sees;
    the Monthly reviews tile shows each month's mentor feedback next to what he wrote. */
 async function viewMyBoard(q) {
+  if (!q.board) return viewCockpit(); // the player lands on the cockpit (Alexis 2026-11-19); the old board stays one click away
   const href = (o) => "#/mentoring?" + new URLSearchParams(Object.entries({ ...q, ...o }).filter(([, v]) => v));
   const mentor = person(ME.mentor_id);
   const [reps, all, gl] = await Promise.all([db.reports(ME.id).catch(() => []), db.journalAll(daysAgo(400)).catch(() => []), db.goals(ME.id).catch(() => []), boardLoad(ME.id)]);

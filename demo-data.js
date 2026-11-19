@@ -52,7 +52,13 @@ const D_JOURNAL = [];
   });
 
 const D_GOALS = [
-  { player_id: "lucas", period: "month", label: "current", status: "confirmed", hands_target: 50000, play_h_target: 110, study_h_target: 45, items: ["Review SB vs BTN: 30 tagged hands", "Stop-loss at 3 buy-ins every session"] },
+  { player_id: "lucas", period: "month", label: "current", status: "confirmed", hands_target: 50000, play_h_target: 110, study_h_target: 45, items: ["✓ Review SB vs BTN: 30 tagged hands", "Stop-loss at 3 buy-ins every session", "2 hand reviews a week"],
+    mentor_note: "Strong volume. Keep the stop-loss even on good days.", cheers: { "Review SB vs BTN: 30 tagged hands": { "🎉": ["theo"], "🔥": ["max"] } }, shared: [] },
+  // Mentoring cockpit demo (2026-11-19): a year and a week goal, with the mentor's comment and cheers
+  { player_id: "lucas", period: "year", label: "thisyear", status: "confirmed", items: ["✓ Move up to NL200", "Play NL500 by December", "300k hands"],
+    mentor_note: "Great year. NL500 is close: volume first.", cheers: { "Move up to NL200": { "🎉": ["theo"], "👏": ["max", "nina"] } }, shared: ["Move up to NL200"] },
+  { player_id: "lucas", period: "week", label: "thisweek", status: "proposed", items: ["✓ 3 BvB spots reviewed", "10k hands", "2 study blocks of 90 min"],
+    cheers: { "3 BvB spots reviewed": { "👏": ["theo"] } }, shared: [] },
   // A past goal for every month and quarter of 2026, so the logbook shows a full year.
   ...Array.from({ length: 10 }, (_, i) => ({ player_id: "lucas", period: "month", label: `2026-${String(i + 1).padStart(2, "0")}-01`, status: "confirmed",
     week_h_target: 35, hands_target: 45000 + i * 1000, play_h_target: 100, study_h_target: 40,
