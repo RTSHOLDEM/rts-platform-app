@@ -452,8 +452,16 @@ function nbRecent(sessions, k = 3, skip = "") {
   const rank = (s) => { const i = seen.indexOf(s.id); return i < 0 ? 99 : i; };
   return ok.sort((a, b) => rank(a) - rank(b) || (a.started_at < b.started_at ? 1 : -1)).slice(0, k);
 }
+// the situation: the folder path (6-max › SRP › BB vs CO), else the picked spot, else the title
+function nbSit(s) {
+  if (s.folder) return s.folder.split("/").join(" › ");
+  const sp = s.spot || {}, b = [sp.format, sp.pot, sp.hero && sp.hero + (sp.villain ? " vs " + sp.villain : "")].filter(Boolean);
+  return b.length ? b.join(" › ") : nbTitleOf(s);
+}
+function nbStart(s) { const tx = ((s.notes || "").trim().split("\n").find((l) => l.trim()) || "").trim(), ti = (s.title || "").trim();
+  return (s.folder || s.spot ? ti || tx : tx && tx !== ti ? tx : "") || ""; }
 function nbBackHtml(list, cls = "") {
-  return list.length ? `<div class="nb-back ${cls}"><span class="nb-bt">↩ ${t("nbBack")}</span>${list.map((s) => `<a class="nb-bk" href="#/study?n=${s.id}" title="${esc(nbTitleOf(s))}"><b>${esc(nbTitleOf(s))}</b><small>${s.folder ? esc(s.folder.split("/").pop()) + " · " : ""}${fmtDay(s.started_at.slice(0, 10))}</small></a>`).join("")}</div>` : "";
+  return list.length ? `<div class="nb-back ${cls}"><span class="nb-bt">↩ ${t("nbBack")}</span>${list.map((s) => `<a class="nb-bk" href="#/study?n=${s.id}" title="${esc(nbTitleOf(s))}"><b>${esc(nbSit(s))}</b><span class="nb-bk-r"><i>${esc(nbStart(s))}</i><small>${fmtDay(s.started_at.slice(0, 10))}</small></span></a>`).join("")}</div>` : "";
 }
 const NB_ORDER = { get: () => { try { return localStorage.getItem("rts-nb-order") || "rts"; } catch { return "rts"; } }, set: (v) => { try { localStorage.setItem("rts-nb-order", v); } catch {} } };
 document.addEventListener("click", (e) => { const b = e.target.closest("[data-nbswap]"); if (!b) return; e.preventDefault(); NB_ORDER.set(NB_ORDER.get() === "rts" ? "mine" : "rts"); route(); });

@@ -9,7 +9,10 @@ Object.assign(STRINGS.en, {
   mcShareQ: "Share this goal with the team feed?", mcNext: "Next call", mcHistory: "All calls", mcBoard: "Detailed board", mcHours: "Hours", mcHands: "Hands",
   mcOpen: "Open", newsGoal: "reached a goal:", mcHomeT: "Mentoring",
   phBtn: "Add hours", phT: "Add hours you didn't log", phSub: "A day you played or studied without the timer.", phDay: "Day", phH: "Hours", phM: "Minutes",
-  phSave: "Add", phNone: "Enter a length.", phDone: "Added", phGrind: "Grind", phStudy: "Study" });
+  phSave: "Add", phNone: "Enter a length.", phDone: "Added", phGrind: "Grind", phStudy: "Study",
+  mcGrindH: "Grind", mcStudyH: "Study", mcTargets: "Targets", mcSugg: "suggested", mcIdeas: "Ideas", mcLocked: "Set with your mentor", mcLockQ: "Lock (decided with the player)",
+  mcYearHint: "Your year goals are set with your mentor at the start of the year.", mcLockedErr: "Year goals are locked: change them with your mentor.", mcGoals: "Goals",
+  mcPrev: "Previous", mcNextP: "Next" });
 Object.assign(STRINGS.fr, {
   mcTitle: "Mon mentoring", mcYear: "Année", mcQuarter: "Trimestre", mcMonth: "Mois", mcWeek: "Semaine", mcAdd: "Ajouter un objectif", mcGoalsPh: "Un objectif par ligne",
   mcLastCall: "Dernier mentoring", mcNoCall: "Pas encore de call de mentoring.", mcLastMonth: "Le mois dernier", mcMyReview: "Ma revue", mcMentorFb: "Retour du mentor",
@@ -17,23 +20,51 @@ Object.assign(STRINGS.fr, {
   mcShareQ: "Partager cet objectif dans le fil de la team ?", mcNext: "Prochain call", mcHistory: "Tous les calls", mcBoard: "Tableau détaillé", mcHours: "Heures", mcHands: "Mains",
   mcOpen: "Ouvrir", newsGoal: "a atteint son objectif :", mcHomeT: "Mentoring",
   phBtn: "Ajouter des heures", phT: "Ajouter des heures non loguées", phSub: "Un jour où tu as joué ou étudié sans le chrono.", phDay: "Jour", phH: "Heures", phM: "Minutes",
-  phSave: "Ajouter", phNone: "Indique une durée.", phDone: "Ajouté", phGrind: "Grind", phStudy: "Étude" });
+  phSave: "Ajouter", phNone: "Indique une durée.", phDone: "Ajouté", phGrind: "Grind", phStudy: "Étude",
+  mcGrindH: "Grind", mcStudyH: "Études", mcTargets: "Cibles", mcSugg: "suggéré", mcIdeas: "Idées", mcLocked: "Fixés avec ton mentor", mcLockQ: "Verrouiller (décidé avec le joueur)",
+  mcYearHint: "Tes objectifs de l'année se fixent avec ton mentor en début d'année.", mcLockedErr: "Objectifs de l'année verrouillés : à changer avec ton mentor.", mcGoals: "Objectifs",
+  mcPrev: "Précédent", mcNextP: "Suivant" });
+const MC_IDEAS = {
+  fr: { week: ["Revoir 20 mains taguées", "2 blocs d'étude de 90 min", "Stop-loss respecté à chaque session", "1 spot travaillé au solveur"],
+        month: ["Revue du mois écrite avant le 3", "Tous les quiz du mois faits", "1 spot présenté à mon mentor", "Assister à tous les coachings"],
+        quarter: ["Finir le module du trimestre", "Winrate positif sur le trimestre", "Monter d'une limite si les résultats suivent", "Constituer ma base de 100 mains revues"],
+        year: ["Monter de limite", "Jouer X mains sur l'année", "Atteindre X € de gains", "Maîtriser une structure complète (ex. SRP BTN vs BB)"] },
+  en: { week: ["Review 20 tagged hands", "2 study blocks of 90 min", "Stop-loss kept every session", "1 spot worked in the solver"],
+        month: ["Monthly review written by the 3rd", "All quizzes of the month done", "1 spot presented to my mentor", "Attend every coaching"],
+        quarter: ["Finish the quarter's module", "Positive winrate over the quarter", "Move up a limit if results follow", "Build a base of 100 reviewed hands"],
+        year: ["Move up a limit", "Play X hands this year", "Reach X € in winnings", "Master one full structure (e.g. SRP BTN vs BB)"] } };
 
 const MC_H = [["year", "mcYear"], ["quarter", "mcQuarter"], ["month", "mcMonth"], ["week", "mcWeek"]];
 const MC_CHEERS = ["🎉", "🔥", "👏", "💪"];
 const gTxt = (x) => String(x).replace(/^✓ /, ""), gDone = (x) => String(x).startsWith("✓ ");
-const mcLabels = () => { const d = today(); return { year: d.slice(0, 4), quarter: qOf(d), month: monthStart(), week: mondayOf(d) }; };
-const mcLab = (k, L) => (k === "year" ? L.year : k === "quarter" ? fmtQ(L.quarter) : k === "month" ? fmtMonth(L.month) : fmtWeek(L.week));
+// Each horizon can be moved back (and one step ahead) with ‹ › to see what was done (Alexis 2026-11-19). Kept while the app is open.
+const MC_OFF = { quarter: 0, month: 0, week: 0 };
+const mcShift = (k, n) => { const d = today(), y = +d.slice(0, 4), m = +d.slice(5, 7) - 1;
+  if (k === "week") return mondayOf(addDays(7 * n, new Date(mondayOf(d) + "T12:00:00")));
+  if (k === "month") return iso(new Date(Date.UTC(y, m + n, 1)));
+  if (k === "quarter") return qOf(iso(new Date(Date.UTC(y, m + 3 * n, 15))));
+  return d.slice(0, 4); };
+const mcLabels = (off = {}) => ({ year: today().slice(0, 4), quarter: mcShift("quarter", off.quarter || 0), month: mcShift("month", off.month || 0), week: mcShift("week", off.week || 0) });
+// first and last day of a horizon
+const mcRange = (k, L) => { if (k === "week") return [L.week, addDays(6, new Date(L.week + "T12:00:00"))];
+  if (k === "month") { const [y, m] = L.month.split("-").map(Number); return [L.month, iso(new Date(Date.UTC(y, m, 0)))]; }
+  if (k === "quarter") { const ms = qMonths(L.quarter), [y, m] = ms[2].split("-").map(Number); return [ms[0] + "-01", iso(new Date(Date.UTC(y, m, 0)))]; }
+  return [L.year + "-01-01", L.year + "-12-31"]; };
+// suggested targets, from the team's weekly hours (70 % grind, 30 % study) and monthly hands
+const mcSuggest = (p, k) => { const W = weekTarget(p), MH = teamOf(p).month_hands || 50000, f = { week: 1, month: 4.3, quarter: 13 }[k];
+  if (!f) return null; const hf = { week: 1 / 4.3, month: 1, quarter: 3 }[k];
+  return { play_h_target: Math.round(W * 0.7 * f), study_h_target: Math.round(W * 0.3 * f), hands_target: Math.round((MH * hf) / 1000) * 1000 }; };
+const mcLab = (k, L) => (k === "year" ? L.year : k === "quarter" ? fmtQ(L.quarter) : k === "month" ? fmtMonth(L.month) : `${t("weekN")} ${isoWeekN(L.week)}`);
 
-async function mcLoad(p, { light = false } = {}) {
-  const L = mcLabels();
+async function mcLoad(p, { light = false, off = {} } = {}) {
+  const L = mcLabels(off);
   const [mg, wq, calls, reps, jr, evs] = await Promise.all([db.goals(p.id).catch(() => []), db.weekGoals(p.id).catch(() => []),
-    light ? [] : db.mentorings(p.id).catch(() => []), light ? [] : db.reports(p.id).catch(() => []), db.journal(p.id, L.month < L.week ? L.month : L.week).catch(() => []),
+    light ? [] : db.mentorings(p.id).catch(() => []), light ? [] : db.reports(p.id).catch(() => []), db.journal(p.id, light ? (L.month < L.week ? L.month : L.week) : daysAgo(400)).catch(() => []),
     db.events(new Date().toISOString(), addDays(45) + "T23:59").catch(() => [])]);
   const all = [...mg, ...wq], G = {};
   MC_H.forEach(([k]) => (G[k] = all.find((g) => g.period === k && g.label === L[k]) || null));
   G.prev = mg.find((g) => g.label === prevMonthStart()) || null;
-  return { L, G, calls: calls.filter((c) => c.status === "validated"), reps, jr, next: evs.find((e) => e.kind === "mentoring") };
+  return { L, G, all, calls: calls.filter((c) => c.status === "validated"), reps, jr, next: evs.find((e) => e.kind === "mentoring") };
 }
 
 /* one goal line: tick (the player), its cheers (anyone else can add one) */
@@ -42,26 +73,31 @@ function mcItem(p, k, g, x, i) {
   const chips = gDone(x) ? `<span class="mc-cheers">${MC_CHEERS.map((e) => { const l = ch[e] || [], on = l.includes(ME.id);
       if (!l.length && own) return "";
       return `<button type="button" class="mc-ch ${on ? "on" : ""} ${l.length ? "" : "zero"}" data-mcch="${k}|${i}|${e}" ${own ? "disabled" : ""} title="${esc(l.map((u) => nm(person(u) || { name: "?" })).join(", "))}">${e}${l.length ? `<i>${l.length}</i>` : ""}</button>`; }).join("")}</span>` : "";
-  return `<div class="mc-it ${gDone(x) ? "done" : ""}"><label><input type="checkbox" data-mctick="${k}|${i}" ${gDone(x) ? "checked" : ""} ${own ? "" : "disabled"}><span>${esc(txt)}</span></label>${chips}</div>`;
+  return `<div class="mc-it ${gDone(x) ? "done" : ""}"><label><input type="checkbox" data-mctick="${k}|${i}" ${gDone(x) ? "checked" : ""} ${own || coachesPlayer(p) ? "" : "disabled"}><span>${esc(txt)}</span></label>${chips}</div>`;
 }
 
+const mcCanEdit = (p) => p.id === ME.id || coachesPlayer(p);
+const mcLocked = (k, g, p) => k === "year" && g?.status === "confirmed" && !coachesPlayer(p);
 function mcCard(p, k, D) {
   const g = D.G[k], items = g?.items || [], done = items.filter(gDone).length, key = MC_H.find((h) => h[0] === k)[1];
-  const mentor = person(p.mentor_id);
+  const mentor = person(p.mentor_id), off = MC_OFF[k] || 0, past = off < 0;
   let extra = "";
-  if (k === "month" || k === "week") { // hours and hands so far, against the targets when there are some
-    const from = k === "month" ? D.L.month : D.L.week, js = D.jr.filter((e) => e.day >= from);
-    const sum = (f) => js.reduce((a, e) => a + Number(e[f] || 0), 0), hours = sum("play_h") + sum("study_h"), hands = sum("hands");
-    const hT = k === "month" ? (Number(g?.play_h_target || 0) + Number(g?.study_h_target || 0)) || (g?.week_h_target ? Math.round(g.week_h_target * 4.3) : 0)
-      : (Number(g?.play_h_target || 0) + Number(g?.study_h_target || 0)) || Number(D.G.month?.week_h_target || 0);
-    const hdT = Number(g?.hands_target || 0);
-    const line = (ic, l, v, shown, tg, tShown) => `<span class="hg-l"><span>${ic} ${l}</span><b>${shown}${tg ? ` <small>/ ${tShown}</small>` : ""}</b></span>${tg ? `<span class="hg-bar"><i style="width:${Math.min(100, (v / tg) * 100)}%"></i></span>` : ""}`;
-    extra = `<div class="mc-nums">${line("⏱", t("mcHours"), hours, fmtH(hours), hT, hT + " h")}${hands || hdT ? line("🃏", t("mcHands"), hands, fmtNum(hands), hdT, fmtNum(hdT)) : ""}</div>`;
+  if (k !== "year") { // grind, study and hands in that period, against the targets when there are some
+    const [a, b] = mcRange(k, D.L), js = D.jr.filter((e) => e.day >= a && e.day <= b);
+    const sum = (f) => js.reduce((x, e) => x + Number(e[f] || 0), 0), play = sum("play_h"), study = sum("study_h"), hands = sum("hands");
+    const pT = Number(g?.play_h_target || 0), sT = Number(g?.study_h_target || 0), hdT = Number(g?.hands_target || 0);
+    // one compact line each: label, bar, value / target
+    const line = (ic, l, v, shown, tg, tShown) => `<span class="mc-n"><span>${ic} ${l}</span><span class="hg-bar">${tg ? `<i style="width:${Math.min(100, (v / tg) * 100)}%"></i>` : ""}</span><b>${shown}${tg ? ` <small>/ ${tShown}</small>` : ""}</b></span>`;
+    extra = `<div class="mc-nums">${line("♠", t("mcGrindH"), play, fmtH(play), pT, pT + " h")}${line("📚", t("mcStudyH"), study, fmtH(study), sT, sT + " h")}${line("🃏", t("mcHands"), hands, fmtNum(hands), hdT, fmtNum(hdT))}</div>`;
   }
-  return `<section class="card mc-h"><div class="mc-hd"><span><span class="eyebrow">${t(key)}</span><b>${esc(mcLab(k, D.L))}</b></span>
-      ${p.id === ME.id ? `<button type="button" class="mc-ed" data-mced="${k}" title="${t("pgEdit")}">✎</button>` : ""}</div>
+  const lock = k === "year" && g?.status === "confirmed";
+  const arrow = (n, ch, dis) => k === "year" ? `<span class="mc-arr0"></span>` : `<button type="button" class="mc-arr" data-mcnav="${k}|${n}" title="${t(n < 0 ? "mcPrev" : "mcNextP")}" ${dis ? "disabled" : ""}>${ch}</button>`;
+  const canEd = mcCanEdit(p) && !past && !mcLocked(k, g, p);
+  return `<section class="card mc-h ${past ? "past" : ""}"><div class="mc-hd">${arrow(-1, "‹", false)}<span class="mc-ht"><span class="eyebrow">${t(key)}</span><b>${esc(mcLab(k, D.L))}</b></span>${arrow(1, "›", off >= 1)}
+      ${lock ? `<span class="mc-lock" title="${t("mcLocked")}">🔒</span>` : canEd ? `<button type="button" class="mc-ed" data-mced="${k}" title="${t("pgEdit")}">✎</button>` : ""}</div>
     ${extra}
-    <div class="mc-items">${items.map((x, i) => mcItem(p, k, g, x, i)).join("") || (p.id === ME.id ? `<button type="button" class="mc-add" data-mced="${k}">+ ${t("mcAdd")}</button>` : `<p class="muted small">${t("noGoals")}</p>`)}</div>
+    <div class="mc-items">${items.map((x, i) => mcItem(p, k, g, x, i)).join("") || (canEd ? `<button type="button" class="mc-add" data-mced="${k}">+ ${t("mcAdd")}</button>` : `<p class="muted small">${t("noGoals")}</p>`)}
+      ${k === "year" && !lock && p.id === ME.id ? `<p class="muted small mc-hint">${t("mcYearHint")}</p>` : ""}${lock ? `<p class="muted small mc-hint">🔒 ${t("mcLocked")}</p>` : ""}</div>
     ${items.length ? `<div class="mc-prog"><span class="hg-bar"><i style="width:${(done / items.length) * 100}%"></i></span><small>${done}/${items.length}</small></div>` : ""}
     ${g?.mentor_note ? `<p class="mc-note">💬 <b>${mentor ? esc(nm(mentor)) : t("mentor")}</b> ${esc(g.mentor_note)}</p>` : ""}</section>`;
 }
@@ -92,7 +128,9 @@ function mcHtml(p, D) {
 
 function mcBind(p, D) {
   const key = (s) => { const [k, i] = s.split("|"); const g = k === "prev" ? D.G.prev : D.G[k]; return { k, g, i: +i, period: k === "prev" ? "month" : k, label: k === "prev" ? prevMonthStart() : D.L[k] }; };
-  const save = (o, v) => db.saveGoal({ player_id: p.id, period: o.period, label: o.label, status: o.g?.status || "proposed", ...v });
+  const save = (o, v) => db.saveGoal({ player_id: p.id, period: o.period, label: o.label, status: o.g?.status || "proposed", ...v })
+    .catch((err) => hqToast(/year_goals_locked/.test(err.message) ? t("mcLockedErr") : err.message, 6000));
+  $$("[data-mcnav]").forEach((b) => b.onclick = () => { const [k, n] = b.dataset.mcnav.split("|"); MC_OFF[k] = Math.min(1, (MC_OFF[k] || 0) + +n); route(); });
   $$("[data-mctick]").forEach((cb) => cb.onchange = async () => { const o = key(cb.dataset.mctick), items = [...(o.g?.items || [])];
     items[o.i] = (cb.checked ? "✓ " : "") + gTxt(items[o.i]); cb.disabled = true; await save(o, { items }); route(); });
   $$("[data-mcch]").forEach((b) => b.onclick = async () => { const [k, i, e] = b.dataset.mcch.split("|"), o = key(k + "|" + i), txt = gTxt(o.g.items[o.i]);
@@ -110,32 +148,44 @@ function mcBind(p, D) {
 /* edit one horizon's goals: one per line, ticks kept for unchanged lines */
 function mcEdit(p, k, D) {
   $("#mcd")?.remove();
-  const g = D.G[k], old = g?.items || [];
+  const g = D.G[k], old = g?.items || [], sg = mcSuggest(p, k), mentorSide = coachesPlayer(p) && p.id !== ME.id;
+  const num = (n, ic, l, step) => { const has = g?.[n] != null && g[n] !== "", v = has ? g[n] : sg[n];
+    return `<label class="mc-tg">${ic} ${l}<input type="number" name="${n}" min="0" step="${step}" value="${v}">${has ? "" : `<small>${t("mcSugg")}</small>`}</label>`; };
+  const ideas = (MC_IDEAS[LANG] || MC_IDEAS.fr)[k] || [];
   document.body.insertAdjacentHTML("beforeend", `<dialog id="mcd" class="card mc-dlg"><form id="mcf"><div class="card-head"><h3>🎯 ${t(MC_H.find((h) => h[0] === k)[1])} · ${esc(mcLab(k, D.L))}</h3><button class="x" type="button" data-mcx>×</button></div>
-    <textarea name="items" rows="6" placeholder="${t("mcGoalsPh")}">${esc(old.map(gTxt).join("\n"))}</textarea>
+    ${sg ? `<p class="sub">${t("mcTargets")}</p><div class="mc-tgs">${num("play_h_target", "♠", t("mcGrindH") + " (h)", 1)}${num("study_h_target", "📚", t("mcStudyH") + " (h)", 1)}${num("hands_target", "🃏", t("mcHands"), 1000)}</div>` : ""}
+    <p class="sub">${t("mcGoals")}</p>
+    <textarea name="items" rows="5" placeholder="${t("mcGoalsPh")}">${esc(old.map(gTxt).join("\n"))}</textarea>
+    <div class="mc-ideas"><small class="muted">💡 ${t("mcIdeas")}</small>${ideas.map((x) => `<button type="button" class="chip" data-mcidea="${esc(x)}">+ ${esc(x)}</button>`).join("")}</div>
+    ${k === "year" && mentorSide ? `<label class="check sm"><input type="checkbox" name="lock" ${g?.status === "confirmed" ? "checked" : ""}><span>🔒 ${t("mcLockQ")}</span></label>` : ""}
     <p class="row-btns"><button class="btn btn-red">${t("save")}</button></p></form></dialog>`);
+  $$("[data-mcidea]").forEach((b) => b.onclick = () => { const ta = $("#mcf textarea"); ta.value = (ta.value.trim() ? ta.value.trim() + "\n" : "") + b.dataset.mcidea; b.disabled = true; ta.focus(); });
   const d = $("#mcd"); d.showModal(); d.querySelector("textarea").focus();
   $("[data-mcx]", d).onclick = () => d.close();
   d.onclose = () => d.remove();
   $("#mcf").onsubmit = async (ev) => {
     ev.preventDefault();
-    const items = ev.target.items.value.split("\n").map((x) => x.trim()).filter(Boolean).map((x) => (old.includes("✓ " + x) ? "✓ " + x : x));
-    await db.saveGoal({ player_id: p.id, period: k, label: D.L[k], status: g?.status || "proposed", items }); d.close(); route();
+    const f = ev.target, items = f.items.value.split("\n").map((x) => x.trim()).filter(Boolean).map((x) => (old.includes("✓ " + x) ? "✓ " + x : x));
+    const nums = sg ? Object.fromEntries(["play_h_target", "study_h_target", "hands_target"].map((n) => [n, f[n].value === "" ? null : Math.max(0, Math.round(+f[n].value))])) : {};
+    // the player's change goes back to the mentor (proposed); the mentor's lock on the year makes it final
+    const status = f.lock ? (f.lock.checked ? "confirmed" : "proposed") : mentorSide ? g?.status || "proposed" : "proposed";
+    try { await db.saveGoal({ player_id: p.id, period: k, label: D.L[k], status, items, ...nums }); d.close(); route(); }
+    catch (err) { hqToast(/year_goals_locked/.test(err.message) ? t("mcLockedErr") : err.message, 6000); }
   };
 }
 
-async function viewCockpit() {
-  const my = RENDER, D = await mcLoad(ME);
+async function viewCockpit(p = ME) {
+  const my = RENDER, D = await mcLoad(p, { off: MC_OFF });
   if (my !== RENDER) return;
-  $("#main").innerHTML = mcHtml(ME, D);
+  $("#main").innerHTML = mcHtml(p, D);
   fitToDock(".mc");
-  mcBind(ME, D);
+  mcBind(p, D);
 }
 
 /* Home: the same four horizons in one small card (Alexis 2026-11-19) */
 async function mcHomeHtml() {
   if (!has(ME, "player")) return "";
-  const D = await mcLoad(ME, { light: true }).catch(() => null); if (!D) return "";
+  const D = await mcLoad(ME, { light: true }).catch(() => null); if (!D) return ""; // home: always the current periods
   const rows = MC_H.map(([k, key]) => { const it = D.G[k]?.items || [], dn = it.filter(gDone).length;
     return `<span class="mh-r"><span>${t(key)}</span><span class="hg-bar"><i style="width:${it.length ? (dn / it.length) * 100 : 0}%"></i></span><b>${it.length ? `${dn}/${it.length}` : "—"}</b></span>`; }).join("");
   const cheers = MC_H.reduce((a, [k]) => a + Object.values(D.G[k]?.cheers || {}).reduce((b, m) => b + Object.values(m).reduce((c, l) => c + l.filter((u) => u !== ME.id).length, 0), 0), 0);

@@ -206,8 +206,7 @@ async function viewHome() {
         <b>${dayL(x.started_at.slice(0, 10))}</b><span>${hhmm(x.started_at)} · ${dur(Number(x.minutes || 0))}${kind === "study" && TOPICS[x.topic] ? " · " + TOPICS[x.topic].icon + " " + t("topic_" + x.topic) : ""}</span><i>✎</i></a>`).join("") || `<p class="muted small">${t("hsNone")}</p>`}</div>`; };
   const startBox = `<span class="eyebrow">${t("hsReady")}</span><h2 class="hs-title">${t("hsTitle")}</h2>
       <div class="hs-btns"><div class="hs-col" data-sescard="grind">${sesCardHtml("grind")}</div>
-        <div class="hs-col" data-sescard="study">${sesCardHtml("study")}</div></div>
-      ${player ? nbBackHtml(nbRecent(recent, 3), "home") : ""}`;
+        <div class="hs-col"><div class="hs-col" data-sescard="study">${sesCardHtml("study")}</div>${player ? nbBackHtml(nbRecent(recent, 3), "home") : ""}</div></div>`;
   $("#main").innerHTML = `
     <div class="home1">
       <section class="hbanner card">
@@ -909,7 +908,8 @@ function popRequest() {
 async function openPop(pending) {
   if (POP.win && !POP.win.closed) { POP.win.focus(); return; }
   const w = await (pending || popRequest());
-  if (!w) { const b = $("#popb"); if (b && !pending) { b.textContent = t("popOutFail"); b.disabled = true; } return; }
+  // blocked by the browser: say it (Alexis 2026-11-19 wants the pop-up at every session start; before, a block was silent)
+  if (!w) { const b = $("#popb"); if (b && !pending) { b.textContent = t("popOutFail"); b.disabled = true; } if (pending) hqToast(`⧉ ${t("popOutFail")}`, 9000); return; }
   if (!SES.s) { w.close(); return; }
   POP.win = w;
   const d = w.document, s0 = SES.s, url = (f) => new URL(f, location.href).href;
@@ -1757,6 +1757,7 @@ async function viewAccount() {
 async function viewMentoring() {
   const q = Object.fromEntries(new URLSearchParams(location.hash.split("?")[1] || ""));
   if (!(has(ME, "mentor") || isAdmin()) || q.me) return viewMyBoard(q);
+  if (q.cp) { const pp = person(q.cp); if (pp && coachesPlayer(pp)) return viewCockpit(pp); } // a mentor opens one player's cockpit
   const href = (o) => "#/mentoring?" + new URLSearchParams(Object.entries({ ...q, ...o }).filter(([, v]) => v));
   const mine = VISIBLE.filter((p) => p.id !== ME.id && has(p, "player") && p.active !== false && p.mentor_id === ME.id);
   const players = (mine.length || !isAdmin() ? mine : VISIBLE.filter((p) => p.id !== ME.id && has(p, "player") && p.active !== false && coachesPlayer(p))).sort((a, b) => nm(a).localeCompare(nm(b)));
@@ -1788,10 +1789,10 @@ async function viewMentoring() {
         ta.oninput = () => { clearTimeout(tm); $("#mtok").textContent = ""; tm = setTimeout(save, 900); }; // saves while the mentor types, no button
         ta.onblur = () => { if (tm) { clearTimeout(tm); tm = null; save(); } };
       } };
-    detail = `<div class="mt-d"><div class="mt-head"><h2>${nm(sel)} <small class="muted">${esc(teamOf(sel).label || "")}${sel.stakes ? " · " + esc(sel.stakes) : ""}</small></h2><a class="small-link" href="#/p/${sel.id}/overview">${t("mtOpen")}</a></div>
+    detail = `<div class="mt-d"><div class="mt-head"><h2>${nm(sel)} <small class="muted">${esc(teamOf(sel).label || "")}${sel.stakes ? " · " + esc(sel.stakes) : ""}</small></h2><span class="row-btns"><a class="small-link" href="#/mentoring?cp=${sel.id}">🎯 ${t("mcGoals")}</a><a class="small-link" href="#/p/${sel.id}/overview">${t("mtOpen")}</a></span></div>
       ${mtStats(sel, all, month, gl)}${q.s ? boardSection(ctx) : boardTiles(ctx)}</div>`;
   }
-  const meLink = ME.mentor_id ? `<a class="mt-p mt-me" href="#/mentoring?me=1"><span>📒</span><span class="mt-n"><b>${t("mtMine")}</b><small>${t("mtMineSub")}</small></span></a>` : "";
+  const meLink = has(ME, "player") ? `<a class="mt-p mt-me" href="#/mentoring?me=1"><span>📒</span><span class="mt-n"><b>${t("mtMine")}</b><small>${t("mtMineSub")}</small></span></a>` : "";
   $("#main").innerHTML = `<div class="mt-grid"><nav class="card mt-list"><div class="card-head"><h3>🤝 ${t("mtMy")}</h3><small class="muted">${players.length}</small></div>${rows || ""}${meLink}</nav>${detail}</div>`;
   fitToDock(".mt-grid");
   if (ctx && q.s) boardBind();
@@ -2003,7 +2004,7 @@ function shell() {
   // 2026-11-03 (Alexis: "trop complexe, on se recentre"): 3 tabs. Grind = the hours tracker, Study = build your own studies, Coachings = RTS replays.
   // Calendar, Replayer and Feedback sit in the side dock; the HQ map, Resources and saved hands are hidden (code kept, old links still open).
   const links = [["", "home", "#/"]].concat(has(ME, "player") ? [["log", "tabGrind", "#/log"]] : []).concat([["study", "tabStudy", "#/study"]]).concat(has(ME, "player") ? [["hands", "tabHands", "#/hands"]] : []).concat([["coaching", "tabCoach", "#/coaching"]])
-    .concat(has(ME, "mentor") || isAdmin() || ME.mentor_id ? [["mentoring", "tabMentor", "#/mentoring"]] : [])
+    .concat(has(ME, "mentor") || isAdmin() || has(ME, "player") ? [["mentoring", "tabMentor", "#/mentoring"]] : []) // every player has his Mentoring tab (Alexis 2026-11-19)
     .concat(isStaff() ? [["team", "team", "#/team"]] : []).concat(isOps() ? [["dir", isAdmin() ? "direction" : "admin", isAdmin() ? "#/ceo" : "#/admin"]] : []);
   $("#app").innerHTML = `
     <header class="top"><div class="wrap">

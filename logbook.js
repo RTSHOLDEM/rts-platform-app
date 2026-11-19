@@ -115,11 +115,23 @@ const MOODS = ["😫", "😕", "😐", "🙂", "🔥"];
 /* ---------- saved hands: one line per hand, titled by its note (or its time), small picture on demand ---------- */
 let HAND_NOTES = new Map(); // hand id -> its note (study page), filled by the Hands page
 const handTitle = (h) => (h.note || "").split("\n")[0].trim().slice(0, 80) || `${fmtDay(h.created_at.slice(0, 10))} · ${hhmm(h.created_at)}`;
+/* the hand itself from its history (Alexis 2026-11-19: show the board on the line, not the screenshot): hero cards + board */
+const hhCard = (c) => { const m = /^(10|[2-9TJQKA])([shdc])$/i.exec(c); return m ? (m[1] === "10" ? "T" : m[1].toUpperCase()) + m[2].toLowerCase() : null; };
+function hhCards(hh) {
+  if (!hh) return null; const L = hh.split("\n");
+  const dealt = L.find((l) => /^Dealt to .*\[/.test(l)), hero = dealt ? (dealt.match(/\[([^\]]+)\]\s*$/) || [])[1] : "";
+  const st = L.filter((l) => /^\*\*\*\s*(flop|turn|river)\b/i.test(l)).pop() || "";
+  const board = [...st.matchAll(/\[([^\]]+)\]/g)].flatMap((m) => m[1].trim().split(/\s+/));
+  const h = (hero || "").trim().split(/\s+/).map(hhCard).filter(Boolean), b = board.map(hhCard).filter(Boolean);
+  return h.length || b.length ? { h, b } : null;
+}
+const hhCardsHtml = (x) => `<span class="hd-cards">${x.h.map((c) => pcard(c, "xs")).join("")}${x.b.length ? `<i class="hd-sep"></i>${x.b.map((c) => pcard(c, "xs")).join("")}` : ""}</span>`;
 function handRow(h, hands = []) {
   if (!Array.isArray(hands)) hands = []; // .map(handRow) passes the index here: crashed the Grind log 2026-11-18
-  const pic = h.image_path || h.image_data;
+  const cards = isHH(h.hh) ? hhCards(h.hh) : null;
+  const pic = !cards && (h.image_path || h.image_data); // a replayable hand shows its cards, never the screenshot
   return `<details class="hd ${h.reviewed ? "done" : ""}" data-hd="${h.id}"><summary>
-      <span class="hd-ic">${pic ? "🖼" : h.link ? "🔗" : "📋"}</span><b class="hd-t">${esc(handTitle(h))}</b>
+      ${cards ? hhCardsHtml(cards) : `<span class="hd-ic">${pic ? "🖼" : h.link ? "🔗" : "📋"}</span>`}<b class="hd-t">${esc(handTitle(h))}</b>
       ${(h.tags || []).map((k) => `<span class="tag">${esc(tagLabel(k))}</span>`).join("")}${h.discussion ? `<span class="tag">💬 ${t("hnCoach")}</span>` : ""}${HAND_NOTES.get(h.id) ? `<span class="tag">📝</span>` : ""}<small class="muted">${h.note ? hhmm(h.created_at) : ""}</small>${h.reviewed ? `<span class="tag ok">✓</span>` : `<span class="tag red">${t("toReviewT")}</span>`}</summary>
     <div class="hd-body">
       ${pic ? `<img class="hd-thumb" data-img="${esc(h.image_path || "")}" ${h.image_data ? `src="${h.image_data}"` : ""} alt="" title="${t("openFull")}">` : ""}
@@ -414,9 +426,9 @@ async function viewLog() {
   $("#main").innerHTML = `<div class="logbook cockpit ${treeOn ? "tree-on" : ""}">
       <nav class="card lg-tree ck-tree" ${treeOn ? "" : "hidden"}>${tree}
         <details class="lg-away">${awayCard().replace('<form class="card" id="aform">', '<summary class="small-link">🏖 ' + t("away") + '</summary><form class="card" id="aform">')}</details></nav>
-      <section class="lg-mid ck-mid">${wkPanel}${startRow}<div class="lg-head ck-head"><span></span>
+      <section class="lg-mid ck-mid">${wkPanel}${startRow}<div class="lg-head ck-head"><span class="ck-hl ck-hl-l"><button type="button" class="btn ck-addh" data-addh="grind" title="${t("phT")}">⏱ ${t("phBtn")}</button></span>
         <span class="ck-nav"><a class="btn btn-sm" href="#/log?${shift(-1)}">←</a><h2>${title}</h2>${nextOk ? `<a class="btn btn-sm" href="#/log?${shift(1)}">→</a>` : `<span class="btn btn-sm ck-off">→</span>`}</span>
-        <span class="ck-hl"><button type="button" class="btn ck-addh" data-addh="grind" title="${t("phT")}">⏱ ${t("phBtn")}</button><button type="button" class="btn ck-yr ${treeOn ? "on" : ""}" id="cktree" aria-pressed="${treeOn}">🗓 ${t("ckYear")}</button><a class="btn ck-today ${sel.k === "d" && sel.v === T ? "on" : ""}" href="#/log">📍 ${t("ckToday")}</a></span></div>${mid}</section></div>`;
+        <span class="ck-hl"><button type="button" class="btn ck-yr ${treeOn ? "on" : ""}" id="cktree" aria-pressed="${treeOn}">🗓 ${t("ckYear")}</button><a class="btn ck-today ${sel.k === "d" && sel.v === T ? "on" : ""}" href="#/log">📍 ${t("ckToday")}</a></span></div>${mid}</section></div>`;
   fitToDock(".logbook");
 
   // bindings

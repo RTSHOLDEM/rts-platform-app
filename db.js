@@ -135,6 +135,8 @@ function liveDb() {
     async hands() { const me = await db.me(); return rows(sb.from("hands").select("*").eq("player_id", me.id).order("created_at", { ascending: false })); },
     async addHand(h, file) {
       const me = await db.me();
+      // a hand history is kept once (unique index hands_one_hh, 2026-11-19): the same HH again returns the saved hand
+      if (h.hh) { const same = await rows(sb.from("hands").select("*").eq("player_id", me.id).eq("hh", h.hh).limit(1)); if (same.length) return same; }
       if (file) {
         const path = `${me.id}/${Date.now()}-${file.name.replace(/[^\w.-]/g, "_")}`;
         const { error } = await sb.storage.from("hands").upload(path, file, { contentType: file.type });
@@ -322,6 +324,7 @@ function demoDb() {
     async hhFromImage() { await new Promise((r) => setTimeout(r, 1200)); return { hh: RP_DEMO_HH, left: 29 }; },
     async hands() { return (S.hands ||= []).filter((h) => h.player_id === meId()).sort((a, b) => (a.created_at < b.created_at ? 1 : -1)); },
     async addHand(h, file) {
+      if (h.hh) { const same = (S.hands ||= []).filter((x) => x.player_id === meId() && x.hh === h.hh); if (same.length) return same; }
       if (file) h.image_data = await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(file); });
       const row = { reviewed: false, ...h, id: "h" + Date.now() + Math.random().toString(36).slice(2, 5), player_id: meId(), created_at: new Date().toISOString() };
       (S.hands ||= []).push(row); save(); return [row];
